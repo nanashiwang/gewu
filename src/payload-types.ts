@@ -237,7 +237,11 @@ export interface SkillVersion {
   skill: string | Skill;
   version: string;
   /**
-   * 支持 {{变量名}} 占位符
+   * Spec v1 的 prompt.system；可空
+   */
+  systemPrompt?: string | null;
+  /**
+   * Spec v1 的 prompt.user_template；支持 {{变量名}} 占位符
    */
   promptTemplate: string;
   /**
@@ -286,6 +290,26 @@ export interface SkillVersion {
     | boolean
     | null;
   changelog?: string | null;
+  license?: string | null;
+  minRunnerVersion?: string | null;
+  permissions?: {
+    network?: boolean | null;
+    fileRead?: boolean | null;
+    fileWrite?: boolean | null;
+    shell?: boolean | null;
+  };
+  /**
+   * 形如 [{"input":{...},"output":{...}}]
+   */
+  examples?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   status?: ('draft' | 'active' | 'deprecated') | null;
   createdBy?: (string | null) | User;
   updatedAt: string;
@@ -623,12 +647,24 @@ export interface SkillsSelect<T extends boolean = true> {
 export interface SkillVersionsSelect<T extends boolean = true> {
   skill?: T;
   version?: T;
+  systemPrompt?: T;
   promptTemplate?: T;
   inputSchema?: T;
   outputSchema?: T;
   recommendedModels?: T;
   routePolicy?: T;
   changelog?: T;
+  license?: T;
+  minRunnerVersion?: T;
+  permissions?:
+    | T
+    | {
+        network?: T;
+        fileRead?: T;
+        fileWrite?: T;
+        shell?: T;
+      };
+  examples?: T;
   status?: T;
   createdBy?: T;
   updatedAt?: T;

@@ -99,8 +99,10 @@ async function main() {
 
   const manifest = await loadManifest(ref, args.hub)
   const endpoint = (args.endpoint || 'http://localhost:11434/v1').replace(/\/$/, '')
+  // 兼容 Spec v1（models.local_recommended）与旧字段（recommended_models.local）
   const model =
     args.model ||
+    manifest.models?.local_recommended?.[0] ||
     manifest.recommended_models?.local?.[0] ||
     manifest.recommended_models?.cloud?.[0]
   if (!model) {
@@ -114,7 +116,15 @@ async function main() {
   }
 
   const vars = await collectInputs(manifest.input_schema, args.in)
-  const prompt = render(manifest.prompt_template, vars)
+  // Spec v1：prompt.{system,user_template}；兼容旧 prompt_template
+  const userTemplate = manifest.prompt?.user_template ?? manifest.prompt_template ?? ''
+  const systemTemplate = manifest.prompt?.system ?? ''
+  const userContent = render(userTemplate, vars)
+  const systemContent = render(systemTemplate, vars)
+  const messages = [
+    ...(systemContent ? [{ role: 'system', content: systemContent }] : []),
+    { role: 'user', content: userContent },
+  ]
 
   const start = Date.now()
   const res = await fetch(`${endpoint}/chat/completions`, {
@@ -123,7 +133,7 @@ async function main() {
       'Content-Type': 'application/json',
       ...(args.key ? { Authorization: `Bearer ${args.key}` } : {}),
     },
-    body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }] }),
+    body: JSON.stringify({ model, messages }),
   })
   const latency = Date.now() - start
 

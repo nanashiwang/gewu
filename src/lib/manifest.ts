@@ -1,31 +1,69 @@
 import YAML from 'yaml'
+import { createHash } from 'crypto'
 
-// 构造可移植的 Skill manifest（产品文档 §10.2），用户下载后可用本地 Runner / 自有模型运行。
-export function buildManifest(
-  skill: any,
-  version: any,
-  opts: { siteUrl?: string; exportedAt?: string } = {},
-) {
+// 递归排序 key → 可复现的规范化 JSON（用于稳定 checksum；JCS 简化版）
+function sortKeys(v: any): any {
+  if (Array.isArray(v)) return v.map(sortKeys)
+  if (v && typeof v === 'object') {
+    return Object.keys(v)
+      .sort()
+      .reduce((acc: any, k) => {
+        acc[k] = sortKeys(v[k])
+        return acc
+      }, {})
+  }
+  return v
+}
+
+function computeChecksum(coreWithoutIntegrity: any): string {
+  const canonical = JSON.stringify(sortKeys(coreWithoutIntegrity))
+  return 'sha256:' + createHash('sha256').update(canonical, 'utf8').digest('hex')
+}
+
+// 构造 Hengshu Skill Spec v1 manifest（可移植、可校验、本地可运行）。
+// 不含时间戳，保证同一版本每次导出字节一致、checksum 稳定。
+export function buildManifest(skill: any, version: any, opts: { siteUrl?: string } = {}) {
   const author = typeof skill.author === 'object' ? skill.author?.username : undefined
   const category = typeof skill.category === 'object' ? skill.category?.slug : undefined
-  return {
-    spec_version: 1,
+  const outputSchema = version?.outputSchema || {}
+  const hasOutFields =
+    outputSchema && typeof outputSchema === 'object' && Object.keys(outputSchema).length > 0
+
+  const core: any = {
+    schema_version: 'hengshu.skill/v1',
     id: skill.slug,
-    slug: skill.slug,
     name: skill.title,
     version: version?.version || '1.0.0',
-    description: skill.description || '',
     author: author || 'official',
+    license: version?.license || 'CC-BY-NC-4.0',
     category: category || 'general',
+    description: skill.description || '',
+    runtime: {
+      type: 'prompt',
+      min_runner_version: version?.minRunnerVersion || '0.2.0',
+      permissions: {
+        network: !!version?.permissions?.network,
+        file_read: !!version?.permissions?.fileRead,
+        file_write: !!version?.permissions?.fileWrite,
+        shell: !!version?.permissions?.shell,
+      },
+    },
     input_schema: version?.inputSchema || {},
-    prompt_template: version?.promptTemplate || '',
-    output_schema: version?.outputSchema || {},
-    recommended_models: version?.recommendedModels || { cloud: [], local: [] },
-    route_policy: version?.routePolicy || {},
+    output_schema: hasOutFields ? { type: 'json', fields: outputSchema } : { type: 'text' },
+    prompt: {
+      system: version?.systemPrompt || '',
+      user_template: version?.promptTemplate || '',
+    },
+    models: {
+      local_recommended: version?.recommendedModels?.local || [],
+      endpoint_type: ['ollama', 'lmstudio', 'openai_compatible'],
+    },
+    examples: Array.isArray(version?.examples) ? version.examples : [],
     source: 'hengshu',
-    skill_url: opts.siteUrl ? `${opts.siteUrl}/skills/${skill.slug}` : undefined,
-    exported_at: opts.exportedAt,
   }
+  if (opts.siteUrl) core.skill_url = `${opts.siteUrl}/skills/${skill.slug}`
+
+  return { ...core, integrity: { checksum: computeChecksum(core) } }
 }
 
 export function manifestToYaml(m: any): string {

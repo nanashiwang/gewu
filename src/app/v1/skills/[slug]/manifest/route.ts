@@ -39,7 +39,6 @@ export async function GET(
 
   const manifest = buildManifest(skill, version, {
     siteUrl: process.env.NEXT_PUBLIC_SERVER_URL,
-    exportedAt: new Date().toISOString(),
   })
 
   // 下载计数（不阻塞响应）

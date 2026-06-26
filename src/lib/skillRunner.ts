@@ -46,8 +46,9 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
   const v = validateInput(version?.inputSchema, input)
   if (!v.valid) return { ok: false, runId, errors: v.errors }
 
-  // 2. 渲染 Prompt
-  const prompt = renderTemplate(version?.promptTemplate || '', input)
+  // 2. 渲染 Prompt（Spec v1：system + user 双段）
+  const userContent = renderTemplate(version?.promptTemplate || '', input)
+  const systemContent = renderTemplate(version?.systemPrompt || '', input)
 
   // 3. 选模型（forceModel 时固定模型、不路由、不 fallback —— 用于多模型对比）
   const fallbackDefault = process.env.MODEL_GATEWAY_DEFAULT_MODEL || 'claude-haiku-4-5-20251001'
@@ -68,7 +69,10 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
   }
 
   // 4. 调用（主选失败则尝试 fallback）
-  const messages = [{ role: 'user' as const, content: prompt }]
+  const messages = [
+    ...(systemContent ? [{ role: 'system' as const, content: systemContent }] : []),
+    { role: 'user' as const, content: userContent },
+  ]
   const candidates = [model, ...fallbacks]
   let result: NewApiResult | null = null
   let usedModel = model

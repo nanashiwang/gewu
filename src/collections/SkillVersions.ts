@@ -19,11 +19,17 @@ export const SkillVersions: CollectionConfig = {
     { name: 'skill', type: 'relationship', relationTo: 'skills', required: true, label: '所属 Skill' },
     { name: 'version', type: 'text', required: true, defaultValue: '1.0.0', label: '版本号' },
     {
+      name: 'systemPrompt',
+      type: 'textarea',
+      label: 'System Prompt（角色/约束）',
+      admin: { description: 'Spec v1 的 prompt.system；可空' },
+    },
+    {
       name: 'promptTemplate',
       type: 'textarea',
       required: true,
-      label: 'Prompt 模板',
-      admin: { description: '支持 {{变量名}} 占位符' },
+      label: 'User 模板（user_template）',
+      admin: { description: 'Spec v1 的 prompt.user_template；支持 {{变量名}} 占位符' },
     },
     {
       name: 'inputSchema',
@@ -45,6 +51,38 @@ export const SkillVersions: CollectionConfig = {
       admin: { description: '形如 {"default":"balanced","strategies":{"cheap":[...],"quality":[...],"fallback":[...]}}' },
     },
     { name: 'changelog', type: 'textarea', label: '更新说明' },
+    // ── Hengshu Skill Spec v1 运行时声明 ──
+    {
+      name: 'license',
+      type: 'text',
+      defaultValue: 'CC-BY-NC-4.0',
+      label: '许可证',
+      admin: { position: 'sidebar' },
+    },
+    {
+      name: 'minRunnerVersion',
+      type: 'text',
+      defaultValue: '0.2.0',
+      label: '最低 Runner 版本',
+      admin: { position: 'sidebar' },
+    },
+    {
+      name: 'permissions',
+      type: 'group',
+      label: '权限声明（Prompt Skill 应全为否）',
+      fields: [
+        { name: 'network', type: 'checkbox', defaultValue: false, label: '网络' },
+        { name: 'fileRead', type: 'checkbox', defaultValue: false, label: '读文件' },
+        { name: 'fileWrite', type: 'checkbox', defaultValue: false, label: '写文件' },
+        { name: 'shell', type: 'checkbox', defaultValue: false, label: 'Shell' },
+      ],
+    },
+    {
+      name: 'examples',
+      type: 'json',
+      label: '示例（输入/输出）',
+      admin: { description: '形如 [{"input":{...},"output":{...}}]' },
+    },
     {
       name: 'status',
       type: 'select',
