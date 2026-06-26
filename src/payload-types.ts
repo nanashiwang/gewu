@@ -79,6 +79,7 @@ export interface Config {
     favorites: Favorite;
     'runner-clients': RunnerClient;
     'device-codes': DeviceCode;
+    'skill-installs': SkillInstall;
     reviews: Review;
     reports: Report;
     media: Media;
@@ -101,6 +102,7 @@ export interface Config {
     favorites: FavoritesSelect<false> | FavoritesSelect<true>;
     'runner-clients': RunnerClientsSelect<false> | RunnerClientsSelect<true>;
     'device-codes': DeviceCodesSelect<false> | DeviceCodesSelect<true>;
+    'skill-installs': SkillInstallsSelect<false> | SkillInstallsSelect<true>;
     reviews: ReviewsSelect<false> | ReviewsSelect<true>;
     reports: ReportsSelect<false> | ReportsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
@@ -514,6 +516,24 @@ export interface DeviceCode {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "skill-installs".
+ */
+export interface SkillInstall {
+  id: string;
+  user: string | User;
+  skill: string | Skill;
+  skillVersion?: (string | null) | SkillVersion;
+  runner?: (string | null) | RunnerClient;
+  installedVersion?: string | null;
+  installedChecksum?: string | null;
+  status?: ('installed' | 'removed') | null;
+  installedAt?: string | null;
+  lastUsedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "reviews".
  */
 export interface Review {
@@ -633,6 +653,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'device-codes';
         value: string | DeviceCode;
+      } | null)
+    | ({
+        relationTo: 'skill-installs';
+        value: string | SkillInstall;
       } | null)
     | ({
         relationTo: 'reviews';
@@ -928,6 +952,23 @@ export interface DeviceCodesSelect<T extends boolean = true> {
   runnerClient?: T;
   meta?: T;
   expiresAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "skill-installs_select".
+ */
+export interface SkillInstallsSelect<T extends boolean = true> {
+  user?: T;
+  skill?: T;
+  skillVersion?: T;
+  runner?: T;
+  installedVersion?: T;
+  installedChecksum?: T;
+  status?: T;
+  installedAt?: T;
+  lastUsedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }
