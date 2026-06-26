@@ -71,6 +71,7 @@ export const Favorites: CollectionConfig = {
             userId: authorId,
             actionType: 'skill_favorited',
             points: 1,
+            actorId: favUserId,
             relatedSkill: skillId,
             description: 'Skill 被收藏',
             req,

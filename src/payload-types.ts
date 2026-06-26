@@ -77,6 +77,7 @@ export interface Config {
     users: User;
     'invite-codes': InviteCode;
     'contribution-logs': ContributionLog;
+    'contribution-rules': ContributionRule;
     favorites: Favorite;
     'runner-clients': RunnerClient;
     'device-codes': DeviceCode;
@@ -101,6 +102,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     'invite-codes': InviteCodesSelect<false> | InviteCodesSelect<true>;
     'contribution-logs': ContributionLogsSelect<false> | ContributionLogsSelect<true>;
+    'contribution-rules': ContributionRulesSelect<false> | ContributionRulesSelect<true>;
     favorites: FavoritesSelect<false> | FavoritesSelect<true>;
     'runner-clients': RunnerClientsSelect<false> | RunnerClientsSelect<true>;
     'device-codes': DeviceCodesSelect<false> | DeviceCodesSelect<true>;
@@ -510,6 +512,39 @@ export interface ContributionLog {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "contribution-rules".
+ */
+export interface ContributionRule {
+  id: string;
+  actionType:
+    | 'skill_published'
+    | 'skill_favorited'
+    | 'skill_run'
+    | 'skill_high_rating'
+    | 'skill_version_update'
+    | 'fix_issue'
+    | 'eval_sample'
+    | 'failure_case'
+    | 'route_optimization'
+    | 'review'
+    | 'security'
+    | 'bounty'
+    | 'invite'
+    | 'consume'
+    | 'other';
+  basePoints: number;
+  /**
+   * 每用户每日该行为发放次数上限，0=不限
+   */
+  dailyLimit?: number | null;
+  selfActionExcluded?: boolean | null;
+  enabled?: boolean | null;
+  description?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "favorites".
  */
 export interface Favorite {
@@ -674,6 +709,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'contribution-logs';
         value: string | ContributionLog;
+      } | null)
+    | ({
+        relationTo: 'contribution-rules';
+        value: string | ContributionRule;
       } | null)
     | ({
         relationTo: 'favorites';
@@ -965,6 +1004,20 @@ export interface ContributionLogsSelect<T extends boolean = true> {
   points?: T;
   relatedSkill?: T;
   relatedBounty?: T;
+  description?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "contribution-rules_select".
+ */
+export interface ContributionRulesSelect<T extends boolean = true> {
+  actionType?: T;
+  basePoints?: T;
+  dailyLimit?: T;
+  selfActionExcluded?: T;
+  enabled?: T;
   description?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -16,6 +16,7 @@ import { Reviews } from './collections/Reviews'
 import { Favorites } from './collections/Favorites'
 import { InviteCodes } from './collections/InviteCodes'
 import { ContributionLogs } from './collections/ContributionLogs'
+import { ContributionRules } from './collections/ContributionRules'
 import { RunnerClients } from './collections/RunnerClients'
 import { DeviceCodes } from './collections/DeviceCodes'
 import { SkillInstalls } from './collections/SkillInstalls'
@@ -48,6 +49,7 @@ export default buildConfig({
     Users,
     InviteCodes,
     ContributionLogs,
+    ContributionRules,
     Favorites,
     RunnerClients,
     DeviceCodes,

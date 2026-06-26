@@ -158,6 +158,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
           userId: authorId,
           actionType: 'skill_run',
           points: 0.1,
+          actorId: user?.id,
           relatedSkill: skill.id,
           description: 'Skill 被成功调用',
         })
