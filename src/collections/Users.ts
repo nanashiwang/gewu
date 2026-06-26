@@ -89,13 +89,13 @@ export const Users: CollectionConfig = {
     {
       name: 'newapiUserId',
       type: 'text',
-      label: 'New API 用户 ID',
+      label: '模型网关 用户 ID',
       access: { read: fieldAdminOrSelf },
     },
     {
       name: 'newapiKeyEncrypted',
       type: 'text',
-      label: 'New API Key',
+      label: '模型网关 Key',
       access: { read: fieldAdminOrSelf, update: fieldAdminOrSelf },
       admin: {
         description: 'MVP 阶段服务端保存；生产需加密存储',

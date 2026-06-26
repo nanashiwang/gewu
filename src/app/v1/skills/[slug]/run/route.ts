@@ -59,7 +59,7 @@ export async function POST(
   }
   if (!version) return Response.json({ error: 'Skill 暂无可用版本' }, { status: 400 })
 
-  // 用户绑定的 New API Key（可选，优先于全局）
+  // 用户绑定的 模型网关 Key（可选，优先于全局）
   const fullUser = await payload
     .findByID({ collection: 'users', id: user.id, overrideAccess: true, depth: 0 })
     .catch(() => null)

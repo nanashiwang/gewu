@@ -171,7 +171,7 @@ export function RunForm({
             <div className="flex flex-wrap gap-2 text-xs">
               {result.mocked && (
                 <span className="rounded border border-[var(--warn)] px-2 py-0.5 text-[var(--warn)]">
-                  MOCK（未配置 New API）
+                  MOCK（未配置模型网关）
                 </span>
               )}
               <span className="rounded border border-[var(--border)] px-2 py-0.5 text-[var(--muted)]">

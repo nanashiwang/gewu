@@ -23,7 +23,7 @@ export default function FrontendLayout({ children }: { children: React.ReactNode
         <footer className="border-t border-[var(--border)]">
           <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-4 py-8 text-xs text-[var(--faint)] sm:flex-row sm:items-center sm:justify-between">
             <span>© 2026 衡术 Hengshu · v0.1</span>
-            <span>New API 负责模型接入与计费 · 衡术 负责任务封装、评测与分发</span>
+            <span>Verified AI Skills, Powered by Contribution.</span>
           </div>
         </footer>
       </body>

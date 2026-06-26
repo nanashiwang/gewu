@@ -2,7 +2,7 @@
 
 > Verified AI Skills, Powered by Contribution.
 
-> 经过评测的 AI Skill 市场 —— 基于 **New API（OpenAI 兼容网关）** 的 AI 技能分发平台，引入类 PT 站的贡献值 / 邀请码 / 悬赏 / 资源健康度机制。
+> 经过评测的 AI Skill 市场 —— 基于 **模型网关（OpenAI 兼容网关）** 的 AI 技能分发平台，引入类 PT 站的贡献值 / 邀请码 / 悬赏 / 资源健康度机制。
 
 当前版本 **v0.1（MVP 基础骨架）**。完整产品规划见 [`docs/yuanheng_skillhub_product_doc_v0.1.md`](docs/yuanheng_skillhub_product_doc_v0.1.md)。
 
@@ -14,7 +14,7 @@
 | **Payload CMS 3** | 用户/权限/后台/内容集合/审核（原生嵌入 Next.js） |
 | **PostgreSQL 16** | 主业务数据（Drizzle 适配器） |
 | **Redis 7** | 队列/缓存（Worker 预留） |
-| **New API** | 模型网关、token 计费、调用日志（OpenAI 兼容） |
+| **模型网关** | 模型网关、token 计费、调用日志（OpenAI 兼容） |
 
 ## 快速开始
 
@@ -28,7 +28,7 @@ docker compose up -d
 # 2. 配置环境变量
 cp .env.example .env
 #   - PAYLOAD_SECRET 必填（openssl rand -hex 32）
-#   - NEW_API_BASE_URL / NEW_API_KEY 可暂留空（运行走 mock 回退）
+#   - MODEL_GATEWAY_BASE_URL / MODEL_GATEWAY_KEY 可暂留空（运行走 mock 回退）
 
 # 3. 安装依赖并启动
 npm install
@@ -76,7 +76,7 @@ src/
 ## 核心闭环（产品文档 §12.2）
 
 ```
-填表 → 校验输入 → 渲染 Prompt → 选模型(路由) → 调 New API
+填表 → 校验输入 → 渲染 Prompt → 选模型(路由) → 调 模型网关
 → 校验输出格式 → 写 SkillRun → 更新成本/成功率/SkillRank → 发贡献值
 ```
 
@@ -88,7 +88,7 @@ src/
 - ✅ Skill 市场（列表/筛选/详情）、在线运行、SkillRun 记录与指标聚合
 - ✅ 邀请码注册、登录、收藏、评论评分、悬赏发布（基础）
 - ✅ SkillRank 计算、贡献值发放、排行榜、个人中心
-- ⏳ 第二阶段：New API 深度联动（模型同步/余额/metadata 透传）、多模型对比、一键 Skill API
+- ⏳ 第二阶段：模型网关 深度联动（模型同步/余额/metadata 透传）、多模型对比、一键 Skill API
 - ⏳ 第三阶段：创作者中心/认证、限免、悬赏验收；第四阶段：本地 Runner；第五阶段：企业版
 
 ## 注意事项

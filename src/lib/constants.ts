@@ -31,7 +31,7 @@ export const SKILL_CATEGORIES = [
   { name: '代码开发', slug: 'code', icon: '💻' },
 ] as const
 
-// 模型价格表：每 1K token 估算价（人民币元）。仅用于成本展示，可后续由 New API 同步覆盖。
+// 模型价格表：每 1K token 估算价（人民币元）。仅用于成本展示，可后续由 模型网关 同步覆盖。
 export const MODEL_PRICES: Record<string, { in: number; out: number }> = {
   // cn.meta-api.vip 网关可用模型
   'claude-haiku-4-5-20251001': { in: 0.006, out: 0.03 },

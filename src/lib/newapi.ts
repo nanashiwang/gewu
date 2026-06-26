@@ -1,4 +1,4 @@
-// New API（OpenAI 兼容网关）客户端。无 Key 时走 mock 回退，保证骨架可跑通。
+// 模型网关（OpenAI 兼容）客户端。无 Key 时走 mock 回退，保证骨架可跑通。
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
@@ -34,8 +34,8 @@ export class NewApiError extends Error {
 }
 
 export async function chatCompletion(opts: RunOpts): Promise<NewApiResult> {
-  const baseUrl = process.env.NEW_API_BASE_URL?.replace(/\/$/, '')
-  const apiKey = opts.apiKey || process.env.NEW_API_KEY
+  const baseUrl = process.env.MODEL_GATEWAY_BASE_URL?.replace(/\/$/, '')
+  const apiKey = opts.apiKey || process.env.MODEL_GATEWAY_KEY
   const start = Date.now()
 
   // 未配置网关 → mock 回退
@@ -60,7 +60,7 @@ export async function chatCompletion(opts: RunOpts): Promise<NewApiResult> {
   const latencyMs = Date.now() - start
   if (!res.ok) {
     const errText = await res.text().catch(() => '')
-    throw new NewApiError(`New API ${res.status}: ${errText.slice(0, 300)}`, res.status)
+    throw new NewApiError(`模型网关 ${res.status}: ${errText.slice(0, 300)}`, res.status)
   }
 
   const data: any = await res.json()
@@ -88,7 +88,7 @@ export function estimateTokens(text: string): number {
 function mockCompletion(opts: RunOpts, start: number): NewApiResult {
   const userMsg = opts.messages.find((m) => m.role === 'user')?.content || ''
   const text =
-    `[MOCK] 未配置 New API（NEW_API_BASE_URL / NEW_API_KEY 为空），以下为模拟输出。\n\n` +
+    `[MOCK] 未配置模型网关（MODEL_GATEWAY_BASE_URL / MODEL_GATEWAY_KEY 为空），以下为模拟输出。\n\n` +
     `· 路由模型：${opts.model}\n` +
     `· 已渲染 Prompt（前 240 字）：\n${userMsg.slice(0, 240)}\n\n` +
     `配置真实网关后，此处将返回模型的实际输出。`

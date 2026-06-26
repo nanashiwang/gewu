@@ -33,7 +33,7 @@ export const Bounties: CollectionConfig = {
       options: [
         { label: '贡献值', value: 'points' },
         { label: '现金', value: 'cash' },
-        { label: 'New API 额度', value: 'credit' },
+        { label: '平台额度', value: 'credit' },
       ],
     },
     { name: 'rewardPoints', type: 'number', defaultValue: 0, label: '贡献值赏金' },

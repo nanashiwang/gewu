@@ -48,7 +48,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
   const prompt = renderTemplate(version?.promptTemplate || '', input)
 
   // 3. 选模型
-  const fallbackDefault = process.env.NEW_API_DEFAULT_MODEL || 'deepseek-chat'
+  const fallbackDefault = process.env.MODEL_GATEWAY_DEFAULT_MODEL || 'deepseek-chat'
   const { model, fallbacks, mode } = selectModel(
     version?.routePolicy,
     version?.recommendedModels,

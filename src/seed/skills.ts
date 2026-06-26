@@ -13,7 +13,7 @@ export interface SeedSkill {
   routePolicy: { default: string; strategies: Record<string, string[]> }
 }
 
-// 当前 New API 网关（cn.meta-api.vip）可用模型
+// 当前 模型网关 网关（cn.meta-api.vip）可用模型
 const M = {
   haiku: 'claude-haiku-4-5-20251001',
   sonnet: 'claude-sonnet-4-6',

@@ -40,6 +40,6 @@ export const SkillRuns: CollectionConfig = {
     { name: 'success', type: 'checkbox', defaultValue: false, label: '是否成功' },
     { name: 'errorCode', type: 'text', label: '错误码' },
     { name: 'formatValid', type: 'checkbox', defaultValue: false, label: '输出格式有效' },
-    { name: 'newapiLogId', type: 'text', label: 'New API 日志 ID' },
+    { name: 'newapiLogId', type: 'text', label: '模型网关 日志 ID' },
   ],
 }
