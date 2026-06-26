@@ -14,6 +14,7 @@
     "generate:importmap": "cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap",
     "seed": "cross-env NODE_OPTIONS=--no-deprecation tsx src/seed/index.ts",
     "migrate:spec-v1": "cross-env NODE_OPTIONS=--no-deprecation tsx src/seed/migrate-spec-v1.ts",
+    "artifacts:backfill": "cross-env NODE_OPTIONS=--no-deprecation tsx src/seed/backfill-artifacts.ts",
     "worker:skillrank": "cross-env NODE_OPTIONS=--no-deprecation tsx src/worker/recompute-skillrank.ts",
     "runner": "node runner/hengshu-run.mjs"
   },

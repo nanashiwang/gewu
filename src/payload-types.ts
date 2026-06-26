@@ -69,6 +69,7 @@ export interface Config {
   collections: {
     skills: Skill;
     'skill-versions': SkillVersion;
+    'skill-artifacts': SkillArtifact;
     categories: Category;
     'skill-runs': SkillRun;
     bounties: Bounty;
@@ -88,6 +89,7 @@ export interface Config {
   collectionsSelect: {
     skills: SkillsSelect<false> | SkillsSelect<true>;
     'skill-versions': SkillVersionsSelect<false> | SkillVersionsSelect<true>;
+    'skill-artifacts': SkillArtifactsSelect<false> | SkillArtifactsSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     'skill-runs': SkillRunsSelect<false> | SkillRunsSelect<true>;
     bounties: BountiesSelect<false> | BountiesSelect<true>;
@@ -316,6 +318,25 @@ export interface SkillVersion {
   createdAt: string;
 }
 /**
+ * 发布时冻结的不可变 manifest 快照（系统生成，请勿手改）
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "skill-artifacts".
+ */
+export interface SkillArtifact {
+  id: string;
+  skill: string | Skill;
+  skillVersion: string | SkillVersion;
+  version?: string | null;
+  format: 'yaml' | 'json';
+  manifest?: string | null;
+  checksum?: string | null;
+  fileSize?: number | null;
+  downloadCount?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "skill-runs".
  */
@@ -527,6 +548,10 @@ export interface PayloadLockedDocument {
         value: string | SkillVersion;
       } | null)
     | ({
+        relationTo: 'skill-artifacts';
+        value: string | SkillArtifact;
+      } | null)
+    | ({
         relationTo: 'categories';
         value: string | Category;
       } | null)
@@ -667,6 +692,22 @@ export interface SkillVersionsSelect<T extends boolean = true> {
   examples?: T;
   status?: T;
   createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "skill-artifacts_select".
+ */
+export interface SkillArtifactsSelect<T extends boolean = true> {
+  skill?: T;
+  skillVersion?: T;
+  version?: T;
+  format?: T;
+  manifest?: T;
+  checksum?: T;
+  fileSize?: T;
+  downloadCount?: T;
   updatedAt?: T;
   createdAt?: T;
 }

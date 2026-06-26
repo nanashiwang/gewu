@@ -50,7 +50,16 @@ async function getSkill(slug: string) {
     sort: '-createdAt',
     limit: 10,
   })
-  return { skill, version, reviews: reviews.docs, versions: versions.docs }
+  let checksum: string | null = null
+  if (version?.id) {
+    const art = await payload.find({
+      collection: 'skill-artifacts',
+      where: { and: [{ skillVersion: { equals: version.id } }, { format: { equals: 'yaml' } }] },
+      limit: 1,
+    })
+    checksum = ((art.docs[0] as any)?.checksum as string) || null
+  }
+  return { skill, version, reviews: reviews.docs, versions: versions.docs, checksum }
 }
 
 export default async function SkillDetailPage({
@@ -61,7 +70,7 @@ export default async function SkillDetailPage({
   const { slug } = await params
   const data = await getSkill(slug)
   if (!data) notFound()
-  const { skill, version, reviews, versions } = data
+  const { skill, version, reviews, versions, checksum } = data
 
   // 当前用户与收藏态
   const user = await getCurrentUser()
@@ -128,8 +137,11 @@ export default async function SkillDetailPage({
                 ⬇ JSON
               </a>
             </div>
-            <code className="surface px-2.5 py-1.5 text-[11px] text-[var(--muted)]">
-              下载后用本地 Runner / 自有模型运行
+            <code
+              className="surface block px-2.5 py-1.5 text-[10px] text-[var(--muted)]"
+              title={checksum || '下载后用本地 Runner / 自有模型运行'}
+            >
+              {checksum ? `🔒 ${checksum.replace('sha256:', '').slice(0, 18)}…` : '下载后本地 Runner 运行'}
             </code>
           </div>
         </div>

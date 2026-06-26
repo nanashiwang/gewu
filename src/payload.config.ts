@@ -9,6 +9,7 @@ import { Users } from './collections/Users'
 import { Categories } from './collections/Categories'
 import { Skills } from './collections/Skills'
 import { SkillVersions } from './collections/SkillVersions'
+import { SkillArtifacts } from './collections/SkillArtifacts'
 import { SkillRuns } from './collections/SkillRuns'
 import { Reviews } from './collections/Reviews'
 import { Favorites } from './collections/Favorites'
@@ -34,6 +35,7 @@ export default buildConfig({
     // ── Skill 内容 ──
     Skills,
     SkillVersions,
+    SkillArtifacts,
     Categories,
     SkillRuns,
     Bounties,

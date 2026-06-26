@@ -1,15 +1,19 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
-import { buildManifest, manifestToYaml, manifestToJson } from '@/lib/manifest'
+import { ensureArtifact, type ArtifactFormat } from '@/lib/artifacts'
 
-// GET /v1/skills/{slug}/manifest?format=yaml|json —— 下载 Skill 能力包（可移植，本地可运行）
+// GET /v1/skills/{slug}/manifest?format=yaml|json
+// 下载发「发布时冻结的存量字节」（不可变快照），而非即时生成。
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params
   const payload = await getPayload({ config })
-  const format = (new URL(request.url).searchParams.get('format') || 'yaml').toLowerCase()
+  const format: ArtifactFormat =
+    (new URL(request.url).searchParams.get('format') || 'yaml').toLowerCase() === 'json'
+      ? 'json'
+      : 'yaml'
 
   const skills = await payload.find({
     collection: 'skills',
@@ -37,11 +41,20 @@ export async function GET(
   }
   if (!version) return Response.json({ error: '无可用版本' }, { status: 400 })
 
-  const manifest = buildManifest(skill, version, {
-    siteUrl: process.env.NEXT_PUBLIC_SERVER_URL,
-  })
+  const artifact = await ensureArtifact(payload, skill, version, format)
+  if (!artifact?.manifest) {
+    return Response.json({ error: '生成制品失败' }, { status: 500 })
+  }
 
-  // 下载计数（不阻塞响应）
+  // 下载计数（弱信号，不阻塞）：artifact 粒度 + skill 聚合
+  payload
+    .update({
+      collection: 'skill-artifacts',
+      id: artifact.id,
+      data: { downloadCount: (artifact.downloadCount || 0) + 1 },
+      overrideAccess: true,
+    })
+    .catch(() => {})
   payload
     .update({
       collection: 'skills',
@@ -51,13 +64,15 @@ export async function GET(
     })
     .catch(() => {})
 
-  const ver = (version as any).version || '1.0.0'
-  const isJson = format === 'json'
-  const body = isJson ? manifestToJson(manifest) : manifestToYaml(manifest)
-  return new Response(body, {
+  const ver = artifact.version || '1.0.0'
+  return new Response(artifact.manifest, {
     headers: {
-      'Content-Type': isJson ? 'application/json; charset=utf-8' : 'application/x-yaml; charset=utf-8',
-      'Content-Disposition': `attachment; filename="${skill.slug}-${ver}.${isJson ? 'json' : 'yaml'}"`,
+      'Content-Type':
+        format === 'json'
+          ? 'application/json; charset=utf-8'
+          : 'application/x-yaml; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${skill.slug}-${ver}.${format}"`,
+      'X-Hengshu-Checksum': artifact.checksum || '',
       'Cache-Control': 'no-store',
     },
   })
