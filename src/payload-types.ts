@@ -403,7 +403,11 @@ export interface Bounty {
   rewardType?: ('points' | 'cash' | 'credit') | null;
   rewardPoints?: number | null;
   rewardAmount?: number | null;
-  status?: ('open' | 'accepted' | 'submitted' | 'completed' | 'cancelled') | null;
+  status?: ('open' | 'accepted' | 'submitted' | 'completed' | 'disputed' | 'cancelled') | null;
+  /**
+   * 发布时从发布人冻结，完成后发给接单人
+   */
+  frozenPoints?: number | null;
   acceptedBy?: (string | null) | User;
   submittedSkill?: (string | null) | Skill;
   requirements?:
@@ -915,6 +919,7 @@ export interface BountiesSelect<T extends boolean = true> {
   rewardPoints?: T;
   rewardAmount?: T;
   status?: T;
+  frozenPoints?: T;
   acceptedBy?: T;
   submittedSkill?: T;
   requirements?: T;
