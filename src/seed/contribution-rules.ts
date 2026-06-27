@@ -10,6 +10,7 @@ const RULES = [
   { actionType: 'invite', basePoints: 5, dailyLimit: 0, selfActionExcluded: true, enabled: true, description: '邀请新用户注册' },
   { actionType: 'skill_high_rating', basePoints: 10, dailyLimit: 0, selfActionExcluded: false, enabled: true, description: '获得高评分' },
   { actionType: 'skill_version_update', basePoints: 10, dailyLimit: 0, selfActionExcluded: false, enabled: true, description: '更新版本' },
+  { actionType: 'compat_report', basePoints: 3, dailyLimit: 20, selfActionExcluded: false, enabled: true, description: '提交兼容报告（仅 verified Runner 计分）' },
 ]
 
 async function run() {

@@ -10,6 +10,7 @@ export const CONTRIBUTION_ACTIONS = [
   'eval_sample', // 提交评测样本被采纳
   'failure_case', // 提交失败案例被确认
   'route_optimization', // 优化模型路由被采用
+  'compat_report', // 提交兼容报告（verified Runner）
   'review', // 参与审核且有效
   'security', // 发现安全风险
   'bounty', // 完成悬赏

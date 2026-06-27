@@ -17,6 +17,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import readline from 'node:readline/promises'
 import { stdin as input, stdout as output } from 'node:process'
 
@@ -50,6 +51,48 @@ function requireAuth(args) {
 }
 function bearer(token) {
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+}
+
+// ───────── manifest 校验/验签 ─────────
+function sortKeys(v) {
+  return Array.isArray(v)
+    ? v.map(sortKeys)
+    : v && typeof v === 'object'
+      ? Object.keys(v).sort().reduce((a, k) => ((a[k] = sortKeys(v[k])), a), {})
+      : v
+}
+function canonical(obj) {
+  return Buffer.from(JSON.stringify(sortKeys(obj)), 'utf8')
+}
+function verifyManifest(manifest, pubB64) {
+  const { integrity = {}, ...core } = manifest
+  const canon = canonical(core)
+  const checksumOk =
+    !integrity.checksum ||
+    'sha256:' + crypto.createHash('sha256').update(canon).digest('hex') === integrity.checksum
+  let signed = false
+  let sigValid = false
+  if (integrity.signature && pubB64) {
+    signed = true
+    try {
+      const pub = crypto.createPublicKey({ key: Buffer.from(pubB64, 'base64'), format: 'der', type: 'spki' })
+      sigValid = crypto.verify(null, canon, pub, Buffer.from(integrity.signature, 'base64'))
+    } catch {
+      /* invalid */
+    }
+  }
+  return { checksumOk, signed, sigValid }
+}
+let _pub
+async function getPublicKey(hub) {
+  if (_pub !== undefined) return _pub
+  try {
+    const r = await fetch(`${hub}/v1/keys`)
+    _pub = r.ok ? (await r.json()).publicKey || null : null
+  } catch {
+    _pub = null
+  }
+  return _pub
 }
 
 function skillDir(slug) {
@@ -157,6 +200,21 @@ async function installSlug(hub, token, slug) {
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok || !data.ok) throw new Error(data.error || `安装失败（${res.status}）`)
+
+  // 校验和 + ed25519 验签（签名无效或校验和不符则拒装）
+  let verify = { signed: false }
+  try {
+    const YAML = (await import('yaml')).default
+    const manifest = YAML.parse(data.manifest)
+    const pub = await getPublicKey(hub)
+    verify = verifyManifest(manifest, pub)
+    if (!verify.checksumOk) throw new Error('manifest 校验和不匹配，拒绝安装')
+    if (verify.signed && !verify.sigValid) throw new Error('manifest 签名无效，拒绝安装')
+  } catch (e) {
+    if (/拒绝安装/.test(e.message)) throw e
+    // 解析失败不阻断（向后兼容未签名/旧包）
+  }
+
   saveInstalled(slug, data.manifest, {
     slug: data.slug,
     name: data.name,
@@ -164,6 +222,7 @@ async function installSlug(hub, token, slug) {
     checksum: data.checksum,
     installedAt: new Date().toISOString(),
   })
+  data._verify = verify
   return data
 }
 async function cmdInstall(args) {
@@ -172,7 +231,9 @@ async function cmdInstall(args) {
   if (!slug) throw new Error('用法：hengshu install <slug>')
   const data = await installSlug(hub, token, slug)
   console.log(`✅ 已安装 ${data.name} (v${data.version}) → ${skillDir(slug)}/skill.yaml`)
-  console.log(`   checksum ${data.checksum}`)
+  const v = data._verify || {}
+  const tag = v.signed ? (v.sigValid ? '· ✓ 签名有效' : '· ✗ 签名无效') : '· ⚠ 未签名'
+  console.log(`   checksum ${data.checksum}  ${tag}`)
 }
 function cmdList() {
   const items = listInstalled()

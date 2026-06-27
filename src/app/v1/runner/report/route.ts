@@ -3,6 +3,7 @@ import config from '@payload-config'
 import { runnerFromBearer } from '@/lib/runnerAuth'
 import { resolvePublishedSkill } from '@/lib/installs'
 import { anonHash, recomputeLocalScore } from '@/lib/compat'
+import { awardContribution } from '@/lib/contribution'
 
 // POST /v1/runner/report (Bearer) —— 提交本地模型兼容报告
 // 仅接受可聚合指标，绝不存输入/输出原文。anon=true 时只存匿名哈希、不关联用户。
@@ -26,6 +27,7 @@ export async function POST(request: Request) {
   if (!resolved) return Response.json({ error: 'Skill 不存在' }, { status: 404 })
 
   const anon = !!body.anon
+  const isVerified = actor.runner.trustedLevel === 'verified'
   // 白名单：仅以下字段会被存储
   await payload.create({
     collection: 'compat-reports',
@@ -45,10 +47,23 @@ export async function POST(request: Request) {
       inputSizeBucket: body.inputSizeBucket ? String(body.inputSizeBucket).slice(0, 16) : undefined,
       outputSizeBucket: body.outputSizeBucket ? String(body.outputSizeBucket).slice(0, 16) : undefined,
       runnerVersion: actor.runner.runnerVersion,
-      source: actor.runner.trustedLevel === 'verified' ? 'verified' : 'community',
+      source: isVerified ? 'verified' : 'community',
     },
   })
 
   const localScore = await recomputeLocalScore(payload, resolved.skill.id)
-  return Response.json({ ok: true, localScore })
+
+  // 信任模型：仅 verified Runner 的具名报告计术值（社区报告仅展示）
+  let rewarded = false
+  if (isVerified && !anon) {
+    await awardContribution(payload, {
+      userId: actor.user.id,
+      actionType: 'compat_report',
+      relatedSkill: resolved.skill.id,
+      description: `提交「${resolved.skill.title}」兼容报告`,
+    })
+    rewarded = true
+  }
+
+  return Response.json({ ok: true, localScore, rewarded })
 }

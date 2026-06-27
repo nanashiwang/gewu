@@ -1,27 +1,14 @@
 import YAML from 'yaml'
 import { createHash } from 'crypto'
+import { canonicalString } from './canonical'
+import { signCanonical, getSigningKeyId } from './signing'
 
-// 递归排序 key → 可复现的规范化 JSON（用于稳定 checksum；JCS 简化版）
-function sortKeys(v: any): any {
-  if (Array.isArray(v)) return v.map(sortKeys)
-  if (v && typeof v === 'object') {
-    return Object.keys(v)
-      .sort()
-      .reduce((acc: any, k) => {
-        acc[k] = sortKeys(v[k])
-        return acc
-      }, {})
-  }
-  return v
+function computeChecksum(core: any): string {
+  return 'sha256:' + createHash('sha256').update(canonicalString(core), 'utf8').digest('hex')
 }
 
-function computeChecksum(coreWithoutIntegrity: any): string {
-  const canonical = JSON.stringify(sortKeys(coreWithoutIntegrity))
-  return 'sha256:' + createHash('sha256').update(canonical, 'utf8').digest('hex')
-}
-
-// 构造 Hengshu Skill Spec v1 manifest（可移植、可校验、本地可运行）。
-// 不含时间戳，保证同一版本每次导出字节一致、checksum 稳定。
+// 构造 Hengshu Skill Spec v1 manifest（可移植、可校验、可验真）。
+// 不含时间戳，保证同一版本每次导出字节一致、checksum/签名稳定。
 export function buildManifest(skill: any, version: any, opts: { siteUrl?: string } = {}) {
   const author = typeof skill.author === 'object' ? skill.author?.username : undefined
   const category = typeof skill.category === 'object' ? skill.category?.slug : undefined
@@ -63,7 +50,14 @@ export function buildManifest(skill: any, version: any, opts: { siteUrl?: string
   }
   if (opts.siteUrl) core.skill_url = `${opts.siteUrl}/skills/${skill.slug}`
 
-  return { ...core, integrity: { checksum: computeChecksum(core) } }
+  const integrity: any = { checksum: computeChecksum(core) }
+  const signature = signCanonical(core)
+  if (signature) {
+    integrity.signature = signature
+    integrity.keyId = getSigningKeyId()
+    integrity.algorithm = 'ed25519'
+  }
+  return { ...core, integrity }
 }
 
 export function manifestToYaml(m: any): string {

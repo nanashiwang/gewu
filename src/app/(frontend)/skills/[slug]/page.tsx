@@ -52,16 +52,19 @@ async function getSkill(slug: string) {
     limit: 10,
   })
   let checksum: string | null = null
+  let signed = false
   if (version?.id) {
     const art = await payload.find({
       collection: 'skill-artifacts',
       where: { and: [{ skillVersion: { equals: version.id } }, { format: { equals: 'yaml' } }] },
       limit: 1,
     })
-    checksum = ((art.docs[0] as any)?.checksum as string) || null
+    const a = art.docs[0] as any
+    checksum = (a?.checksum as string) || null
+    signed = !!(a?.manifest && String(a.manifest).includes('signature:'))
   }
   const compat = await aggregateByModel(payload, skill.id as string)
-  return { skill, version, reviews: reviews.docs, versions: versions.docs, checksum, compat }
+  return { skill, version, reviews: reviews.docs, versions: versions.docs, checksum, signed, compat }
 }
 
 export default async function SkillDetailPage({
@@ -72,7 +75,7 @@ export default async function SkillDetailPage({
   const { slug } = await params
   const data = await getSkill(slug)
   if (!data) notFound()
-  const { skill, version, reviews, versions, checksum, compat } = data
+  const { skill, version, reviews, versions, checksum, signed, compat } = data
 
   // 当前用户与收藏态
   const user = await getCurrentUser()
@@ -143,7 +146,7 @@ export default async function SkillDetailPage({
               className="surface block px-2.5 py-1.5 text-[10px] text-[var(--muted)]"
               title={checksum || '下载后用本地 Runner / 自有模型运行'}
             >
-              {checksum ? `🔒 ${checksum.replace('sha256:', '').slice(0, 18)}…` : '下载后本地 Runner 运行'}
+              {checksum ? `🔒 ${checksum.replace('sha256:', '').slice(0, 18)}…${signed ? ' ✓签名' : ''}` : '下载后本地 Runner 运行'}
             </code>
           </div>
         </div>
@@ -274,7 +277,10 @@ export default async function SkillDetailPage({
                       <td className="py-1.5 text-right">{formatPercent(m.successRate)}</td>
                       <td className="py-1.5 text-right">{formatPercent(m.formatRate)}</td>
                       <td className="py-1.5 text-right">{formatLatency(m.avgLatencyMs)}</td>
-                      <td className="py-1.5 text-right text-[var(--muted)]">{m.reports}</td>
+                      <td className="py-1.5 text-right text-[var(--muted)]">
+                        {m.reports}
+                        {m.verified ? <span className="ml-1 text-[var(--accent-2)]">✓{m.verified}</span> : null}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

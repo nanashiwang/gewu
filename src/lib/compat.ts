@@ -50,6 +50,7 @@ export async function recomputeLocalScore(payload: Payload, skillId: string) {
 export interface ModelCompat {
   modelName: string
   reports: number
+  verified: number
   successRate: number
   formatRate: number
   avgLatencyMs: number
@@ -74,6 +75,7 @@ export async function aggregateByModel(payload: Payload, skillId: string): Promi
     out.push({
       modelName,
       reports: n,
+      verified: rs.filter((r) => r.source === 'verified').length,
       successRate: rs.filter((r) => r.success).length / n,
       formatRate: rs.filter((r) => r.formatValid).length / n,
       avgLatencyMs: Math.round(rs.reduce((a, r) => a + (r.latencyMs || 0), 0) / n),
