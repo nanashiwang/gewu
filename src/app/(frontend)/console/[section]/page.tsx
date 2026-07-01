@@ -4,8 +4,11 @@ import { getCurrentUser } from '@/lib/auth'
 import { getPayloadClient } from '@/lib/payload'
 import { formatCost, formatLatency, timeAgo } from '@/lib/format'
 import { Section, Empty } from '@/components/console/ConsoleUI'
+import { Pagination } from '@/components/Pagination'
 
 export const dynamic = 'force-dynamic'
+
+const PAGE_SIZE = 30
 
 const TITLES: Record<string, string> = {
   installs: '已安装 Skill',
@@ -18,12 +21,16 @@ const TITLES: Record<string, string> = {
 
 export default async function ConsoleSection({
   params,
+  searchParams,
 }: {
   params: Promise<{ section: string }>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
   const { section } = await params
   if (!(section in TITLES)) notFound()
 
+  const sp = await searchParams
+  const page = Math.max(1, parseInt(sp.page || '1', 10) || 1)
   const user = await getCurrentUser()
   const u = user as any
   const payload = await getPayloadClient()
@@ -31,17 +38,20 @@ export default async function ConsoleSection({
 
   let title = TITLES[section]
   let body: React.ReactNode = null
+  let totalPages = 1
 
   if (section === 'installs') {
     const installs = await payload.find({
       collection: 'skill-installs',
       where: { and: [{ user: { equals: uid } }, { status: { equals: 'installed' } }] },
       depth: 1,
-      limit: 100,
+      limit: PAGE_SIZE,
+      page,
       sort: '-lastUsedAt',
       overrideAccess: true,
     })
     title = `已安装 Skill（${installs.totalDocs}）`
+    totalPages = installs.totalPages || 1
 
     // 待更新：比对已装 checksum 与当前最新制品
     const outdated = new Set<string>()
@@ -95,11 +105,13 @@ export default async function ConsoleSection({
     const runners = await payload.find({
       collection: 'runner-clients',
       where: { user: { equals: uid } },
-      limit: 100,
+      limit: PAGE_SIZE,
+      page,
       sort: '-lastSeenAt',
       overrideAccess: true,
     })
     title = `Runner 实例（${runners.totalDocs}）`
+    totalPages = runners.totalPages || 1
     body =
       runners.docs.length === 0 ? (
         <Empty>
@@ -122,11 +134,13 @@ export default async function ConsoleSection({
       collection: 'skill-runs',
       where: { user: { equals: uid } },
       depth: 1,
-      limit: 50,
+      limit: PAGE_SIZE,
+      page,
       sort: '-createdAt',
       overrideAccess: true,
     })
     title = `运行记录（${runs.totalDocs}）`
+    totalPages = runs.totalPages || 1
     body =
       runs.docs.length === 0 ? (
         <Empty>
@@ -157,10 +171,12 @@ export default async function ConsoleSection({
       collection: 'contribution-logs',
       where: { user: { equals: uid } },
       depth: 0,
-      limit: 50,
+      limit: PAGE_SIZE,
+      page,
       sort: '-createdAt',
       overrideAccess: true,
     })
+    totalPages = contributions.totalPages || 1
     body =
       contributions.docs.length === 0 ? (
         <Empty>暂无记录。</Empty>
@@ -182,11 +198,13 @@ export default async function ConsoleSection({
       collection: 'favorites',
       where: { user: { equals: uid } },
       depth: 1,
-      limit: 100,
+      limit: PAGE_SIZE,
+      page,
       sort: '-createdAt',
       overrideAccess: true,
     })
     title = `收藏（${favorites.totalDocs}）`
+    totalPages = favorites.totalPages || 1
     body =
       favorites.docs.length === 0 ? (
         <Empty>暂无收藏。</Empty>
@@ -213,10 +231,12 @@ export default async function ConsoleSection({
       collection: 'invite-codes',
       where: { inviter: { equals: uid } },
       depth: 1,
-      limit: 100,
+      limit: PAGE_SIZE,
+      page,
       sort: '-createdAt',
       overrideAccess: true,
     })
+    totalPages = invites.totalPages || 1
     body =
       invites.docs.length === 0 ? (
         <Empty>暂无邀请码。</Empty>
@@ -234,5 +254,10 @@ export default async function ConsoleSection({
       )
   }
 
-  return <Section title={title}>{body}</Section>
+  return (
+    <Section title={title}>
+      {body}
+      <Pagination page={page} totalPages={totalPages} basePath={`/console/${section}`} params={sp} />
+    </Section>
+  )
 }
