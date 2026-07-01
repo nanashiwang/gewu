@@ -16,6 +16,31 @@ import {
 
 export const dynamic = 'force-dynamic'
 
+// 每个 Skill 页独立 title/description/OG，供搜索引擎与社交分享抓取（SEO）
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params
+  try {
+    const payload = await getPayloadClient()
+    const res = await payload.find({
+      collection: 'skills',
+      where: { slug: { equals: slug } },
+      limit: 1,
+      depth: 0,
+      overrideAccess: true,
+    })
+    const s = res.docs[0] as any
+    if (!s || s.status !== 'published') return { title: 'Skill · 衡术 Hengshu' }
+    const desc = String(s.description || `${s.title} —— 跨模型兼容评测与本地运行`).slice(0, 160)
+    return {
+      title: `${s.title} · 衡术 Hengshu`,
+      description: desc,
+      openGraph: { title: s.title as string, description: desc, type: 'website' as const },
+    }
+  } catch {
+    return { title: 'Skill · 衡术 Hengshu' }
+  }
+}
+
 async function getSkill(slug: string, viewer: any) {
   const payload = await getPayloadClient()
   const res = await payload.find({
