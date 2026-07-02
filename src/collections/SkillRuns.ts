@@ -38,6 +38,7 @@ export const SkillRuns: CollectionConfig = {
     { name: 'totalTokens', type: 'number', label: '总 token' },
     { name: 'estimatedCost', type: 'number', label: '估算成本(元)' },
     { name: 'chargedAmount', type: 'number', label: '实际收费' },
+    { name: 'savedAmount', type: 'number', defaultValue: 0, label: '省钱回执(元)', admin: { description: '相比默认premium模型省下的估算金额(省钱路由的累计价值)' } },
     { name: 'latencyMs', type: 'number', label: '耗时(ms)' },
     { name: 'success', type: 'checkbox', defaultValue: false, label: '是否成功' },
     { name: 'errorCode', type: 'text', label: '错误码' },

@@ -36,6 +36,7 @@ export interface RunSkillResult {
   routeMode?: RouteMode
   cost?: number
   chargedCredits?: number // 平台代付路径实际扣减的 credit（BYOK/mock 为 0）
+  savedAmount?: number // 省钱回执：相比默认premium模型省下的估算元
   latencyMs?: number
   tokens?: { prompt: number; completion: number; total: number }
   mocked?: boolean
@@ -228,6 +229,16 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
   }
   const cost = result ? estimateCost(usedModel, result.promptTokens, result.completionTokens) : 0
 
+  // 省钱回执(#15后半/#16)：相比作者默认premium模型，本次省钱路由省下多少（估算元，≥0）。
+  // 参照=作者首选云模型/balanced首选，若与实际同模型或更便宜则省 0。这是不随30天半衰期归零的累计留存资产。
+  const refModel =
+    version?.recommendedModels?.cloud?.[0] || version?.routePolicy?.strategies?.balanced?.[0] || fallbackDefault
+  let savedAmount = 0
+  if (result && refModel && refModel !== usedModel) {
+    const refCost = estimateCost(refModel, result.promptTokens, result.completionTokens)
+    savedAmount = Math.max(0, Math.round((refCost - cost) * 10000) / 10000)
+  }
+
   // 结构化错误分类（6m 负知识原料）：调用失败原因 / 成功但格式漂移，仅存标签不存原文
   const outputSchemaPresent = !!version?.outputSchema && Object.keys(version.outputSchema).length > 0
   const errorType = classifyError({
@@ -281,6 +292,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
         totalTokens: result?.totalTokens || 0,
         estimatedCost: cost,
         chargedAmount: chargedCredits > 0 ? cost : 0, // 仅平台代付且扣费成功计费；BYOK/失败记 0
+        savedAmount,
         latencyMs: result?.latencyMs || 0,
         success,
         errorCode: errorType || (success ? undefined : 'NEWAPI_ERROR'),
@@ -389,6 +401,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
     routeMode: mode,
     cost,
     chargedCredits,
+    savedAmount,
     latencyMs: result?.latencyMs,
     tokens: result
       ? { prompt: result.promptTokens, completion: result.completionTokens, total: result.totalTokens }

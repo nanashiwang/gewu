@@ -396,6 +396,10 @@ export interface SkillRun {
   totalTokens?: number | null;
   estimatedCost?: number | null;
   chargedAmount?: number | null;
+  /**
+   * 相比默认premium模型省下的估算金额(省钱路由的累计价值)
+   */
+  savedAmount?: number | null;
   latencyMs?: number | null;
   success?: boolean | null;
   errorCode?: string | null;
@@ -946,6 +950,7 @@ export interface SkillRunsSelect<T extends boolean = true> {
   totalTokens?: T;
   estimatedCost?: T;
   chargedAmount?: T;
+  savedAmount?: T;
   latencyMs?: T;
   success?: T;
   errorCode?: T;

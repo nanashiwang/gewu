@@ -142,6 +142,18 @@ export default async function ConsoleSection({
     })
     title = `运行记录（${runs.totalDocs}）`
     totalPages = runs.totalPages || 1
+    // 本月省钱回执（私人台账留存钩子）：本月运行的 savedAmount 之和
+    const mStart = new Date()
+    mStart.setDate(1)
+    mStart.setHours(0, 0, 0, 0)
+    const savedAgg = await payload.find({
+      collection: 'skill-runs',
+      where: { and: [{ user: { equals: uid } }, { createdAt: { greater_than_equal: mStart.toISOString() } }] },
+      limit: 2000,
+      depth: 0,
+      overrideAccess: true,
+    })
+    const monthSaved = (savedAgg.docs as any[]).reduce((s, r) => s + (r.savedAmount || 0), 0)
     body =
       runs.docs.length === 0 ? (
         <Empty>
@@ -152,20 +164,56 @@ export default async function ConsoleSection({
           跑一个吧。
         </Empty>
       ) : (
-        <ul className="divide-y divide-[var(--border)] text-sm">
-          {(runs.docs as any[]).map((r) => (
-            <li key={r.id} className="flex items-center justify-between py-2">
-              <span className="min-w-0 truncate">
-                {typeof r.skill === 'object' ? r.skill?.title : 'Skill'}
-                <span className="ml-2 text-xs text-[var(--muted)]">{r.model}</span>
-              </span>
-              <span className="shrink-0 text-xs text-[var(--muted)]">
-                {r.success ? '✓' : '✗'} {formatCost(r.estimatedCost)} · {formatLatency(r.latencyMs)} ·{' '}
-                {timeAgo(r.createdAt)}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-3">
+          {monthSaved > 0 && (
+            <div className="rounded-lg border border-[var(--accent-2)] bg-[var(--panel-2)] px-4 py-3 text-sm">
+              本月省钱路由为你省下 <b className="text-[var(--accent-2)]">{formatCost(monthSaved)}</b>
+              <span className="ml-1 text-xs text-[var(--muted)]">（相比默认模型的估算，越用越多）</span>
+            </div>
+          )}
+          <ul className="divide-y divide-[var(--border)] text-sm">
+            {(runs.docs as any[]).map((r) => (
+              <li key={r.id} className="py-2">
+                <details>
+                  <summary className="flex cursor-pointer items-center justify-between gap-2">
+                    <span className="min-w-0 truncate">
+                      {typeof r.skill === 'object' ? r.skill?.title : 'Skill'}
+                      <span className="ml-2 text-xs text-[var(--muted)]">{r.model}</span>
+                      {r.savedAmount > 0 && (
+                        <span className="ml-2 text-xs text-[var(--accent-2)]">省{formatCost(r.savedAmount)}</span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-xs text-[var(--muted)]">
+                      {r.success ? '✓' : '✗'} {formatCost(r.estimatedCost)} · {formatLatency(r.latencyMs)} ·{' '}
+                      {timeAgo(r.createdAt)}
+                    </span>
+                  </summary>
+                  <div className="mt-2 space-y-2 rounded-lg bg-[var(--panel-2)] p-3 text-xs">
+                    <div>
+                      <div className="mb-1 text-[var(--muted)]">输入</div>
+                      <pre className="max-h-40 overflow-auto whitespace-pre-wrap break-words">
+                        {JSON.stringify(r.inputJson ?? {}, null, 2)}
+                      </pre>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-[var(--muted)]">输出</div>
+                      <pre className="max-h-60 overflow-auto whitespace-pre-wrap break-words">
+                        {String(r.outputText || '（无输出）').slice(0, 4000)}
+                      </pre>
+                    </div>
+                    <div className="flex flex-wrap gap-3 text-[var(--muted)]">
+                      <span>模型 {r.model}</span>
+                      <span>路由 {r.routeMode || '—'}</span>
+                      <span>成本 {formatCost(r.estimatedCost)}</span>
+                      {r.savedAmount > 0 && <span className="text-[var(--accent-2)]">省 {formatCost(r.savedAmount)}</span>}
+                      {r.errorCode && <span className="text-[var(--danger)]">错误 {r.errorCode}</span>}
+                    </div>
+                  </div>
+                </details>
+              </li>
+            ))}
+          </ul>
+        </div>
       )
   } else if (section === 'contributions') {
     const contributions = await payload.find({
