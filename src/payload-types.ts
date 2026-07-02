@@ -174,6 +174,10 @@ export interface Skill {
   description?: string | null;
   category?: (string | null) | Category;
   author?: (string | null) | User;
+  /**
+   * 从哪个 Skill 复制而来（血统，用于变异-表现差分分析）
+   */
+  forkedFrom?: (string | null) | Skill;
   visibility?: ('public' | 'private' | 'unlisted' | 'enterprise') | null;
   status?: ('draft' | 'pending' | 'published' | 'rejected' | 'archived') | null;
   currentVersion?: (string | null) | SkillVersion;
@@ -916,6 +920,7 @@ export interface SkillsSelect<T extends boolean = true> {
   description?: T;
   category?: T;
   author?: T;
+  forkedFrom?: T;
   visibility?: T;
   status?: T;
   currentVersion?: T;

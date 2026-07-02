@@ -7,6 +7,7 @@ import { SkillStatusTags } from '@/components/Tag'
 import { FavoriteButton } from '@/components/FavoriteButton'
 import { ReviewForm } from '@/components/ReviewForm'
 import { CopyButton } from '@/components/CopyButton'
+import { ForkButton } from '@/components/ForkButton'
 import {
   formatCost,
   formatLatency,
@@ -150,6 +151,14 @@ export default async function SkillDetailPage({
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--muted)]">
               <SkillStatusTags skill={skill} />
               {author && <span>作者：{author.username}</span>}
+              {typeof skill.forkedFrom === 'object' && skill.forkedFrom && (
+                <span>
+                  · 🍴 fork 自{' '}
+                  <Link href={`/skills/${(skill.forkedFrom as any).slug}`} className="hover:text-[var(--accent)]">
+                    {(skill.forkedFrom as any).title}
+                  </Link>
+                </span>
+              )}
               <span>· 更新于 {timeAgo(skill.lastUpdatedAt || skill.createdAt)}</span>
             </div>
           </div>
@@ -164,6 +173,7 @@ export default async function SkillDetailPage({
             <Link href={`/skills/${skill.slug}/run`} className="btn btn-secondary px-6 py-2.5">
               ▶ 在线试用
             </Link>
+            <ForkButton slug={skill.slug as string} loggedIn={!!user} />
             <div className="flex gap-2 text-sm">
               <FavoriteButton slug={skill.slug as string} initial={favorited} loggedIn={!!user} />
               <a

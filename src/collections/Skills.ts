@@ -44,6 +44,14 @@ export const Skills: CollectionConfig = {
       admin: { position: 'sidebar' },
     },
     {
+      name: 'forkedFrom',
+      type: 'relationship',
+      relationTo: 'skills',
+      index: true,
+      label: 'Fork 自',
+      admin: { position: 'sidebar', readOnly: true, description: '从哪个 Skill 复制而来（血统，用于变异-表现差分分析）' },
+    },
+    {
       name: 'visibility',
       type: 'select',
       defaultValue: 'public',
