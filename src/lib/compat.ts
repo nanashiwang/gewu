@@ -1,5 +1,6 @@
 import type { Payload } from 'payload'
 import { createHmac } from 'crypto'
+import { rankDataDrivenRoute } from './route'
 
 // 规模分档（避免回传精确长度）
 export function bucketSize(n: number): string {
@@ -79,7 +80,53 @@ export async function recomputeLocalScore(payload: Payload, skillId: string) {
     data: { localScore },
     overrideAccess: true,
   })
+  // 护城河第1层(#15)：由真实回流回写省钱路由，让"数据改变产品动作"而非只改展示。失败不影响 localScore。
+  try {
+    await recomputeRoutePolicy(payload, skillId)
+  } catch (e) {
+    payload.logger?.error(`recomputeRoutePolicy 失败: ${(e as Error).message}`)
+  }
   return localScore
+}
+
+// 由逐模型兼容聚合回写当前版本的 routePolicy.dataDriven（省/快/质）。
+// 只写 dataDriven 子键、不动作者手填的 strategies/default；无足够数据(可用模型为空)则不动作，保留作者意图。
+export async function recomputeRoutePolicy(payload: Payload, skillId: string): Promise<void> {
+  const models = await aggregateByModel(payload, skillId)
+  const ranked = rankDataDrivenRoute(
+    models.map((m) => ({
+      modelName: m.modelName,
+      successRate: m.successRate,
+      avgLatencyMs: m.avgLatencyMs,
+      formatRate: m.formatRate,
+      lowSample: m.lowSample,
+    })),
+  )
+  if (!ranked.cheap.length && !ranked.fast.length && !ranked.quality.length) return // 无够样本可用模型，保留作者手填
+
+  const skill = (await payload
+    .findByID({ collection: 'skills', id: skillId, depth: 0, overrideAccess: true })
+    .catch(() => null)) as any
+  const versionId = skill && (typeof skill.currentVersion === 'object' ? skill.currentVersion?.id : skill.currentVersion)
+  if (!versionId) return
+  const version = (await payload
+    .findByID({ collection: 'skill-versions', id: versionId, depth: 0, overrideAccess: true })
+    .catch(() => null)) as any
+  if (!version) return
+
+  const rp = version.routePolicy && typeof version.routePolicy === 'object' ? { ...version.routePolicy } : {}
+  rp.dataDriven = {
+    cheap: ranked.cheap,
+    fast: ranked.fast,
+    quality: ranked.quality,
+    recomputedAt: new Date().toISOString(),
+  }
+  await payload.update({
+    collection: 'skill-versions',
+    id: versionId,
+    data: { routePolicy: rp },
+    overrideAccess: true,
+  })
 }
 
 // 按模型聚合（详情页展示用）
