@@ -14,7 +14,9 @@ export const CompatReports: CollectionConfig = {
     description: '本地模型兼容报告（系统接收，不含输入/输出原文）',
   },
   access: {
-    read: () => true, // 无 PII、无输入输出，可公开聚合
+    // 收敛为 admin-only（6i）：原始报告行含时间戳，公开 read 会被 REST 全量导出重建时序曲线。
+    // 前台只经服务端聚合(aggregateByModel/overrideAccess)展示当前窗口结论，不暴露逐条原始行。
+    read: isAdmin,
     create: isAdmin, // 仅服务端 overrideAccess（经 Bearer 端点）
     update: isAdmin,
     delete: isAdmin,
