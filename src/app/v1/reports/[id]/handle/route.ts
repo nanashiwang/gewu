@@ -1,6 +1,7 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { headers as nextHeaders } from 'next/headers'
+import { anonHash } from '@/lib/compat'
 
 // POST /v1/reports/{id}/handle  { action, note? } —— 审核员/管理员处置举报（封禁闭环）。
 // action: dismiss(驳回) | resolve(标记已解决) | ban_target(封禁责任用户) | hide_target(隐藏内容)
@@ -47,6 +48,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (!ownerId) return Response.json({ error: '无法定位责任用户' }, { status: 400 })
       if (String(ownerId) === String(user.id)) return Response.json({ error: '不能封禁自己' }, { status: 400 })
       await payload.update({ collection: 'users', id: ownerId, data: { accountStatus: 'banned' }, overrideAccess: true })
+      // 追溯降权：抑制该用户历史 online 兼容报告(anonHash 匹配)，权重归 0 不再影响 LocalScore/榜(6e 残余收口)
+      try {
+        await payload.update({
+          collection: 'compat-reports',
+          where: { and: [{ anonymousUserHash: { equals: anonHash(String(ownerId)) } }, { source: { equals: 'online' } }] },
+          data: { suppressed: true },
+          overrideAccess: true,
+        })
+      } catch (e) {
+        payload.logger?.error(`抑制被封用户报告失败: ${(e as Error).message}`)
+      }
     } else if (action === 'hide_target') {
       if (targetType === 'skill') {
         await payload.update({ collection: 'skills', id: targetId, data: { status: 'archived' }, overrideAccess: true }).catch(() => null)

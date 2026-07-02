@@ -481,6 +481,10 @@ export interface CompatReport {
   inputSizeBucket?: string | null;
   outputSizeBucket?: string | null;
   runnerVersion?: string | null;
+  /**
+   * 被封禁用户的历史报告追溯降权：权重归 0、不进 LocalScore/榜
+   */
+  suppressed?: boolean | null;
   source?: ('community' | 'verified' | 'online' | 'benchmark') | null;
   updatedAt: string;
   createdAt: string;
@@ -1073,6 +1077,7 @@ export interface CompatReportsSelect<T extends boolean = true> {
   inputSizeBucket?: T;
   outputSizeBucket?: T;
   runnerVersion?: T;
+  suppressed?: T;
   source?: T;
   updatedAt?: T;
   createdAt?: T;

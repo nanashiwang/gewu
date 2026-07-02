@@ -64,7 +64,7 @@ export async function recomputeLocalScore(payload: Payload, skillId: string) {
     let wFormat = 0
     const models = new Set<string>()
     for (const r of reports) {
-      const w = decayWeight(r.createdAt, now) * sourceWeight(r.source)
+      const w = r.suppressed ? 0 : decayWeight(r.createdAt, now) * sourceWeight(r.source)
       wSum += w
       if (r.success) wSuccess += w
       if (r.formatValid) wFormat += w
@@ -202,7 +202,7 @@ export async function aggregateByModel(payload: Payload, skillId: string): Promi
     let wLatency = 0
     let wLatencySum = 0
     for (const r of rs) {
-      const w = decayWeight(r.createdAt, now) * sourceWeight(r.source)
+      const w = r.suppressed ? 0 : decayWeight(r.createdAt, now) * sourceWeight(r.source)
       wSum += w
       if (r.success) wSuccess += w
       if (r.formatValid) wFormat += w
@@ -252,7 +252,7 @@ export async function aggregateModelsGlobal(payload: Payload): Promise<GlobalMod
       const m = r.modelName
       if (!m) continue
       const a = byModel.get(m) || { wSum: 0, wSuccess: 0, wFormat: 0, wLat: 0, wLatSum: 0, n: 0 }
-      const w = decayWeight(r.createdAt, now) * sourceWeight(r.source)
+      const w = r.suppressed ? 0 : decayWeight(r.createdAt, now) * sourceWeight(r.source)
       a.wSum += w
       if (r.success) a.wSuccess += w
       if (r.formatValid) a.wFormat += w

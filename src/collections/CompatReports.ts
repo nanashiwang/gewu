@@ -38,6 +38,14 @@ export const CompatReports: CollectionConfig = {
     { name: 'outputSizeBucket', type: 'text', label: '输出规模档' },
     { name: 'runnerVersion', type: 'text', label: 'Runner 版本' },
     {
+      name: 'suppressed',
+      type: 'checkbox',
+      defaultValue: false,
+      index: true,
+      label: '已抑制（不计入聚合）',
+      admin: { description: '被封禁用户的历史报告追溯降权：权重归 0、不进 LocalScore/榜' },
+    },
+    {
       name: 'source',
       type: 'select',
       defaultValue: 'community',
