@@ -263,6 +263,19 @@ function ResultBadges({ r }: { r: any }) {
       >
         格式{r.formatValid ? '✓' : '✗'}
       </span>
+      {r.savedAmount > 0 && (
+        <span className="rounded border border-[var(--accent-2)] px-1.5 py-0.5 text-[var(--accent-2)]">
+          省¥{r.savedAmount}
+        </span>
+      )}
+      {r.cheaperViaByok && (
+        <span
+          className="rounded border border-[var(--warn)] px-1.5 py-0.5 text-[var(--warn)]"
+          title="本次走平台代付(含加价)；在设置里绑定自己的模型 Key(BYOK)直连供应商可更省"
+        >
+          BYOK更省
+        </span>
+      )}
     </div>
   )
 }

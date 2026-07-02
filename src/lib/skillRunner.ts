@@ -37,6 +37,7 @@ export interface RunSkillResult {
   cost?: number
   chargedCredits?: number // 平台代付路径实际扣减的 credit（BYOK/mock 为 0）
   savedAmount?: number // 省钱回执：相比默认premium模型省下的估算元
+  cheaperViaByok?: boolean // 四面墙·履约隔离：本次走平台代付，自带 Key 直连供应商更省(不得隐藏)
   latencyMs?: number
   tokens?: { prompt: number; completion: number; total: number }
   mocked?: boolean
@@ -402,6 +403,8 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
     cost,
     chargedCredits,
     savedAmount,
+    // 四面墙·履约隔离：平台代付含加价，自带 Key 直连供应商更省——强制回传，不得隐藏(网关抄不起的诚实)
+    cheaperViaByok: platformKeyPath && !args.benchmark && !!result && !result.mocked,
     latencyMs: result?.latencyMs,
     tokens: result
       ? { prompt: result.promptTokens, completion: result.completionTokens, total: result.totalTokens }
