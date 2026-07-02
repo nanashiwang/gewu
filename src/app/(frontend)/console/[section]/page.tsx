@@ -6,6 +6,7 @@ import { formatCost, formatLatency, timeAgo } from '@/lib/format'
 import { Section, Empty } from '@/components/console/ConsoleUI'
 import { Pagination } from '@/components/Pagination'
 import { CopyButton } from '@/components/CopyButton'
+import { RerunButton } from '@/components/console/RerunButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -134,7 +135,7 @@ export default async function ConsoleSection({
     const runs = await payload.find({
       collection: 'skill-runs',
       where: { user: { equals: uid } },
-      depth: 1,
+      depth: 2, // 需 depth2 populate skill.currentVersion.recommendedModels 供换模型下拉
       limit: PAGE_SIZE,
       page,
       sort: '-createdAt',
@@ -208,6 +209,15 @@ export default async function ConsoleSection({
                       {r.savedAmount > 0 && <span className="text-[var(--accent-2)]">省 {formatCost(r.savedAmount)}</span>}
                       {r.errorCode && <span className="text-[var(--danger)]">错误 {r.errorCode}</span>}
                     </div>
+                    <RerunButton
+                      runId={r.id}
+                      models={
+                        (typeof r.skill === 'object' && r.skill?.currentVersion &&
+                        typeof r.skill.currentVersion === 'object'
+                          ? r.skill.currentVersion?.recommendedModels?.cloud
+                          : undefined) || []
+                      }
+                    />
                   </div>
                 </details>
               </li>
