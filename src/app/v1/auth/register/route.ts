@@ -75,7 +75,9 @@ export async function POST(request: Request) {
       },
     })
   } catch (e: any) {
-    return Response.json({ error: `注册失败：${e.message}` }, { status: 400 })
+    // 通用文案防账号枚举：不回显"邮箱已存在/用户名已占用"等可区分错误；原始错误仅落服务端日志
+    payload.logger?.error(`注册失败: ${e?.message}`)
+    return Response.json({ error: '注册失败，请检查信息或稍后重试' }, { status: 400 })
   }
 
   // 标记邀请码已用

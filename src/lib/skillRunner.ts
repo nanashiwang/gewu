@@ -366,10 +366,17 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
     }
   }
 
+  // 失败对外只给归一化文案（errorType），不透传上游网关原始错误体(可能含内部路由/分组/配额细节)
+  if (!success && lastError) payload.logger?.error(`运行失败 run=${runId} model=${usedModel}: ${lastError}`)
+  const publicError = success
+    ? undefined
+    : [errorType ? `模型调用失败（${errorType}），请重试或更换模型` : '模型调用失败，请重试或更换模型']
+
   return {
     ok: success,
     runId,
-    errors: success ? undefined : [lastError || '模型调用失败'],
+    errors: publicError,
+    errorCode: success ? undefined : errorType,
     output: result?.text,
     outputJson,
     model: usedModel,

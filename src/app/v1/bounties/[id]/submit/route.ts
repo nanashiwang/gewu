@@ -32,6 +32,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   })
   const skill = skills.docs[0]
   if (!skill) return Response.json({ error: 'Skill 不存在' }, { status: 404 })
+  // 归属校验：只能用接单人自己的作品交付，杜绝拿他人热门 Skill 冒充交付换赏金
+  const skillAuthorId = typeof skill.author === 'object' ? (skill.author as any)?.id : skill.author
+  if (String(skillAuthorId) !== String(user.id)) {
+    return Response.json({ error: '只能提交你自己创作的 Skill 作为交付物' }, { status: 403 })
+  }
 
   await payload.update({
     collection: 'bounties',
