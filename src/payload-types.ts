@@ -214,6 +214,10 @@ export interface User {
   username: string;
   role: 'user' | 'creator' | 'certified_creator' | 'reviewer' | 'admin' | 'enterprise_admin';
   level?: number | null;
+  /**
+   * banned = 禁止登录且冻结一切经济操作（挣分/兑换/运行）
+   */
+  accountStatus?: ('active' | 'banned') | null;
   contributionScore?: number | null;
   consumptionScore?: number | null;
   /**
@@ -1004,6 +1008,7 @@ export interface UsersSelect<T extends boolean = true> {
   username?: T;
   role?: T;
   level?: T;
+  accountStatus?: T;
   contributionScore?: T;
   consumptionScore?: T;
   creditBalance?: T;

@@ -9,6 +9,7 @@ export async function POST(request: Request) {
   const payload = await getPayload({ config })
   const { user } = await payload.auth({ headers: await nextHeaders() })
   if (!user) return Response.json({ error: '请先登录' }, { status: 401 })
+  if ((user as any).accountStatus === 'banned') return Response.json({ error: '账号已被封禁' }, { status: 403 })
 
   const body = await request.json().catch(() => ({}))
   const { title, description, rewardPoints, dueAt, idempotencyKey } = body || {}

@@ -1,4 +1,5 @@
 import type { CollectionConfig } from 'payload'
+import { APIError } from 'payload'
 import { adminOrSelf, fieldAdminOrSelf, isAdmin, isAdminField } from '@/access'
 import { rowActionsField } from './fields/rowActions'
 
@@ -45,6 +46,19 @@ export const Users: CollectionConfig = {
       ],
     },
     { name: 'level', type: 'number', defaultValue: 1, label: '等级' },
+    {
+      name: 'accountStatus',
+      type: 'select',
+      defaultValue: 'active',
+      label: '账号状态',
+      index: true,
+      access: { update: isAdminField },
+      admin: { description: 'banned = 禁止登录且冻结一切经济操作（挣分/兑换/运行）' },
+      options: [
+        { label: '正常', value: 'active' },
+        { label: '封禁', value: 'banned' },
+      ],
+    },
     {
       name: 'contributionScore',
       type: 'number',
@@ -126,6 +140,14 @@ export const Users: CollectionConfig = {
     },
   ],
   hooks: {
+    beforeLogin: [
+      ({ user }) => {
+        // 封禁账号禁止登录（active session 的经济操作另由端点 accountStatus 校验拦截）
+        if ((user as any)?.accountStatus === 'banned') {
+          throw new APIError('账号已被封禁', 403)
+        }
+      },
+    ],
     beforeChange: [
       async ({ req, operation, data }) => {
         // 第一个创建的用户自动成为超级管理员
