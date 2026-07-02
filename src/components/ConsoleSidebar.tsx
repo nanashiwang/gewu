@@ -16,6 +16,7 @@ const PERSONAL = [
   { href: '/console/exchange', label: '术值兑换' },
   { href: '/console/favorites', label: '收藏' },
   { href: '/console/invites', label: '邀请码' },
+  { href: '/console/settings', label: '设置' },
 ]
 
 export function ConsoleSidebar({ isStaff }: { isStaff: boolean }) {
