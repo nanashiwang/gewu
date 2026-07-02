@@ -31,7 +31,7 @@ export const CompatReports: CollectionConfig = {
     { name: 'success', type: 'checkbox', defaultValue: false, label: '成功' },
     { name: 'latencyMs', type: 'number', label: '耗时(ms)' },
     { name: 'formatValid', type: 'checkbox', defaultValue: false, label: '格式有效' },
-    { name: 'errorType', type: 'text', label: '错误类型' },
+    { name: 'errorType', type: 'text', index: true, label: '错误类型' },
     { name: 'inputSizeBucket', type: 'text', label: '输入规模档' },
     { name: 'outputSizeBucket', type: 'text', label: '输出规模档' },
     { name: 'runnerVersion', type: 'text', label: 'Runner 版本' },

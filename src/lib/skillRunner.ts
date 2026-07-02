@@ -9,6 +9,7 @@ import { generateRunId } from './slug'
 import { skillRankFromAggregates } from './skillrank'
 import { awardContribution } from './contribution'
 import { applyCredit, creditsFromYuan } from './credit'
+import { classifyError } from './errorTaxonomy'
 import { approvedPlatformModels, type RouteMode } from './constants'
 
 export interface RunSkillArgs {
@@ -223,6 +224,16 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
   }
   const cost = result ? estimateCost(usedModel, result.promptTokens, result.completionTokens) : 0
 
+  // 结构化错误分类（6m 负知识原料）：调用失败原因 / 成功但格式漂移，仅存标签不存原文
+  const outputSchemaPresent = !!version?.outputSchema && Object.keys(version.outputSchema).length > 0
+  const errorType = classifyError({
+    hasResult: !!result,
+    lastError,
+    formatValid,
+    outputSchemaPresent,
+    text: result?.text,
+  })
+
   // 5b. credit 消费出口（总纲 6a，三币漏斗"跑模型→蒸发"段）：仅平台代付且真实调用时扣。
   //     幂等键=runId 防重试双扣；预检已兜底，实扣允许轻微透支保台账真实（账实一致优先于余额非负）。
   let chargedCredits = 0
@@ -268,7 +279,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
         chargedAmount: chargedCredits > 0 ? cost : 0, // 仅平台代付且扣费成功计费；BYOK/失败记 0
         latencyMs: result?.latencyMs || 0,
         success,
-        errorCode: success ? undefined : 'NEWAPI_ERROR',
+        errorCode: errorType || (success ? undefined : 'NEWAPI_ERROR'),
         formatValid,
         // 对比/探测(skipAggregate)不计入 headline 指标；持久化该意图供台账对账过滤，避免重算时把探测运行错误计入
         countedInMetrics: !args.skipAggregate,
@@ -279,13 +290,14 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
     payload.logger?.error(`写入 SkillRun 失败: ${(e as Error).message}`)
   }
 
-  // 6b. 在线运行回流兼容报告（护城河水龙头）：真实非 mock 调用喂逐模型评测数据（不含输入/输出原文）。
-  //     排除作者自跑（防自刷兼容矩阵）；不随 skipAggregate 跳过——对比模式正是要采集的信号。
+  // 6b. 在线回流兼容报告（护城河水龙头 + 负知识水龙头 6m）：真实调用(含失败)喂逐模型评测数据（不含原文）。
+  //     排除 mock 与作者自跑（防自刷）；失败也回流（带 errorType），是负知识库的原料来源。
   {
     const runAuthorId = typeof skill.author === 'object' ? skill.author?.id : skill.author
     const isSelfRun = !!(user?.id && runAuthorId && String(user.id) === String(runAuthorId))
     const uHash = user?.id ? anonHash(String(user.id)) : undefined
-    if (result && !result.mocked && !isSelfRun) {
+    // isRealCall=真实尝试（网关已配+有 Key）：成功则 result 非 mock，失败则 result 为 null 但仍是真实尝试
+    if (isRealCall && !isSelfRun && !(result && result.mocked)) {
       try {
         // 抗刷：同一用户对同一 (skill, model) 的 online 报告最多计 3 条，防单人灌满/反向投毒某格
         let allow = true
@@ -315,9 +327,10 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
               modelName: usedModel,
               success,
               formatValid,
-              latencyMs: result.latencyMs || 0,
+              latencyMs: result?.latencyMs || 0,
+              errorType, // 6m 负知识：失败原因/格式漂移分类
               inputSizeBucket: bucketSize(JSON.stringify(input || {}).length),
-              outputSizeBucket: bucketSize((result.text || '').length),
+              outputSizeBucket: bucketSize((result?.text || '').length),
               source: 'online',
             },
           })
