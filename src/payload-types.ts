@@ -1250,6 +1250,10 @@ export interface SiteSetting {
 export interface EconomySetting {
   id: string;
   exchangeEnabled?: boolean | null;
+  /**
+   * 新用户注册即送的试用额度（营销成本，§7A 建议 30-50）。0=不送。赠送的 credit 只能消耗，不产术值
+   */
+  freeCreditOnRegister?: number | null;
   alpha?: number | null;
   /**
    * 接入 New API /api/log 自动回填前手动填；0 = 兑换池空、自动关闭兑换。1 分 = 1 credit
@@ -1282,6 +1286,7 @@ export interface SiteSettingsSelect<T extends boolean = true> {
  */
 export interface EconomySettingsSelect<T extends boolean = true> {
   exchangeEnabled?: T;
+  freeCreditOnRegister?: T;
   alpha?: T;
   monthlyRealizedMarginCents?: T;
   pointsPerCredit?: T;

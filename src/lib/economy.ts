@@ -17,6 +17,7 @@ export async function acquireExchangeLock(payload: Payload, transactionID: strin
 
 export interface EconomyConfig {
   exchangeEnabled: boolean
+  freeCreditOnRegister: number
   alpha: number
   monthlyRealizedMarginCents: number
   pointsPerCredit: number
@@ -28,6 +29,7 @@ export interface EconomyConfig {
 
 const DEFAULTS: EconomyConfig = {
   exchangeEnabled: false,
+  freeCreditOnRegister: 0,
   alpha: 0.3,
   monthlyRealizedMarginCents: 0,
   pointsPerCredit: 10,
@@ -43,6 +45,11 @@ export async function getEconomyConfig(payload: Payload): Promise<EconomyConfig>
   const num = (v: any, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d)
   return {
     exchangeEnabled: !!g.exchangeEnabled,
+    // 赠送额度加硬上限（防管理员误设 99999 配合批量注册放血）：不超过单次兑换上限
+    freeCreditOnRegister: Math.min(
+      Math.max(1, num(g.perTxMaxCredit, DEFAULTS.perTxMaxCredit)),
+      Math.max(0, Math.floor(num(g.freeCreditOnRegister, 0))),
+    ),
     alpha: Math.min(1, Math.max(0, num(g.alpha, DEFAULTS.alpha))), // clamp[0,1]：防巨大 α 架空"永不亏 margin"红线
     monthlyRealizedMarginCents: Math.max(0, num(g.monthlyRealizedMarginCents, 0)),
     pointsPerCredit: Math.max(1, num(g.pointsPerCredit, DEFAULTS.pointsPerCredit)),

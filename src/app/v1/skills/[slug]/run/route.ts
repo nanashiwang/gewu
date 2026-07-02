@@ -75,5 +75,15 @@ export async function POST(
     userApiKey,
   })
 
-  return Response.json(result, { status: result.ok ? 200 : 422 })
+  // 护栏错误码 → HTTP 状态（余额不足 402 / 需 BYOK 403 / 频控 429）
+  const status = result.ok
+    ? 200
+    : result.errorCode === 'INSUFFICIENT_CREDIT'
+      ? 402
+      : result.errorCode === 'MODEL_REQUIRES_BYOK'
+        ? 403
+        : result.errorCode === 'RATE_LIMITED'
+          ? 429
+          : 422
+  return Response.json(result, { status })
 }

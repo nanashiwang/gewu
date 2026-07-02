@@ -1,6 +1,8 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { awardContribution } from '@/lib/contribution'
+import { applyCredit } from '@/lib/credit'
+import { getEconomyConfig } from '@/lib/economy'
 import { getClientIp, hashIp } from '@/lib/clientMeta'
 
 // POST /v1/auth/register —— 邀请码注册
@@ -101,6 +103,23 @@ export async function POST(request: Request) {
         description: '邀请新用户注册',
       })
     }
+  }
+
+  // 注册赠送 credit（免费额度 F，economy-settings 配置，默认 0=不送；幂等键防重）
+  try {
+    const eco = await getEconomyConfig(payload)
+    const free = eco.freeCreditOnRegister
+    if (free > 0) {
+      await applyCredit(payload, {
+        userId: newUser.id as string,
+        type: 'adjust',
+        amount: free,
+        description: '注册赠送额度',
+        idempotencyKey: `register:${newUser.id}`,
+      })
+    }
+  } catch (e) {
+    payload.logger?.error(`注册赠送 credit 失败: ${(e as Error).message}`)
   }
 
   return Response.json({ ok: true, userId: newUser.id })

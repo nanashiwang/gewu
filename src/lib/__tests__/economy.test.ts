@@ -3,6 +3,7 @@ import { exchangePoolTotal, monthStartISO, dayStartISO } from '@/lib/economy'
 
 const cfg = (over: Partial<any> = {}) => ({
   exchangeEnabled: true,
+  freeCreditOnRegister: 0,
   alpha: 0.3,
   monthlyRealizedMarginCents: 0,
   pointsPerCredit: 10,

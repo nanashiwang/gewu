@@ -68,10 +68,13 @@ export async function POST(
     .catch(() => null)
   const userApiKey = (fullUser as any)?.newapiKeyEncrypted || undefined
 
-  // 并行跑各模型（forceModel 固定模型、skipAggregate 不污染聚合指标）
-  const results = await Promise.all(
-    models.map((m) =>
-      runSkill({
+  // 串行跑各模型（forceModel 固定模型、skipAggregate 不污染聚合指标）。
+  // 刻意串行而非并行：让每个 runSkill 看到前一个已扣减的 credit 余额与已落库的频控计数，
+  // 消除平台代付下"同一余额被多个并发预检共用"的 TOCTOU 白嫖与频控击穿（对抗审查 P0/P1）。
+  const results: any[] = []
+  for (const m of models) {
+    try {
+      const r = await runSkill({
         payload,
         skill,
         version,
@@ -81,10 +84,11 @@ export async function POST(
         forceModel: m,
         skipAggregate: true,
       })
-        .then((r) => ({ model: m, ...r }))
-        .catch((e) => ({ model: m, ok: false, runId: '', errors: [(e as Error).message] })),
-    ),
-  )
+      results.push({ model: m, ...r })
+    } catch (e) {
+      results.push({ model: m, ok: false, runId: '', errors: [(e as Error).message] })
+    }
+  }
 
   return Response.json({ results })
 }

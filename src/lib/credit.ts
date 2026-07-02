@@ -1,6 +1,12 @@
 import type { Payload, PayloadRequest } from 'payload'
 import type { CreditTxType } from './constants'
 
+// 元 → credit 换算（1 credit = ¥0.01）。cost.ts 的 estimateCost 以人民币元计，
+// 台账以 credit 计——换算只在此一处定义，防止"元/分"单位错位（放大 100 倍事故）。
+export function creditsFromYuan(yuan: number): number {
+  return Math.round((yuan || 0) * 100 * 100) / 100 // credit 保留 2 位小数
+}
+
 export interface ApplyCreditResult {
   ok: boolean
   balance?: number

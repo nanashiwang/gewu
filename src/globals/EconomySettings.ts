@@ -18,6 +18,16 @@ export const EconomySettings: GlobalConfig = {
       label: '开放术值兑换',
     },
     {
+      name: 'freeCreditOnRegister',
+      type: 'number',
+      defaultValue: 0,
+      label: '注册赠送 credit（免费额度 F）',
+      admin: {
+        description:
+          '新用户注册即送的试用额度（营销成本，§7A 建议 30-50）。0=不送。赠送的 credit 只能消耗，不产术值',
+      },
+    },
+    {
       name: 'alpha',
       type: 'number',
       defaultValue: 0.3,
