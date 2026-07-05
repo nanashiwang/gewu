@@ -8,7 +8,8 @@ import { syncNewApiQuotaToBalance } from '@/lib/newapiQuota'
 import { getClientIp, hashDeviceId, hashIp } from '@/lib/clientMeta'
 import { normalizeRegisterCreditAmount, registerCreditIdempotencyKey } from '@/lib/registerCredit'
 import { acquireInviteCodeLock } from '@/lib/dbLocks'
-import { getRegistrationEmailRequired, resolveRegistrationEmail } from '@/lib/siteSettings'
+import { getRegistrationEmailRequired, normalizeRegistrationEmail, resolveRegistrationEmail } from '@/lib/siteSettings'
+import { registerCreateErrorMessage, validateRegisterInput } from '@/lib/registerValidation'
 
 function isFormRegisterRequest(request: Request): boolean {
   const contentType = request.headers.get('content-type') || ''
@@ -73,12 +74,39 @@ export async function POST(request: Request) {
   const password = typeof body.password === 'string' ? body.password : ''
   const inviteCode = typeof body.inviteCode === 'string' ? body.inviteCode : ''
   const emailRequired = await getRegistrationEmailRequired(payload)
+  const normalizedEmail = normalizeRegistrationEmail(body.email)
   const accountEmail = resolveRegistrationEmail(body.email, emailRequired)
-  if (emailRequired && !accountEmail) {
-    return fail('邮箱为必填', 400)
+  const inputError = validateRegisterInput({
+    email: normalizedEmail,
+    emailRequired,
+    password,
+    username,
+  })
+  if (inputError) {
+    return fail(inputError, 400)
   }
-  if (!username || !password) {
-    return fail('用户名、密码均为必填', 400)
+
+  const usernameExists = await payload
+    .count({
+      collection: 'users',
+      where: { username: { equals: username } },
+      overrideAccess: true,
+    })
+    .catch(() => null)
+  if (usernameExists && usernameExists.totalDocs > 0) {
+    return fail('用户名已被占用，请换一个', 409)
+  }
+  if (normalizedEmail) {
+    const emailExists = await payload
+      .count({
+        collection: 'users',
+        where: { email: { equals: normalizedEmail } },
+        overrideAccess: true,
+      })
+      .catch(() => null)
+    if (emailExists && emailExists.totalDocs > 0) {
+      return fail('邮箱已被注册，请直接登录或换一个邮箱', 409)
+    }
   }
 
   // 反女巫：采集注册 IP 哈希。同 IP 24h 内注册数宽松上限（兜底极端批量；阈值宽松以规避 CGNAT/共享出口 IP 的误伤）。
@@ -185,9 +213,8 @@ export async function POST(request: Request) {
     }
   } catch (e: any) {
     await rollbackTx()
-    // 通用文案防账号枚举：不回显"邮箱已存在/用户名已占用"等可区分错误；原始错误仅落服务端日志
     payload.logger?.error(`注册失败: ${e?.message}`)
-    return fail('注册失败，请检查信息或稍后重试', 400)
+    return fail(registerCreateErrorMessage(e), 400)
   }
 
   // 给邀请人发术值（分值/每日上限由 contribution-rules 的 invite 规则决定）；
