@@ -1,10 +1,7 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { loginIdentifierKind, normalizeLoginIdentifier } from '@/lib/loginIdentifier'
-
-function payloadErrorMessage(data: any): string {
-  return data?.errors?.[0]?.message || data?.message || data?.error || '登录失败'
-}
+import { loginErrorMessage } from '@/lib/loginErrors'
 
 function isFormLoginRequest(request: Request): boolean {
   const contentType = request.headers.get('content-type') || ''
@@ -95,7 +92,7 @@ export async function POST(request: Request) {
     } catch {
       /* ignore */
     }
-    return fail(payloadErrorMessage(data), loginRes.status)
+    return fail(loginErrorMessage(data, loginRes.status), loginRes.status)
   }
   if (formMode) return formSuccess(loginRes.headers)
   return responseWithForwardedCookies(text, loginRes.status, loginRes.headers)
