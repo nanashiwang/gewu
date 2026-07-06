@@ -10,6 +10,7 @@ interface Category {
 type SubmitResult = {
   status?: string
   autoPublished?: boolean
+  requiresHumanReview?: boolean
   review?: {
     decision?: string
     riskLevel?: string
@@ -85,10 +86,11 @@ export function SkillForm({ categories }: { categories: Category[] }) {
 
   if (done) {
     const published = done.status === 'published' || done.autoPublished
+    const aiRejected = done.review?.decision === 'reject'
     return (
       <div className="max-w-2xl rounded-lg border border-[var(--border)] bg-[var(--panel)] p-6 text-sm">
         <p className="mb-2 text-base font-medium">
-          {published ? '✓ AI 审核通过，已自动上架' : done.status === 'rejected' ? '未通过自动审核' : '✓ 已提交，等待人工审核'}
+          {published ? '✓ AI 审核通过，已自动上架' : aiRejected ? 'AI 未通过，已转人工审核' : '✓ 已提交，等待人工审核'}
         </p>
         <p className="mb-3 text-[var(--muted)]">
           {done.review?.summary || (published ? 'Skill 已进入市场。' : '审核员确认后再上架。')}

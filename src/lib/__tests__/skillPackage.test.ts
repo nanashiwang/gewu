@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { buildSkillComplianceReviewPrompt, packageStatusForReview } from '@/lib/skillComplianceReview'
 import { analyzeSkillPackage } from '@/lib/skillPackage'
 
 function u16(n: number) {
@@ -119,5 +120,23 @@ describe('skill package analysis', () => {
     const pkg = zipStore({ 'README.md': '# only readme' })
     const analysis = analyzeSkillPackage('skill.zip', pkg)
     expect(analysis.issues.some((i) => i.code === 'MANIFEST_MISSING' && i.level === 'blocker')).toBe(true)
+  })
+
+  it('uses the compliance-review skill prompt for package review context', () => {
+    const pkg = zipStore({
+      'hengshu.skill.yaml': manifest,
+      'README.md': '# 测试 Skill\n用于测试。',
+    })
+    const analysis = analyzeSkillPackage('skill.zip', pkg)
+    const prompt = buildSkillComplianceReviewPrompt({ title: '测试 Skill', category: 'AI 评测', analysis })
+    expect(prompt).toContain('Skill 安全')
+    expect(prompt).toContain('hengshu.skill.yaml')
+    expect(prompt).toContain('测试 Skill')
+  })
+
+  it('only publishes AI-approved packages; all non-approve decisions stay pending for staff review', () => {
+    expect(packageStatusForReview({ decision: 'approve' })).toBe('published')
+    expect(packageStatusForReview({ decision: 'manual_review' })).toBe('pending')
+    expect(packageStatusForReview({ decision: 'reject' })).toBe('pending')
   })
 })

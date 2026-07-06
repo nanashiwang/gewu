@@ -1,4 +1,5 @@
 // 第一批官方 Skill 种子数据（Hengshu Skill Spec v1：system + user 双段）
+import { SKILL_COMPLIANCE_REVIEWER_SKILL } from '../lib/skillComplianceReview'
 
 export interface SeedSkill {
   slug: string
@@ -45,6 +46,7 @@ function route(def: string) {
 }
 
 export const SEED_SKILLS: SeedSkill[] = [
+  SKILL_COMPLIANCE_REVIEWER_SKILL,
   {
     slug: 'xhs-title-generator',
     title: '小红书标题生成器',

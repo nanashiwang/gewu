@@ -22,7 +22,7 @@
 - **下载→运行主线**：Skill Spec v1 · 发布快照+checksum · Runner 设备码登录 · 本地安装/离线运行（CLI 六命令）· 兼容报告回流+LocalScore · 术值/贡献2.0 规则引擎 · 求术悬赏闭环
 - **信任模型**：manifest ed25519 签名 + Runner 验签 + `/v1/keys` 公钥分发 + `/verify` 分数快照公开验签
 - **护城河数据层**：逐模型兼容真值表（时间衰减加权 + 置信度）· 在线运行回流喂评测数据 · 失败知识库（`/failures`）· 来源分级权重
-- **创作者供给**：前台发布 Skill（`/console/skills/new`）· 我的作品 · 未发布 Skill 作者可预览
+- **创作者供给**：前台发布 Skill（`/console/skills/new`）· AI 合规审核通过自动上架/未通过转人工 · 我的作品 · 未发布 Skill 作者可预览
 - **经济闭环（骨架）**：credit 台账 + 术值兑换池（`/console/exchange`，默认关闭待接真值）
 - **前台**：首页发现 · Skill 市场（筛选/排序/搜索）· 详情（兼容矩阵/评论/版本）· 排行榜 · 悬赏区 · 控制台 · 订阅更新通知 · 移动端导航 · SEO(sitemap/robots/metadata)
 
@@ -39,7 +39,7 @@ docker compose up -d postgres redis
 cp .env.example .env
 #   - PAYLOAD_SECRET 必填（openssl rand -hex 32）
 #   - 模型网关/New API/签名/备份可部署后在后台「部署设置」配置
-#   - 若要 seed 自动建首管，生产需设置 SEED_ADMIN_PASSWORD 强密码
+#   - seed 不再创建默认管理员；先通过 /admin 创建首个账号
 
 # 3. 安装并启动
 npm install
@@ -47,7 +47,7 @@ npm run dev          # http://localhost:3000
 
 # 4. 首次初始化
 #   - 首访 http://localhost:3000/admin 创建的账号即超级管理员（Payload 首用户引导）
-npm run seed         # 注入分类 + 20 个官方 Skill（幂等；生产不会创建固定测试邀请码）
+npm run seed         # 注入分类 + 21 个官方 Skill（含 Skill 合规审核员；幂等；生产不会创建固定测试邀请码）
 ```
 
 启动后：前台 `http://localhost:3000` · 市场 `/skills` · 后台 `/admin`。
@@ -71,7 +71,7 @@ curl http://127.0.0.1:8787/health
 | 命令 | 说明 |
 |---|---|
 | `npm run dev` / `build` / `start` | 开发 / 构建 / 生产启动 |
-| `npm run seed` | 分类 + 20 个官方 Skill（幂等；生产首管需强密码） |
+| `npm run seed` | 分类 + 21 个官方 Skill（含 Skill 合规审核员；幂等；需先创建首个管理员） |
 | `npm run seed:rules` | 术值规则（幂等） |
 | `npm run generate:types` | 生成 `src/payload-types.ts` |
 | `npm run lint` | 资金/中立性/密钥与高熵令牌静态门禁 |

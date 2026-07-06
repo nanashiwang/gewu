@@ -4,8 +4,11 @@ import config from '@payload-config'
 import { headers as nextHeaders } from 'next/headers'
 import { slugify } from '@/lib/slug'
 import { normalizeSkillSubmissionKey } from '@/lib/skillSubmission'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
+import { notify } from '@/lib/notify'
 import {
   analyzeSkillPackage,
+  packageStatusForReview,
   reviewSkillPackage,
   reviewToChangelog,
   storeSkillPackage,
@@ -63,6 +66,34 @@ async function findIdempotentSkill(payload: Payload, userId: string, idempotency
     overrideAccess: true,
   })
   return existing.docs[0] as any
+}
+
+async function notifySkillReviewers(payload: Payload, skill: any, review: any, actorId: string) {
+  const staff = await payload.find({
+    collection: 'users',
+    where: {
+      and: [
+        { accountStatus: { equals: 'active' } },
+        { or: [{ role: { equals: 'admin' } }, { role: { equals: 'reviewer' } }] },
+      ],
+    },
+    limit: 100,
+    depth: 0,
+    overrideAccess: true,
+  })
+  await Promise.all(
+    (staff.docs as any[]).map((u) =>
+      notify(payload, {
+        userId: String(u.id),
+        type: 'system',
+        title: `Skill「${skill.title}」需要人工审核`,
+        body: review?.summary || 'AI 审核未直接通过，请管理员进一步确认。',
+        link: '/console/admin/skills',
+        relatedSkill: String(skill.id),
+        actorId,
+      }),
+    ),
+  )
 }
 
 function uniqueSlug(base: string) {
@@ -144,8 +175,9 @@ async function handlePackageSubmission(payload: Payload, request: Request, user:
   }
 
   const category = await resolveCategory(payload, categorySlug)
-  const review = await reviewSkillPackage({ title, category: category.name, description, analysis })
-  const status = review.decision === 'approve' ? 'published' : review.decision === 'reject' ? 'rejected' : 'pending'
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const review = await reviewSkillPackage({ title, category: category.name, description, analysis, env: runtimeEnv })
+  const status = packageStatusForReview(review)
   const slug = await createUniqueSlug(payload, title)
   const promptTemplate =
     analysis.promptTemplate ||
@@ -210,12 +242,19 @@ async function handlePackageSubmission(payload: Payload, request: Request, user:
     return Response.json({ error: 'Skill 已保存但包文件落盘失败，请联系管理员处理' }, { status: 500 })
   }
 
+  if (status === 'pending') {
+    notifySkillReviewers(payload, skill, review, user.id).catch((e) =>
+      payload.logger?.error(`Skill 待审通知失败: ${(e as Error).message}`),
+    )
+  }
+
   return Response.json({
     ok: true,
     id: skill.id,
     slug,
     status,
     autoPublished: status === 'published',
+    requiresHumanReview: status === 'pending',
     review: {
       decision: review.decision,
       riskLevel: review.riskLevel,

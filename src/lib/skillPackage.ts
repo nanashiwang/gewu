@@ -3,6 +3,13 @@ import { mkdir, readdir, readFile, stat, writeFile } from 'fs/promises'
 import path from 'path'
 import { gunzipSync, inflateRawSync } from 'zlib'
 import { parse as parseYaml } from 'yaml'
+import {
+  buildSkillComplianceReviewPrompt,
+  normalizeSkillReviewDecision,
+  packageStatusForReview,
+  parseSkillReviewJson,
+  SKILL_REVIEW_SYSTEM_PROMPT,
+} from './skillComplianceReview'
 import { chatCompletion } from './newapi'
 
 export type PackageDecision = 'approve' | 'manual_review' | 'reject'
@@ -298,35 +305,12 @@ export function analyzeSkillPackage(fileName: string, input: Buffer): SkillPacka
   return analysis
 }
 
-function reviewPrompt(args: { title: string; category?: string; description?: string; analysis: SkillPackageAnalysis }) {
-  const { title, category, description, analysis } = args
-  const fileList = analysis.entries.slice(0, 120).map((e) => `${e.name} (${e.size} bytes)`).join('\n')
-  return `你是衡术 Hengshu 的 Skill 包审核员。请只返回 JSON，不要 Markdown。\n\n审核目标：判断该 Skill 包能否自动上架。\n\n必须审核：\n1. 是否诱导违法、诈骗、色情、暴力、自伤、仇恨、侵犯隐私或盗取账号/API Key。\n2. 是否伪装工具但实际收集密码、Cookie、Token、私钥、个人敏感信息。\n3. manifest、简介、README 是否一致，是否足够说明用途和输入输出。\n4. 是否存在高风险执行能力、网络/文件/Shell 权限、可疑脚本或二进制。\n5. 是否低质、空壳、广告、抄袭明显，或无法作为 Prompt/结构化 Skill 运行。\n\n判定规则：\n- 只有低风险、用途清晰、无敏感收集、无高风险权限、manifest 完整时才能 approve。\n- 有不确定风险或需要人工看代码时 manual_review。\n- 明显恶意、违法、密钥泄漏、诈骗或绕过安全边界时 reject。\n\n返回格式：{"decision":"approve|manual_review|reject","riskLevel":"low|medium|high","summary":"一句中文结论","findings":["中文要点"]}\n\n提交信息：\n名称：${title}\n分类：${category || '未选择'}\n简介：${description || '未填写'}\n\n规则预检：\n${analysis.issues.map((i) => `[${i.level}] ${i.code}: ${i.message}`).join('\n') || '无'}\n\n文件列表：\n${fileList}\n\nmanifest：\n${(analysis.manifestText || '').slice(0, 6000)}\n\nREADME：\n${(analysis.readmeText || '').slice(0, 4000)}`
-}
-
-function parseReviewJson(text: string): any | null {
-  try {
-    return JSON.parse(text)
-  } catch {
-    const match = text.match(/\{[\s\S]*\}/)
-    if (!match) return null
-    try {
-      return JSON.parse(match[0])
-    } catch {
-      return null
-    }
-  }
-}
-
-function normalizeDecision(value: unknown): PackageDecision {
-  return value === 'approve' || value === 'reject' || value === 'manual_review' ? value : 'manual_review'
-}
-
 export async function reviewSkillPackage(args: {
   title: string
   category?: string
   description?: string
   analysis: SkillPackageAnalysis
+  env?: Record<string, string | undefined>
 }): Promise<SkillPackageReview> {
   const { analysis } = args
   const blockers = analysis.issues.filter((i) => i.level === 'blocker')
@@ -340,8 +324,9 @@ export async function reviewSkillPackage(args: {
     }
   }
 
-  const baseUrl = process.env.MODEL_GATEWAY_BASE_URL?.trim()
-  const apiKey = process.env.MODEL_GATEWAY_KEY?.trim()
+  const env = args.env || process.env
+  const baseUrl = env.MODEL_GATEWAY_BASE_URL?.trim()
+  const apiKey = env.MODEL_GATEWAY_KEY?.trim()
   if (!baseUrl || !apiKey) {
     return {
       decision: 'manual_review',
@@ -354,18 +339,18 @@ export async function reviewSkillPackage(args: {
 
   try {
     const result = await chatCompletion({
-      model: process.env.SKILL_REVIEW_MODEL || process.env.MODEL_GATEWAY_DEFAULT_MODEL || 'deepseek-chat',
-      apiKey,
+      model: env.SKILL_REVIEW_MODEL || env.MODEL_GATEWAY_DEFAULT_MODEL || 'deepseek-chat',
+      gateway: { baseUrl, apiKey },
       temperature: 0,
       maxTokens: 700,
       messages: [
-        { role: 'system', content: '你是严格的应用商店安全审核员，只输出 JSON。' },
-        { role: 'user', content: reviewPrompt(args) },
+        { role: 'system', content: SKILL_REVIEW_SYSTEM_PROMPT },
+        { role: 'user', content: buildSkillComplianceReviewPrompt(args) },
       ],
       metadata: { source: 'skill-package-review' },
     })
-    const parsed = parseReviewJson(result.text)
-    const decision = normalizeDecision(parsed?.decision)
+    const parsed = parseSkillReviewJson(result.text)
+    const decision = normalizeSkillReviewDecision(parsed?.decision)
     const manualIssues = analysis.issues.filter((i) => i.level === 'manual')
     const finalDecision = decision === 'approve' && manualIssues.length === 0 ? 'approve' : decision === 'reject' ? 'reject' : 'manual_review'
     return {
@@ -386,6 +371,8 @@ export async function reviewSkillPackage(args: {
     }
   }
 }
+
+export { packageStatusForReview }
 
 export function reviewToChangelog(review: SkillPackageReview, analysis: SkillPackageAnalysis) {
   const lines = [
