@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { PasswordField } from './PasswordField'
 
 export function LoginForm({ initialError }: { initialError?: string }) {
   const router = useRouter()
@@ -86,11 +87,10 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           autoComplete="username"
           required
         />
-        <Field
+        <PasswordField
           id="login-password"
           name="password"
           label="密码"
-          type="password"
           value={password}
           onChange={setPassword}
           placeholder="请输入密码"

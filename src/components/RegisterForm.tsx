@@ -4,6 +4,7 @@ import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { PasswordField } from './PasswordField'
 
 export function RegisterForm({
   emailRequired,
@@ -125,11 +126,10 @@ export function RegisterForm({
           autoComplete="email"
           required={emailRequired}
         />
-        <Field
+        <PasswordField
           id="register-password"
           name="password"
           label="密码"
-          type="password"
           value={form.password}
           onChange={(v) => set('password', v)}
           placeholder="至少 8 位"
