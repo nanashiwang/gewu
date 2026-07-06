@@ -2,7 +2,8 @@ node_modules
 .next
 .git
 .gitignore
-docs
+docs/*
+!docs/衡术-功能说明书.md
 README.md
 .env
 .env.*
