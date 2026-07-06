@@ -14,6 +14,7 @@ import { getNewApiAdmin } from './newapiAdmin'
 import { prepareNewApiSubTokenForRun, syncNewApiQuotaToBalance } from './newapiQuota'
 import { approvedPlatformFallback, approvedPlatformModels, type RouteMode } from './constants'
 import { consumeRunRateLimit } from './rateLimit'
+import { resolveRuntimeEnv } from './deploymentSettings'
 
 export interface RunSkillArgs {
   payload: Payload
@@ -49,7 +50,7 @@ export interface RunSkillResult {
 }
 
 // 每用户真实调用频控（60 秒窗口；Redis 原子计数优先，BYOK 可降级 DB 计数）
-const RUN_RATE_LIMIT_PER_MIN = Math.max(1, Number(process.env.RUN_RATE_LIMIT_PER_MIN || 12))
+const DEFAULT_RUN_RATE_LIMIT_PER_MIN = 12
 // 平台代付 credit 预检的输出 token 上限假设（预检用上限，实扣用真实用量）
 const PRECHECK_COMPLETION_TOKENS = 2000
 
@@ -85,6 +86,8 @@ async function personalizedModelsForRun(
 export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
   const { payload, skill, version, input, user, routeMode, userApiKey } = args
   const runId = generateRunId()
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const runRateLimitPerMin = Math.max(1, Number(runtimeEnv.RUN_RATE_LIMIT_PER_MIN || DEFAULT_RUN_RATE_LIMIT_PER_MIN))
 
   // 1. 校验输入
   const v = validateInput(version?.inputSchema, input)
@@ -96,7 +99,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
 
   // 3. 选模型（forceModel 时固定模型、不路由、不 fallback —— 用于多模型对比）
   // 默认模型为已备案国产模型（合规架构切割 6l）：平台不代理未备案境外模型
-  const fallbackDefault = process.env.MODEL_GATEWAY_DEFAULT_MODEL || 'deepseek-chat'
+  const fallbackDefault = runtimeEnv.MODEL_GATEWAY_DEFAULT_MODEL || 'deepseek-chat'
   let model: string
   let fallbacks: string[]
   let mode: RouteMode
@@ -120,17 +123,28 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
 
   // 3b. 护栏（总纲 6a+6l）：mock 全免；BYOK 仅频控；平台代付=白名单+频控+credit 预检
   //     benchmark(系统评测 #8)：跳过频控/预检/扣费，但仍受白名单约束(合规)；不排除自跑、不计履约指标。
-  const gatewayConfigured = !!process.env.MODEL_GATEWAY_BASE_URL?.trim()
-  const adminForRun = getNewApiAdmin()
+  const gatewayBaseUrl = runtimeEnv.MODEL_GATEWAY_BASE_URL?.trim()
+  const gatewayKey = runtimeEnv.MODEL_GATEWAY_KEY?.trim()
+  const gatewayBaseConfigured = !!gatewayBaseUrl
+  const adminForRun = getNewApiAdmin(runtimeEnv)
   const platformKeyPath =
-    gatewayConfigured && !userApiKey && (!!process.env.MODEL_GATEWAY_KEY?.trim() || adminForRun.mode === 'real')
-  const isRealCall = gatewayConfigured && !!(userApiKey || process.env.MODEL_GATEWAY_KEY?.trim() || platformKeyPath)
+    gatewayBaseConfigured && !userApiKey && (!!gatewayKey || adminForRun.mode === 'real')
+  const isRealCall = gatewayBaseConfigured && !!(userApiKey || gatewayKey || platformKeyPath)
+
+  if (!isRealCall && process.env.NODE_ENV === 'production') {
+    return {
+      ok: false,
+      runId,
+      errorCode: 'MODEL_GATEWAY_NOT_CONFIGURED',
+      errors: ['管理员尚未配置模型网关；请在后台「部署设置」填写网关地址和 Key，或使用自带 Key。'],
+    }
+  }
 
   if (isRealCall && user?.id && !args.benchmark) {
     const rateLimit = await consumeRunRateLimit({
       payload,
       userId: user.id,
-      limit: RUN_RATE_LIMIT_PER_MIN,
+      limit: runRateLimitPerMin,
       platformPaid: platformKeyPath,
     })
     if (!rateLimit.allowed) {
@@ -141,7 +155,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
         errors: [
           rateLimit.unavailable
             ? '系统繁忙，请稍后再试'
-            : `运行过于频繁（每分钟上限 ${RUN_RATE_LIMIT_PER_MIN} 次），请稍后再试`,
+            : `运行过于频繁（每分钟上限 ${runRateLimitPerMin} 次），请稍后再试`,
         ],
       }
     }
@@ -162,7 +176,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
     }
 
     // 白名单：平台代付仅限已备案国产模型；候选链过滤，境外模型请 BYOK
-    const approved = approvedPlatformModels()
+    const approved = approvedPlatformModels(runtimeEnv)
     let chain = [model, ...fallbacks].filter((m) => approved.has(m))
     if (chain.length === 0) {
       if (args.forceModel) {
@@ -175,7 +189,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
         }
       }
       // 正常路由场景：作者 routePolicy/环境默认全是境外模型时，平台代付降级到已备案国产模型。
-      const safeFallback = approvedPlatformFallback(fallbackDefault)
+      const safeFallback = approvedPlatformFallback(fallbackDefault, runtimeEnv)
       if (!safeFallback) {
         return {
           ok: false,
@@ -276,6 +290,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
         messages,
         apiKey: platformCallApiKey,
         maxTokens: platformMaxTokens, // 平台代付：硬约束输出上限=预检假设，杜绝超额透支；BYOK/mock 为 undefined 不限制
+        gateway: { baseUrl: gatewayBaseUrl, apiKey: gatewayKey },
         metadata: {
           runId,
           skillId: skill?.id ? String(skill.id) : undefined,

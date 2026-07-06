@@ -4,7 +4,8 @@ import { adminOrSelf, fieldAdminOrSelf, isActiveAccount, isAdmin, isAdminField }
 import { normalizeNewApiKeyForStorage } from '@/lib/userSecrets'
 import { rowActionsField } from './fields/rowActions'
 
-const secureCookies = process.env.NODE_ENV === 'production' || (process.env.NEXT_PUBLIC_SERVER_URL || '').startsWith('https://')
+const siteUrlForCookies = process.env.NEXT_PUBLIC_SERVER_URL || process.env.SERVER_URL || ''
+const secureCookies = siteUrlForCookies.startsWith('https://')
 
 export const Users: CollectionConfig = {
   slug: 'users',

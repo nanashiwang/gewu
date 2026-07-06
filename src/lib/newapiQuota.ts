@@ -1,5 +1,6 @@
 import type { Payload } from 'payload'
 import { getNewApiAdmin, type NewApiAdmin, type SubToken } from './newapiAdmin'
+import { resolveRuntimeEnv } from './deploymentSettings'
 
 export function quotaCreditsForUser(user: any): number {
   if (!user || user.accountStatus === 'banned') return 0
@@ -9,7 +10,8 @@ export function quotaCreditsForUser(user: any): number {
 // 权威余额在本平台。提交后的网关同步总是读当前 creditBalance 并设置绝对 quota，
 // 避免多个充值/兑换异步 delta 更新互相覆盖。
 export async function syncNewApiQuotaToBalance(payload: Payload, userId: string): Promise<void> {
-  const admin = getNewApiAdmin()
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const admin = getNewApiAdmin(runtimeEnv)
   const user = (await payload.findByID({
     collection: 'users',
     id: userId,

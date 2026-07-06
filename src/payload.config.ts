@@ -31,6 +31,7 @@ import { AuditLogs } from './collections/AuditLogs'
 import { Media } from './collections/Media'
 import { SiteSettings } from './globals/SiteSettings'
 import { EconomySettings } from './globals/EconomySettings'
+import { DeploymentSettings } from './globals/DeploymentSettings'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -79,7 +80,7 @@ export default buildConfig({
     ModelPriceSnapshots,
     ScoreSnapshots,
   ],
-  globals: [SiteSettings, EconomySettings],
+  globals: [SiteSettings, EconomySettings, DeploymentSettings],
   editor: lexicalEditor(),
   secret: payloadSecret,
   db: postgresAdapter({

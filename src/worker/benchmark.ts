@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../payload.config'
 import { benchmarkSkill } from '../lib/benchmark'
+import { modelGatewayConfigured, resolveRuntimeEnv } from '../lib/deploymentSettings'
 
 // 发布即评测(#8) worker：对指定 Skill(或全部已发布)跑系统评测播种初始数据 + LocalScore。
 // 用法：npm run worker:benchmark <slug>            # 单个
@@ -21,8 +22,9 @@ async function run() {
   }
 
   const payload = await getPayload({ config })
-  if (!process.env.MODEL_GATEWAY_BASE_URL?.trim() || !process.env.MODEL_GATEWAY_KEY?.trim()) {
-    payload.logger.warn('未配置 MODEL_GATEWAY(BASE_URL/KEY)，将走 mock 不产生真实评测数据')
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  if (!modelGatewayConfigured(runtimeEnv)) {
+    payload.logger.warn('未配置模型网关（后台部署设置或 env），将走 mock/失败保护，不产生真实评测数据')
   }
 
   const where: any = all

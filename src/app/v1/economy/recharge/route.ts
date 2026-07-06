@@ -8,8 +8,9 @@ import { syncNewApiQuotaToBalance } from '@/lib/newapiQuota'
 import { maskRechargeCode, normalizeRechargeCode, rechargeCodeDigest, resolveRechargeCreditAmount } from '@/lib/rechargeCodes'
 import { consumeStrictRedisRateLimit } from '@/lib/rateLimit'
 import { recordAuditEvent } from '@/lib/audit'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 
-const RECHARGE_ATTEMPT_LIMIT_PER_10MIN = Math.max(1, Number(process.env.RECHARGE_ATTEMPT_LIMIT_PER_10MIN || 10))
+const DEFAULT_RECHARGE_ATTEMPT_LIMIT_PER_10MIN = 10
 
 // POST /v1/economy/recharge —— 一次性充值码 → credit。
 // 低频资金入口，复用全局咨询锁串行化，避免同一码并发双兑。
@@ -19,11 +20,16 @@ export async function POST(request: Request) {
   if (!user) return Response.json({ error: '请先登录' }, { status: 401 })
   if ((user as any).accountStatus === 'banned') return Response.json({ error: '账号已被封禁' }, { status: 403 })
 
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const rechargeAttemptLimit = Math.max(
+    1,
+    Number(runtimeEnv.RECHARGE_ATTEMPT_LIMIT_PER_10MIN || DEFAULT_RECHARGE_ATTEMPT_LIMIT_PER_10MIN),
+  )
   const rateLimit = await consumeStrictRedisRateLimit({
     payload,
     scope: 'recharge',
     subject: user.id as string,
-    limit: RECHARGE_ATTEMPT_LIMIT_PER_10MIN,
+    limit: rechargeAttemptLimit,
     windowSeconds: 10 * 60,
   })
   if (!rateLimit.allowed) {
@@ -31,7 +37,7 @@ export async function POST(request: Request) {
       {
         error: rateLimit.unavailable
           ? '系统繁忙，请稍后再试'
-          : `充值尝试过于频繁（10 分钟上限 ${RECHARGE_ATTEMPT_LIMIT_PER_10MIN} 次），请稍后再试`,
+          : `充值尝试过于频繁（10 分钟上限 ${rechargeAttemptLimit} 次），请稍后再试`,
       },
       { status: 429 },
     )

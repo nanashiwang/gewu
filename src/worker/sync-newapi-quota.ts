@@ -3,12 +3,14 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { getNewApiAdmin } from '@/lib/newapiAdmin'
 import { quotaCreditsForUser, syncNewApiQuotaToBalance } from '@/lib/newapiQuota'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 
 const APPLY = process.argv.includes('--apply') || process.env.APPLY === '1'
 
 async function main() {
   const payload = await getPayload({ config })
-  const admin = getNewApiAdmin()
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const admin = getNewApiAdmin(runtimeEnv)
   if (admin.mode !== 'real') {
     payload.logger.warn('New API 管理 API 未配置，跳过子令牌 quota 同步')
     process.exit(0)

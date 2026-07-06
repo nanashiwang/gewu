@@ -38,7 +38,7 @@ docker compose up -d postgres redis
 # 2. 环境变量
 cp .env.example .env
 #   - PAYLOAD_SECRET 必填（openssl rand -hex 32）
-#   - 开发可留空 MODEL_GATEWAY_*（在线运行走 mock）；生产必须真实配置
+#   - 模型网关/New API/签名/备份可部署后在后台「部署设置」配置
 #   - 若要 seed 自动建首管，生产需设置 SEED_ADMIN_PASSWORD 强密码
 
 # 3. 安装并启动
@@ -51,6 +51,20 @@ npm run seed         # 注入分类 + 20 个官方 Skill（幂等；生产不会
 ```
 
 启动后：前台 `http://localhost:3000` · 市场 `/skills` · 后台 `/admin`。
+
+
+## NAS / Compose 部署
+
+最小部署只需要数据库、Redis、`PAYLOAD_SECRET` 和站点地址；模型网关、New API、签名私钥、备份确认等运营配置，部署后到后台「系统设置 → 部署设置」再填。
+
+```bash
+cp .env.nas.example .env
+# 修改 PAYLOAD_SECRET / POSTGRES_PASSWORD / SERVER_URL / NEXT_PUBLIC_SERVER_URL
+docker compose up -d --build
+curl http://127.0.0.1:8787/health
+```
+
+首次打开 `http://NAS_IP:8787/admin` 创建管理员，然后进入「部署设置」按需配置真实模型调用、New API 子令牌、manifest 签名和备份状态。内网 HTTP 可以试跑；公网生产预检仍要求 HTTPS 同源、真实网关、New API 权限和备份确认。
 
 ## 常用脚本
 
@@ -97,6 +111,7 @@ src/
 
 | 文档 | 用途 |
 |---|---|
+| [`docs/衡术-功能说明书.md`](docs/衡术-功能说明书.md) | 面向外部用户的模块功能说明 |
 | [`docs/衡术-总纲.md`](docs/衡术-总纲.md) | **唯一开发依据**：定位/护城河/经济/统一落地路线 |
 | [`docs/PROGRESS.md`](docs/PROGRESS.md) | 功能进度基线 |
 | [`docs/体验手册.md`](docs/体验手册.md) | 完整闭环体验操作 |

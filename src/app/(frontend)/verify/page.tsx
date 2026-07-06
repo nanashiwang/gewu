@@ -1,6 +1,7 @@
 import { getPayloadClient } from '@/lib/payload'
 import { getPublicKeyInfo } from '@/lib/signing'
 import { verifyScoreSnapshot } from '@/lib/scoreSnapshotVerify'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,7 +25,7 @@ function skillLabel(skill: any): string {
 
 export default async function VerifyPage() {
   const payload = await getPayloadClient()
-  const [snapshots, publicKey] = await Promise.all([
+  const [snapshots, runtimeEnv] = await Promise.all([
     payload.find({
       collection: 'score-snapshots',
       depth: 1,
@@ -32,8 +33,9 @@ export default async function VerifyPage() {
       overrideAccess: true,
       sort: '-createdAt',
     }),
-    Promise.resolve(getPublicKeyInfo()),
+    resolveRuntimeEnv(payload),
   ])
+  const publicKey = getPublicKeyInfo(runtimeEnv)
 
   const rows = (snapshots.docs as any[]).map((s) => ({ snapshot: s, verify: verifyScoreSnapshot(s, publicKey) }))
   const okCount = rows.filter((r) => r.verify.status === 'valid').length

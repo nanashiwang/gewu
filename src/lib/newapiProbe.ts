@@ -25,6 +25,7 @@ export interface NewApiProbeOptions {
   userId?: string
   bearer?: boolean
   timeoutMs?: number
+  subGroup?: string
   fetchImpl?: FetchLike
 }
 
@@ -148,7 +149,7 @@ async function probePath(path: string, options: Required<Omit<NewApiProbeOptions
   let semanticError = ''
   if (path.startsWith('/api/pricing')) {
     const groupRatio = json?.group_ratio ?? json?.data?.group_ratio
-    const targetGroup = process.env.NEWAPI_SUB_GROUP?.trim()
+    const targetGroup = options.subGroup?.trim()
     if (records.length === 0) {
       semanticError = '/api/pricing 未返回模型价格'
     } else if (!groupRatio || typeof groupRatio !== 'object') {
@@ -185,6 +186,7 @@ export async function runNewApiPermissionProbe(options: NewApiProbeOptions = {})
   const userId = options.userId || process.env.NEWAPI_ADMIN_USER_ID || ''
   const bearer = options.bearer ?? process.env.NEWAPI_AUTH_BEARER === '1'
   const timeoutMs = Math.max(1000, Number(options.timeoutMs || process.env.NEWAPI_PROBE_TIMEOUT_MS || 10_000))
+  const subGroup = options.subGroup ?? process.env.NEWAPI_SUB_GROUP ?? ''
   const fetchImpl = options.fetchImpl || fetch
   if (!baseUrl || !key || !userId) {
     throw new Error('缺少 NEWAPI_ADMIN_BASE_URL / NEWAPI_ADMIN_KEY / NEWAPI_ADMIN_USER_ID')
@@ -193,15 +195,16 @@ export async function runNewApiPermissionProbe(options: NewApiProbeOptions = {})
   const impossibleTokenName = `hs_preflight_impossible_${Date.now()}`
   const futureStartTimestamp = Math.floor(Date.now() / 1000) + 10 * 365 * 24 * 60 * 60
   return Promise.all([
-    probePath('/api/token/?p=1&page_size=1', { baseUrl, key, userId, bearer, timeoutMs, fetchImpl }),
-    probePath('/api/log/?p=1&page_size=1', { baseUrl, key, userId, bearer, timeoutMs, fetchImpl }),
-    probePath('/api/log/?type=2&p=1&page_size=5', { baseUrl, key, userId, bearer, timeoutMs, fetchImpl }),
+    probePath('/api/token/?p=1&page_size=1', { baseUrl, key, userId, bearer, timeoutMs, subGroup, fetchImpl }),
+    probePath('/api/log/?p=1&page_size=1', { baseUrl, key, userId, bearer, timeoutMs, subGroup, fetchImpl }),
+    probePath('/api/log/?type=2&p=1&page_size=5', { baseUrl, key, userId, bearer, timeoutMs, subGroup, fetchImpl }),
     probePath(`/api/log/?type=2&token_name=${impossibleTokenName}&p=1&page_size=1`, {
       baseUrl,
       key,
       userId,
       bearer,
       timeoutMs,
+      subGroup,
       fetchImpl,
     }),
     probePath(`/api/log/?type=2&start_timestamp=${futureStartTimestamp}&p=1&page_size=1`, {
@@ -210,16 +213,18 @@ export async function runNewApiPermissionProbe(options: NewApiProbeOptions = {})
       userId,
       bearer,
       timeoutMs,
+      subGroup,
       fetchImpl,
     }),
-    probePath('/api/log/self?p=1&page_size=1', { baseUrl, key, userId, bearer, timeoutMs, fetchImpl }),
-    probePath('/api/log/self?type=2&p=1&page_size=5', { baseUrl, key, userId, bearer, timeoutMs, fetchImpl }),
+    probePath('/api/log/self?p=1&page_size=1', { baseUrl, key, userId, bearer, timeoutMs, subGroup, fetchImpl }),
+    probePath('/api/log/self?type=2&p=1&page_size=5', { baseUrl, key, userId, bearer, timeoutMs, subGroup, fetchImpl }),
     probePath(`/api/log/self?type=2&token_name=${impossibleTokenName}&p=1&page_size=1`, {
       baseUrl,
       key,
       userId,
       bearer,
       timeoutMs,
+      subGroup,
       fetchImpl,
     }),
     probePath(`/api/log/self?type=2&start_timestamp=${futureStartTimestamp}&p=1&page_size=1`, {
@@ -228,10 +233,11 @@ export async function runNewApiPermissionProbe(options: NewApiProbeOptions = {})
       userId,
       bearer,
       timeoutMs,
+      subGroup,
       fetchImpl,
     }),
-    probePath('/api/pricing', { baseUrl, key, userId, bearer, timeoutMs, fetchImpl }),
-    probePath('/api/status', { baseUrl, key, userId, bearer, timeoutMs, fetchImpl }),
+    probePath('/api/pricing', { baseUrl, key, userId, bearer, timeoutMs, subGroup, fetchImpl }),
+    probePath('/api/status', { baseUrl, key, userId, bearer, timeoutMs, subGroup, fetchImpl }),
   ])
 }
 

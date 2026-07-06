@@ -1,6 +1,6 @@
 import { generateKeyPairSync } from 'crypto'
 import { describe, expect, it } from 'vitest'
-import { checkProductionEnv, countBlockers } from '@/lib/productionPreflight'
+import { checkProductionEnv, checkStartupEnv, countBlockers } from '@/lib/productionPreflight'
 
 function signingKey(): string {
   const { privateKey } = generateKeyPairSync('ed25519')
@@ -36,6 +36,20 @@ function validEnv(overrides: Record<string, string | undefined> = {}) {
 }
 
 describe('productionPreflight — 生产上线配置门禁', () => {
+
+
+  it('启动预检只要求基础依赖，不阻断后台后置配置', () => {
+    const issues = checkStartupEnv({
+      PAYLOAD_SECRET: 'prod-secret-32-bytes-minimum-value',
+      DATABASE_URL: 'postgres://app:strong@postgres:5432/hengshu',
+      SERVER_URL: 'http://nas.local:8787',
+      NEXT_PUBLIC_SERVER_URL: 'http://nas.local:8787',
+      REDIS_URL: 'redis://redis:6379',
+    })
+    expect(countBlockers(issues)).toBe(0)
+    expect(issues.map((i) => i.code)).not.toContain('MODEL_GATEWAY_BASE_URL_MISSING')
+    expect(issues.map((i) => i.code)).not.toContain('HENGSHU_SIGNING_KEY_INVALID')
+  })
   it('完整生产配置无阻断项', () => {
     const issues = checkProductionEnv(validEnv())
     expect(countBlockers(issues)).toBe(0)

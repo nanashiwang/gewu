@@ -3,10 +3,12 @@ import config from '@payload-config'
 import { genUserCode, randomToken } from '@/lib/runnerAuth'
 import { getClientIp, hashIp } from '@/lib/clientMeta'
 import { getServerUrl } from '@/lib/siteUrl'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 
 // POST /v1/auth/device/code —— Runner 申请设备码（无需登录）
 export async function POST(request: Request) {
   const payload = await getPayload({ config })
+  const runtimeEnv = await resolveRuntimeEnv(payload)
   let body: any = {}
   try {
     body = await request.json()
@@ -14,7 +16,7 @@ export async function POST(request: Request) {
     /* 容忍空 body */
   }
 
-  const ipHashValue = hashIp(getClientIp(request.headers))
+  const ipHashValue = hashIp(getClientIp(request.headers, runtimeEnv))
   if (ipHashValue) {
     const since = new Date(Date.now() - 10 * 60 * 1000).toISOString()
     const recent = await payload.count({
@@ -44,7 +46,7 @@ export async function POST(request: Request) {
     },
   })
 
-  const base = getServerUrl()
+  const base = getServerUrl(runtimeEnv)
   return Response.json({
     device_code: deviceCode,
     user_code: userCode,

@@ -134,10 +134,12 @@ export interface Config {
   globals: {
     'site-settings': SiteSetting;
     'economy-settings': EconomySetting;
+    'deployment-settings': DeploymentSetting;
   };
   globalsSelect: {
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     'economy-settings': EconomySettingsSelect<false> | EconomySettingsSelect<true>;
+    'deployment-settings': DeploymentSettingsSelect<false> | DeploymentSettingsSelect<true>;
   };
   locale: null;
   widgets: {
@@ -1545,6 +1547,72 @@ export interface EconomySetting {
   createdAt?: string | null;
 }
 /**
+ * 部署后由管理员配置模型网关、New API、签名与备份状态；容器启动只依赖数据库和 PAYLOAD_SECRET。
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "deployment-settings".
+ */
+export interface DeploymentSetting {
+  id: string;
+  /**
+   * 例如 https://hengshu.example.com；NAS 内网试跑可用 http://NAS_IP:8787。
+   */
+  serverUrl?: string | null;
+  /**
+   * 通常与服务端公网地址同源；正式生产预检会阻断不同源。
+   */
+  publicServerUrl?: string | null;
+  /**
+   * NAS/内网直连通常填 0；Nginx/群晖反代 append XFF 时通常填 1。
+   */
+  trustedProxyCount?: number | null;
+  modelGatewayBaseUrl?: string | null;
+  /**
+   * 可粘贴明文；保存时自动 AES-GCM 加密。留空表示暂不启用平台真实调用。
+   */
+  modelGatewayKeyEncrypted?: string | null;
+  modelGatewayDefaultModel?: string | null;
+  /**
+   * 逗号分隔；留空使用系统默认国产模型白名单。
+   */
+  approvedPlatformModels?: string | null;
+  runRateLimitPerMin?: number | null;
+  benchmarkQueueMaxJobs?: number | null;
+  benchmarkMaxAttemptsPerSkill?: number | null;
+  benchmarkModels?: string | null;
+  newapiAdminBaseUrl?: string | null;
+  /**
+   * 填系统访问令牌，不是模型 sk-* Key；保存时自动加密。
+   */
+  newapiAdminKeyEncrypted?: string | null;
+  newapiAdminUserId?: string | null;
+  newapiAuthBearer?: boolean | null;
+  newapiSubGroup?: string | null;
+  /**
+   * 不推荐；仅在确认默认分组低价且受限时打开。
+   */
+  allowDefaultNewapiSubGroup?: boolean | null;
+  newapiCreditToQuota?: number | null;
+  newapiSubTokenTtlDays?: number | null;
+  newapiUsageSource?: ('newapi' | 'local') | null;
+  newapiLogScope?: ('auto' | 'admin' | 'self') | null;
+  newapiMarginRate?: number | null;
+  newapiModelMarginRates?: string | null;
+  newapiReconcileToleranceCents?: number | null;
+  newapiUsdExchangeRateCny?: number | null;
+  allowLocalMarginExchange?: boolean | null;
+  /**
+   * ed25519 PKCS8 base64；可用 npm run keygen 生成，保存时自动加密。
+   */
+  signingKeyEncrypted?: string | null;
+  backupEncryptionConfirmed?: boolean | null;
+  backupOffsiteConfirmed?: boolean | null;
+  backupRestoreDrillAt?: string | null;
+  backupNotes?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site-settings_select".
  */
@@ -1574,6 +1642,46 @@ export interface EconomySettingsSelect<T extends boolean = true> {
   perTxMaxCredit?: T;
   perUserDailyMaxCredit?: T;
   perUserMonthlyMaxCredit?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "deployment-settings_select".
+ */
+export interface DeploymentSettingsSelect<T extends boolean = true> {
+  serverUrl?: T;
+  publicServerUrl?: T;
+  trustedProxyCount?: T;
+  modelGatewayBaseUrl?: T;
+  modelGatewayKeyEncrypted?: T;
+  modelGatewayDefaultModel?: T;
+  approvedPlatformModels?: T;
+  runRateLimitPerMin?: T;
+  benchmarkQueueMaxJobs?: T;
+  benchmarkMaxAttemptsPerSkill?: T;
+  benchmarkModels?: T;
+  newapiAdminBaseUrl?: T;
+  newapiAdminKeyEncrypted?: T;
+  newapiAdminUserId?: T;
+  newapiAuthBearer?: T;
+  newapiSubGroup?: T;
+  allowDefaultNewapiSubGroup?: T;
+  newapiCreditToQuota?: T;
+  newapiSubTokenTtlDays?: T;
+  newapiUsageSource?: T;
+  newapiLogScope?: T;
+  newapiMarginRate?: T;
+  newapiModelMarginRates?: T;
+  newapiReconcileToleranceCents?: T;
+  newapiUsdExchangeRateCny?: T;
+  allowLocalMarginExchange?: T;
+  signingKeyEncrypted?: T;
+  backupEncryptionConfirmed?: T;
+  backupOffsiteConfirmed?: T;
+  backupRestoreDrillAt?: T;
+  backupNotes?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

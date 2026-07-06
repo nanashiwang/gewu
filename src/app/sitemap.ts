@@ -1,19 +1,16 @@
 import type { MetadataRoute } from 'next'
 import { getPayloadClient } from '@/lib/payload'
 import { getServerUrl } from '@/lib/siteUrl'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 
 export const dynamic = 'force-dynamic'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = getServerUrl()
-  const staticRoutes: MetadataRoute.Sitemap = ['', '/skills', '/rank', '/bounties', '/docs'].map((p) => ({
-    url: `${base}${p}`,
-    changeFrequency: 'daily',
-    priority: p === '' ? 1 : 0.7,
-  }))
+  let base = getServerUrl()
   let skillRoutes: MetadataRoute.Sitemap = []
   try {
     const payload = await getPayloadClient()
+    base = getServerUrl(await resolveRuntimeEnv(payload))
     const res = await payload.find({
       collection: 'skills',
       where: { and: [{ status: { equals: 'published' } }, { visibility: { equals: 'public' } }] },
@@ -30,5 +27,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   } catch {
     /* DB 不可用时只返回静态路由 */
   }
+
+  const staticRoutes: MetadataRoute.Sitemap = ['', '/skills', '/rank', '/bounties', '/docs'].map((p) => ({
+    url: `${base}${p}`,
+    changeFrequency: 'daily',
+    priority: p === '' ? 1 : 0.7,
+  }))
   return [...staticRoutes, ...skillRoutes]
 }

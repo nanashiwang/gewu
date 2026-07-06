@@ -56,6 +56,31 @@ function parseBackupDrillDate(value?: string): Date | null {
   return Number.isFinite(d.getTime()) ? d : null
 }
 
+
+export function checkStartupEnv(env: Env = process.env): PreflightIssue[] {
+  const issues: PreflightIssue[] = []
+
+  const secret = env.PAYLOAD_SECRET || ''
+  if (!secret || secret.length < 32 || /change_me|dev_secret|hengshu-dev-secret/i.test(secret)) {
+    add(issues, 'blocker', 'PAYLOAD_SECRET_WEAK', 'PAYLOAD_SECRET 必须是 32 字符以上强随机值')
+  }
+
+  if (!present(env, 'DATABASE_URL')) {
+    add(issues, 'blocker', 'DATABASE_URL_MISSING', '缺少 DATABASE_URL')
+  } else if (/payload:payload@/.test(env.DATABASE_URL || '')) {
+    add(issues, 'warning', 'DATABASE_DEFAULT_CREDENTIALS', 'DATABASE_URL 仍像默认开发账号，请确认 NAS/生产数据库密码已更换')
+  }
+
+  if (!present(env, 'SERVER_URL') || !present(env, 'NEXT_PUBLIC_SERVER_URL')) {
+    add(issues, 'warning', 'SITE_URL_USING_DEFAULT', '未显式配置站点地址时会按 compose 默认 localhost；NAS 建议改成 http://NAS_IP:8787')
+  }
+  if (!present(env, 'REDIS_URL')) {
+    add(issues, 'warning', 'REDIS_URL_MISSING', '缺少 REDIS_URL；队列/分布式限流会降级或跳过')
+  }
+
+  return issues
+}
+
 export function checkProductionEnv(env: Env = process.env): PreflightIssue[] {
   const issues: PreflightIssue[] = []
 

@@ -56,6 +56,7 @@ export const ADMIN_GROUPS: AdminGroup[] = [
     items: [
       { slug: 'media', label: '媒体', kind: 'collection' },
       { slug: 'site-settings', label: '站点设置', kind: 'global' },
+      { slug: 'deployment-settings', label: '部署设置', kind: 'global' },
     ],
   },
 ]

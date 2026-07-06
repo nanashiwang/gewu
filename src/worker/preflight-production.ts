@@ -2,8 +2,9 @@ import 'dotenv/config'
 import { getPayload } from 'payload'
 import type { Payload } from 'payload'
 import config from '@payload-config'
-import { checkProductionEnv, countBlockers } from '@/lib/productionPreflight'
+import { checkProductionEnv, checkStartupEnv, countBlockers } from '@/lib/productionPreflight'
 import { classifyNewApiProbe, redactNewApiProbeText, runNewApiPermissionProbe } from '@/lib/newapiProbe'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 
 type CollectionSlug = 'favorites' | 'reviews' | 'skill-installs'
 
@@ -93,7 +94,21 @@ async function checkInstalledRecordsHaveRunner(payload: Payload): Promise<number
 }
 
 async function main() {
-  const envIssues = checkProductionEnv()
+  const startupIssues = checkStartupEnv()
+  for (const issue of startupIssues) {
+    const line = `启动配置预检${issue.level === 'blocker' ? '失败' : '警告'} [${issue.code}] ${issue.message}`
+    if (issue.level === 'blocker') console.error(line)
+    else console.warn(line)
+  }
+  const startupBlockers = countBlockers(startupIssues)
+  if (startupBlockers > 0) {
+    console.error(`启动配置预检失败：发现 ${startupBlockers} 个基础阻断项；未继续连接数据库`)
+    process.exit(2)
+  }
+
+  const payload = await getPayload({ config })
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const envIssues = checkProductionEnv(runtimeEnv)
   for (const issue of envIssues) {
     const line = `生产配置预检${issue.level === 'blocker' ? '失败' : '警告'} [${issue.code}] ${issue.message}`
     if (issue.level === 'blocker') console.error(line)
@@ -101,13 +116,19 @@ async function main() {
   }
   const envBlockers = countBlockers(envIssues)
   if (envBlockers > 0) {
-    console.error(`生产上线预检失败：发现 ${envBlockers} 个配置阻断项；未继续连接数据库`)
+    console.error(`生产上线预检失败：发现 ${envBlockers} 个配置阻断项；请先在后台「部署设置」或 env 中补齐`)
     process.exit(2)
   }
 
   let liveBlockers = 0
   try {
-    const checks = await runNewApiPermissionProbe()
+    const checks = await runNewApiPermissionProbe({
+      baseUrl: runtimeEnv.NEWAPI_ADMIN_BASE_URL,
+      key: runtimeEnv.NEWAPI_ADMIN_KEY,
+      userId: runtimeEnv.NEWAPI_ADMIN_USER_ID,
+      bearer: runtimeEnv.NEWAPI_AUTH_BEARER === '1',
+      subGroup: runtimeEnv.NEWAPI_SUB_GROUP || '',
+    })
     const { tokenOK, logOK, logFilterOK, logTimeFilterOK, logSettlementOK, pricingOK, statusOK, hint } =
       classifyNewApiProbe(checks)
     for (const c of checks) {
@@ -119,7 +140,7 @@ async function main() {
       )
     }
     if (!tokenOK) liveBlockers++
-    const usageSource = process.env.NEWAPI_USAGE_SOURCE === 'local' ? 'local' : 'newapi'
+    const usageSource = runtimeEnv.NEWAPI_USAGE_SOURCE === 'local' ? 'local' : 'newapi'
     if (!logOK && usageSource === 'newapi') liveBlockers++
     if (logOK && !logFilterOK && usageSource === 'newapi') liveBlockers++
     if (logOK && logFilterOK && !logTimeFilterOK && usageSource === 'newapi') liveBlockers++
@@ -134,14 +155,13 @@ async function main() {
     }
   } catch (e) {
     liveBlockers++
-    console.error(`New API 在线预检失败：${redactNewApiProbeText((e as Error).message)}`)
+    console.error(`New API 在线预检失败：${redactNewApiProbeText((e as Error).message, [runtimeEnv.NEWAPI_ADMIN_KEY || ''])}`)
   }
   if (liveBlockers > 0) {
-    console.error(`生产上线预检失败：发现 ${liveBlockers} 个 New API 在线阻断项；未继续连接数据库`)
+    console.error(`生产上线预检失败：发现 ${liveBlockers} 个 New API 在线阻断项；未继续数据重复检查`)
     process.exit(2)
   }
 
-  const payload = await getPayload({ config })
   payload.logger.info('生产上线预检启动：配置已通过，继续检查唯一约束上线前的数据重复')
 
   let blockers = 0

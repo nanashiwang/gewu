@@ -10,6 +10,8 @@
 import { redactNewApiProbeText } from './newapiProbe'
 import { requireApprovedPlatformModelList } from './constants'
 
+type Env = Record<string, string | undefined>
+
 export class NewApiAdminError extends Error {
   constructor(msg: string) {
     super(msg)
@@ -84,8 +86,8 @@ export interface NewApiAdmin {
   fetchPricing(): Promise<PricingResult>
 }
 
-const adminBase = () => process.env.NEWAPI_ADMIN_BASE_URL?.replace(/\/$/, '')
-const adminKey = () => process.env.NEWAPI_ADMIN_KEY
+const adminBase = (env: Env = process.env) => env.NEWAPI_ADMIN_BASE_URL?.replace(/\/$/, '')
+const adminKey = (env: Env = process.env) => env.NEWAPI_ADMIN_KEY
 
 // credit ↔ 网关 quota 刻度映射：1 credit = 多少 quota。
 // 校准：new-api QuotaPerUnit=500000(即 500000 quota=$1)。若 1 credit=¥0.01、你按 ¥Y 卖 500000 quota，
@@ -118,8 +120,8 @@ export function getCreditToQuota(
   return n
 }
 
-export function isRealMode(): boolean {
-  return !!(adminBase() && adminKey())
+export function isRealMode(env: Env = process.env): boolean {
+  return !!(adminBase(env) && adminKey(env))
 }
 
 // 令牌命名约定：1 个 New API 账号 = 全体用户，靠子令牌名隔离
@@ -127,21 +129,21 @@ export function subTokenName(userId: string): string {
   return `hs_${userId}`
 }
 
-function platformModelLimits(): string {
-  return requireApprovedPlatformModelList().join(',')
+function platformModelLimits(env: Env = process.env): string {
+  return requireApprovedPlatformModelList(env).join(',')
 }
 
-function configuredSubTokenGroup(): string | undefined {
-  const group = process.env.NEWAPI_SUB_GROUP?.trim()
+function configuredSubTokenGroup(env: Env = process.env): string | undefined {
+  const group = env.NEWAPI_SUB_GROUP?.trim()
   if (group) return group
-  if (process.env.ALLOW_DEFAULT_NEWAPI_SUB_GROUP === '1') return undefined
+  if (env.ALLOW_DEFAULT_NEWAPI_SUB_GROUP === '1') return undefined
   throw new NewApiAdminError(
     'NEWAPI_SUB_GROUP 必须配置为低价/受限分组；如已确认 New API 默认分组安全，显式设置 ALLOW_DEFAULT_NEWAPI_SUB_GROUP=1',
   )
 }
 
-function subTokenTtlSeconds(): number {
-  const raw = process.env.NEWAPI_SUB_TOKEN_TTL_DAYS?.trim()
+function subTokenTtlSeconds(env: Env = process.env): number {
+  const raw = env.NEWAPI_SUB_TOKEN_TTL_DAYS?.trim()
   const days = raw ? Number(raw) : DEFAULT_SUB_TOKEN_TTL_DAYS
   if (!Number.isFinite(days) || days <= 0 || days > 365) {
     throw new NewApiAdminError('NEWAPI_SUB_TOKEN_TTL_DAYS 必须是 1-365 天的正数，禁止创建永不过期或异常长效子令牌')
@@ -185,21 +187,25 @@ class StubAdmin implements NewApiAdmin {
 // ⚠️ 上线前用你实例小额真跑校验：鉴权前缀、list/log 响应包裹结构、log 查询参数名。
 class RealAdmin implements NewApiAdmin {
   readonly mode = 'real' as const
-  private base = adminBase() as string
+  private base: string
   private resolvedUsageLogPath: '/api/log/' | '/api/log/self' | null = null
 
+  constructor(private env: Env = process.env) {
+    this.base = adminBase(env) as string
+  }
+
   private headers(): Record<string, string> {
-    const key = process.env.NEWAPI_ADMIN_KEY || ''
-    const auth = process.env.NEWAPI_AUTH_BEARER === '1' ? `Bearer ${key}` : key
+    const key = this.env.NEWAPI_ADMIN_KEY || ''
+    const auth = this.env.NEWAPI_AUTH_BEARER === '1' ? `Bearer ${key}` : key
     return {
       'Content-Type': 'application/json',
       Authorization: auth,
-      'New-Api-User': process.env.NEWAPI_ADMIN_USER_ID || '',
+      'New-Api-User': this.env.NEWAPI_ADMIN_USER_ID || '',
     }
   }
 
   private async req(path: string, method: string, body?: unknown): Promise<any> {
-    if (!process.env.NEWAPI_ADMIN_USER_ID) {
+    if (!this.env.NEWAPI_ADMIN_USER_ID) {
       throw new NewApiAdminError('缺少 NEWAPI_ADMIN_USER_ID（New-Api-User 头需要平台账号数字 ID）')
     }
     const res = await fetch(`${this.base}${path}`, {
@@ -212,10 +218,10 @@ class RealAdmin implements NewApiAdmin {
     try {
       json = text ? JSON.parse(text) : {}
     } catch {
-      throw new NewApiAdminError(`New API 返回非 JSON（${res.status}）: ${redactNewApiProbeText(text.slice(0, 200))}`)
+      throw new NewApiAdminError(`New API 返回非 JSON（${res.status}）: ${redactNewApiProbeText(text.slice(0, 200), [this.env.NEWAPI_ADMIN_KEY || ''])}`)
     }
     if (!res.ok || json?.success === false) {
-      const message = redactNewApiProbeText(String(json?.message || text.slice(0, 200)))
+      const message = redactNewApiProbeText(String(json?.message || text.slice(0, 200)), [this.env.NEWAPI_ADMIN_KEY || ''])
       throw new NewApiAdminError(`New API ${method} ${path} 失败(${res.status}): ${message}`)
     }
     return json
@@ -231,7 +237,7 @@ class RealAdmin implements NewApiAdmin {
         : pricingJson?.data?.group_ratio && typeof pricingJson.data.group_ratio === 'object'
           ? pricingJson.data.group_ratio
           : {}
-    const group = configuredSubTokenGroup() || 'default'
+    const group = configuredSubTokenGroup(this.env) || 'default'
     const rawGroupRatio = groupRatios[group] ?? (group === 'default' ? 1 : undefined)
     const groupRatio = Number(rawGroupRatio)
     if (!Number.isFinite(groupRatio) || groupRatio <= 0) {
@@ -239,7 +245,7 @@ class RealAdmin implements NewApiAdmin {
     }
     const status = statusJson?.data ?? statusJson
     const quotaPerUnit = Number(status?.quota_per_unit || 500000)
-    const usdToCny = Number(status?.usd_exchange_rate || process.env.NEWAPI_USD_EXCHANGE_RATE_CNY)
+    const usdToCny = Number(status?.usd_exchange_rate || this.env.NEWAPI_USD_EXCHANGE_RATE_CNY)
     if (!Number.isFinite(quotaPerUnit) || quotaPerUnit <= 0) {
       throw new NewApiAdminError('New API /api/status 未返回有效 quota_per_unit，不能按 token 价格验收真钱成本')
     }
@@ -276,7 +282,7 @@ class RealAdmin implements NewApiAdmin {
   }
 
   private quotaLimitedTokenPayload(tok: any, remainQuota: number, modelLimits: string, ttlSeconds: number): any {
-    const group = configuredSubTokenGroup()
+    const group = configuredSubTokenGroup(this.env)
     const safeRemainQuota = Math.max(0, Math.round(remainQuota || 0))
     return {
       ...tok,
@@ -321,7 +327,7 @@ class RealAdmin implements NewApiAdmin {
   }
 
   private tokenNeedsSafetyPatch(tok: any, modelLimits: string, ttlSeconds: number): boolean {
-    const group = configuredSubTokenGroup()
+    const group = configuredSubTokenGroup(this.env)
     return (
       tok.unlimited_quota === true ||
       tokenExpiryUnsafe(tok, ttlSeconds) ||
@@ -341,9 +347,9 @@ class RealAdmin implements NewApiAdmin {
   }
 
   async provisionSubToken(userId: string): Promise<SubToken> {
-    const group = configuredSubTokenGroup()
-    const ttlSeconds = subTokenTtlSeconds()
-    const modelLimits = platformModelLimits()
+    const group = configuredSubTokenGroup(this.env)
+    const ttlSeconds = subTokenTtlSeconds(this.env)
+    const modelLimits = platformModelLimits(this.env)
     const name = subTokenName(userId)
     const existing = await this.requireUniqueTokenByName(name, modelLimits, ttlSeconds)
     if (existing) {
@@ -367,10 +373,10 @@ class RealAdmin implements NewApiAdmin {
 
   async adjustQuota(userId: string, deltaCredits: number): Promise<QuotaResult> {
     const name = subTokenName(userId)
-    const quotaPerCredit = getCreditToQuota(process.env, { requireExplicit: true })
-    configuredSubTokenGroup()
-    const ttlSeconds = subTokenTtlSeconds()
-    const modelLimits = platformModelLimits()
+    const quotaPerCredit = getCreditToQuota(this.env, { requireExplicit: true })
+    configuredSubTokenGroup(this.env)
+    const ttlSeconds = subTokenTtlSeconds(this.env)
+    const modelLimits = platformModelLimits(this.env)
     const tok = await this.requireUniqueTokenByName(name, modelLimits, ttlSeconds)
     if (!tok) throw new NewApiAdminError(`子令牌 ${name} 不存在，请先 provisionSubToken`)
     const deltaQuota = Math.round(deltaCredits * quotaPerCredit)
@@ -382,10 +388,10 @@ class RealAdmin implements NewApiAdmin {
 
   async setQuotaToCredits(userId: string, credits: number): Promise<QuotaResult> {
     const name = subTokenName(userId)
-    const quotaPerCredit = getCreditToQuota(process.env, { requireExplicit: true })
-    configuredSubTokenGroup()
-    const ttlSeconds = subTokenTtlSeconds()
-    const modelLimits = platformModelLimits()
+    const quotaPerCredit = getCreditToQuota(this.env, { requireExplicit: true })
+    configuredSubTokenGroup(this.env)
+    const ttlSeconds = subTokenTtlSeconds(this.env)
+    const modelLimits = platformModelLimits(this.env)
     const tok = await this.requireUniqueTokenByName(name, modelLimits, ttlSeconds)
     if (!tok) throw new NewApiAdminError(`子令牌 ${name} 不存在，请先 provisionSubToken`)
     const remainQuota = Math.max(0, Math.round(Math.max(0, credits || 0) * quotaPerCredit))
@@ -398,7 +404,7 @@ class RealAdmin implements NewApiAdmin {
   }
 
   private usageLogScope(): 'admin' | 'self' | 'auto' {
-    const raw = (process.env.NEWAPI_LOG_SCOPE || 'auto').trim().toLowerCase()
+    const raw = (this.env.NEWAPI_LOG_SCOPE || 'auto').trim().toLowerCase()
     if (raw === 'admin' || raw === 'self' || raw === 'auto') return raw
     throw new NewApiAdminError('NEWAPI_LOG_SCOPE 必须是 admin/self/auto')
   }
@@ -430,7 +436,7 @@ class RealAdmin implements NewApiAdmin {
     userId: string,
     sinceMs: number,
   ): Promise<UsageResult> {
-    const quotaPerCredit = getCreditToQuota(process.env, { requireExplicit: true })
+    const quotaPerCredit = getCreditToQuota(this.env, { requireExplicit: true })
     const expectedTokenName = subTokenName(userId)
     const start = Math.floor(sinceMs / 1000)
     let totalQuota = 0
@@ -742,11 +748,10 @@ function requireNoAmbiguousRefundLog(record: any): void {
 }
 
 // 工厂（不缓存，供测试按 env 切换）
-export function createNewApiAdmin(): NewApiAdmin {
-  return isRealMode() ? new RealAdmin() : new StubAdmin()
+export function createNewApiAdmin(env: Env = process.env): NewApiAdmin {
+  return isRealMode(env) ? new RealAdmin(env) : new StubAdmin()
 }
 
-let _inst: NewApiAdmin | null = null
-export function getNewApiAdmin(): NewApiAdmin {
-  return (_inst ??= createNewApiAdmin())
+export function getNewApiAdmin(env: Env = process.env): NewApiAdmin {
+  return createNewApiAdmin(env)
 }

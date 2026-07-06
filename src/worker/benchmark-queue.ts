@@ -2,6 +2,7 @@ import 'dotenv/config'
 import { getPayload } from 'payload'
 import config from '../payload.config'
 import { benchmarkSkill } from '../lib/benchmark'
+import { modelGatewayConfigured, resolveRuntimeEnv } from '../lib/deploymentSettings'
 import {
   dequeueBenchmarkJobWithClient,
   getBenchmarkRedisClient,
@@ -9,9 +10,8 @@ import {
   type BenchmarkJob,
 } from '../lib/benchmarkQueue'
 
-const MAX_JOBS = Math.max(1, Number(process.env.BENCHMARK_QUEUE_MAX_JOBS || 10))
-const MAX_ATTEMPTS = Math.max(1, Number(process.env.BENCHMARK_MAX_ATTEMPTS_PER_SKILL || 8))
-const MODELS = process.env.BENCHMARK_MODELS?.split(',').map((s) => s.trim()).filter(Boolean)
+const DEFAULT_MAX_JOBS = 10
+const DEFAULT_MAX_ATTEMPTS = 8
 
 async function loadSkillAndVersion(payload: any, job: BenchmarkJob): Promise<{ skill: any; version: any } | null> {
   const skill = await payload.findByID({
@@ -44,14 +44,18 @@ async function main() {
     payload.logger.warn('REDIS_URL 未配置，benchmark 队列 worker 跳过')
     process.exit(0)
   }
-  if (!process.env.MODEL_GATEWAY_BASE_URL?.trim() || !process.env.MODEL_GATEWAY_KEY?.trim()) {
-    payload.logger.warn('未配置 MODEL_GATEWAY(BASE_URL/KEY)，benchmark 会走 mock，不产生真实评测数据')
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  if (!modelGatewayConfigured(runtimeEnv)) {
+    payload.logger.warn('未配置模型网关（后台部署设置或 env），benchmark 会走 mock/失败保护，不产生真实评测数据')
   }
+  const maxJobs = Math.max(1, Number(runtimeEnv.BENCHMARK_QUEUE_MAX_JOBS || DEFAULT_MAX_JOBS))
+  const maxAttempts = Math.max(1, Number(runtimeEnv.BENCHMARK_MAX_ATTEMPTS_PER_SKILL || DEFAULT_MAX_ATTEMPTS))
+  const models = runtimeEnv.BENCHMARK_MODELS?.split(',').map((s) => s.trim()).filter(Boolean)
 
   let processed = 0
   let skipped = 0
   let failed = 0
-  for (let i = 0; i < MAX_JOBS; i++) {
+  for (let i = 0; i < maxJobs; i++) {
     const job = await dequeueBenchmarkJobWithClient(client)
     if (!job) break
 
@@ -67,12 +71,12 @@ async function main() {
       const r = await benchmarkSkill(payload, {
         skill: loaded.skill,
         version: loaded.version,
-        models: MODELS,
-        maxAttempts: MAX_ATTEMPTS,
+        models,
+        maxAttempts,
       })
       processed++
       payload.logger.info(
-        `队列评测 ${loaded.skill.slug}: attempts=${r.attempted}/${MAX_ATTEMPTS} models=[${r.models.join(',')}] real=${r.reported} mock=${r.mocked} LocalScore=${r.localScore}`,
+        `队列评测 ${loaded.skill.slug}: attempts=${r.attempted}/${maxAttempts} models=[${r.models.join(',')}] real=${r.reported} mock=${r.mocked} LocalScore=${r.localScore}`,
       )
     } catch (e) {
       failed++

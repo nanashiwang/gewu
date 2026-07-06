@@ -30,6 +30,7 @@ interface RunOpts {
   temperature?: number
   maxTokens?: number
   apiKey?: string // 用户绑定 Key 优先于全局
+  gateway?: { baseUrl?: string; apiKey?: string } // 后台部署设置优先，env 仅兜底
   metadata?: GatewayMetadata // 透传给网关用于关联调用日志（产品文档 §12.4）
 }
 
@@ -68,8 +69,8 @@ function metadataHeaders(m?: GatewayMetadata): Record<string, string> {
 }
 
 export async function chatCompletion(opts: RunOpts): Promise<NewApiResult> {
-  const baseUrl = process.env.MODEL_GATEWAY_BASE_URL?.replace(/\/$/, '')
-  const apiKey = opts.apiKey || process.env.MODEL_GATEWAY_KEY
+  const baseUrl = (opts.gateway?.baseUrl || process.env.MODEL_GATEWAY_BASE_URL)?.replace(/\/$/, '')
+  const apiKey = opts.apiKey || opts.gateway?.apiKey || process.env.MODEL_GATEWAY_KEY
   const start = Date.now()
 
   // 未配置网关 → 开发 mock 回退；生产 fail-closed，避免公网用户拿到模拟输出还被计入运行/口碑。
@@ -126,7 +127,7 @@ export function estimateTokens(text: string): number {
 function mockCompletion(opts: RunOpts, start: number): NewApiResult {
   const userMsg = opts.messages.find((m) => m.role === 'user')?.content || ''
   const text =
-    `[MOCK] 未配置模型网关（MODEL_GATEWAY_BASE_URL / MODEL_GATEWAY_KEY 为空），以下为模拟输出。\n\n` +
+    `[MOCK] 未配置模型网关（后台部署设置或 MODEL_GATEWAY_BASE_URL / MODEL_GATEWAY_KEY 为空），以下为模拟输出。\n\n` +
     `· 路由模型：${opts.model}\n` +
     `· 已渲染 Prompt（前 240 字）：\n${userMsg.slice(0, 240)}\n\n` +
     `配置真实网关后，此处将返回模型的实际输出。`

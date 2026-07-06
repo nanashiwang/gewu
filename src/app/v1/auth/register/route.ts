@@ -9,6 +9,7 @@ import { getClientIp, hashDeviceId, hashIp } from '@/lib/clientMeta'
 import { normalizeRegisterCreditAmount, registerCreditIdempotencyKey } from '@/lib/registerCredit'
 import { acquireInviteCodeLock } from '@/lib/dbLocks'
 import { getRegistrationEmailRequired, normalizeRegistrationEmail, resolveRegistrationEmail } from '@/lib/siteSettings'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 import { registerCreateErrorMessage, validateRegisterInput } from '@/lib/registerValidation'
 
 function isFormRegisterRequest(request: Request): boolean {
@@ -109,8 +110,9 @@ export async function POST(request: Request) {
     }
   }
 
+  const runtimeEnv = await resolveRuntimeEnv(payload)
   // 反女巫：采集注册 IP 哈希。同 IP 24h 内注册数宽松上限（兜底极端批量；阈值宽松以规避 CGNAT/共享出口 IP 的误伤）。
-  const ipHashValue = hashIp(getClientIp(request.headers))
+  const ipHashValue = hashIp(getClientIp(request.headers, runtimeEnv))
   const deviceHashValue = hashDeviceId(body.deviceId)
   if (ipHashValue) {
     try {
@@ -263,7 +265,7 @@ export async function POST(request: Request) {
   }
 
   // 预建 New API 子令牌（best-effort）；若注册赠送 credit，也尽力同步子令牌配额，避免本地有余额但网关 0 quota。
-  const admin = getNewApiAdmin()
+  const admin = getNewApiAdmin(runtimeEnv)
   admin
     .provisionSubToken(newUser.id as string)
     .then(() => (freeGranted > 0 ? syncNewApiQuotaToBalance(payload, newUser.id as string) : undefined))

@@ -4,6 +4,7 @@ import { getPayloadClient } from '@/lib/payload'
 import { getCurrentUser } from '@/lib/auth'
 import { RunStudio } from '@/components/RunStudio'
 import { approvedPlatformModels } from '@/lib/constants'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 
 export const dynamic = 'force-dynamic'
 
@@ -41,7 +42,8 @@ export default async function RunPage({
     : null
   const inputSchema = (version?.inputSchema || {}) as Record<string, any>
   const models = ((version?.recommendedModels as any)?.cloud || []) as string[]
-  const platformModels = [...approvedPlatformModels()]
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const platformModels = [...approvedPlatformModels(runtimeEnv)]
 
   return (
     <div className="space-y-4">

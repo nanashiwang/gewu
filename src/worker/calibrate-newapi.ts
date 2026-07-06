@@ -1,4 +1,6 @@
 import 'dotenv/config'
+import { getPayload } from 'payload'
+import config from '@payload-config'
 import { chatCompletion } from '@/lib/newapi'
 import { getCreditToQuota, getNewApiAdmin } from '@/lib/newapiAdmin'
 import {
@@ -7,6 +9,7 @@ import {
   resolveCalibrationModel,
   validateCalibrationEnv,
 } from '@/lib/newapiCalibration'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 
 const APPLY = process.argv.includes('--apply')
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -18,16 +21,24 @@ async function main() {
     process.exit(0)
   }
 
-  const admin = getNewApiAdmin()
+  const payload = await getPayload({ config })
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const calibrationEnv: Record<string, string | undefined> = {
+    ...runtimeEnv,
+    NEWAPI_CALIBRATE_USER_ID: process.env.NEWAPI_CALIBRATE_USER_ID,
+    NEWAPI_CALIBRATE_CREDITS: process.env.NEWAPI_CALIBRATE_CREDITS,
+    NEWAPI_CALIBRATE_MODEL: process.env.NEWAPI_CALIBRATE_MODEL,
+  }
+  const admin = getNewApiAdmin(calibrationEnv)
   if (admin.mode !== 'real') throw new Error('New API 管理 API 未配置为 real 模式')
 
-  const errors = validateCalibrationEnv()
+  const errors = validateCalibrationEnv(calibrationEnv)
   if (errors.length) throw new Error(errors.join('；'))
 
-  const userId = process.env.NEWAPI_CALIBRATE_USER_ID as string
-  const credits = resolveCalibrationCredits()
-  const creditedQuota = Math.round(credits * getCreditToQuota(process.env, { requireExplicit: true }))
-  const model = resolveCalibrationModel()
+  const userId = calibrationEnv.NEWAPI_CALIBRATE_USER_ID as string
+  const credits = resolveCalibrationCredits(calibrationEnv)
+  const creditedQuota = Math.round(credits * getCreditToQuota(calibrationEnv, { requireExplicit: true }))
+  const model = resolveCalibrationModel(calibrationEnv)
   if (!model) throw new Error('无法选择校准模型')
 
   const sinceMs = Date.now() - 5 * 60 * 1000
@@ -47,6 +58,7 @@ async function main() {
       apiKey: token.key,
       maxTokens: 16,
       messages: [{ role: 'user', content: '用一句中文回答：ok' }],
+      gateway: { baseUrl: calibrationEnv.MODEL_GATEWAY_BASE_URL, apiKey: calibrationEnv.MODEL_GATEWAY_KEY },
       metadata: { source: 'newapi-calibration', runId: `calib-${Date.now()}` },
     })
     if (result.mocked) throw new Error('校准调用走了 mock，不是 New API 真调用')
@@ -70,6 +82,7 @@ async function main() {
         apiKey: 'sk-invalid-calibration-key',
         maxTokens: 4,
         messages: [{ role: 'user', content: 'should fail' }],
+        gateway: { baseUrl: calibrationEnv.MODEL_GATEWAY_BASE_URL, apiKey: calibrationEnv.MODEL_GATEWAY_KEY },
         metadata: { source: 'newapi-calibration-bad-key', runId: `calib-bad-${Date.now()}` },
       })
     } catch {

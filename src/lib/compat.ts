@@ -3,6 +3,7 @@ import { createHash } from 'crypto'
 import { rankDataDrivenRoute } from './route'
 import { canonicalString } from './canonical'
 import { signCanonical, getSigningKeyId } from './signing'
+import { resolveRuntimeEnv } from './deploymentSettings'
 import { hmacDigest } from './secrets'
 
 // 规模分档（避免回传精确长度）
@@ -134,8 +135,9 @@ async function writeScoreSnapshot(
   const core = { skill: String(skillId), localScore, reportCount, signedAt }
   const canon = canonicalString(core)
   const payloadHash = createHash('sha256').update(canon).digest('hex')
-  const signature = signCanonical(core) // 无密钥返回 null
-  const keyId = getSigningKeyId() // 无密钥返回 null
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const signature = signCanonical(core, runtimeEnv) // 无密钥返回 null
+  const keyId = getSigningKeyId(runtimeEnv) // 无密钥返回 null
   await payload.create({
     collection: 'score-snapshots',
     overrideAccess: true,

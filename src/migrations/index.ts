@@ -7,6 +7,7 @@ import * as migration_20260703_060000_user_device_hash from './20260703_060000_u
 import * as migration_20260703_063000_skill_submission_key from './20260703_063000_skill_submission_key';
 import * as migration_20260703_064500_audit_logs from './20260703_064500_audit_logs';
 import * as migration_20260706_003000_registration_email_required from './20260706_003000_registration_email_required';
+import * as migration_20260706_020000_deployment_settings from './20260706_020000_deployment_settings';
 
 export const migrations = [
   {
@@ -53,5 +54,10 @@ export const migrations = [
     up: migration_20260706_003000_registration_email_required.up,
     down: migration_20260706_003000_registration_email_required.down,
     name: '20260706_003000_registration_email_required',
+  },
+  {
+    up: migration_20260706_020000_deployment_settings.up,
+    down: migration_20260706_020000_deployment_settings.down,
+    name: '20260706_020000_deployment_settings',
   },
 ];

@@ -5,6 +5,7 @@ import { getCreditToQuota, getNewApiAdmin } from '@/lib/newapiAdmin'
 import { sumCreditAmount } from '@/lib/economy'
 import { economyMarginReconcileContext } from '@/lib/economySettingsGuard'
 import { writeUserDriftReportFile } from '@/lib/newapiDriftReport'
+import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 import {
   buildUserUsageDriftReport,
   calculateModelMarginCents,
@@ -30,12 +31,13 @@ function cents(n: number): number {
 }
 
 async function main() {
-  const usageSource = resolveUsageSource(process.env)
-  const flatMarginRate = resolveReconcileMarginRate(process.env, { requirePositive: APPLY && usageSource === 'local' })
-  const modelMarginRates = resolveReconcileModelMarginRates(process.env)
-  const explicitDriftTolerance = resolveReconcileToleranceCents(process.env)
   const payload = await getPayload({ config })
-  const admin = getNewApiAdmin()
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const usageSource = resolveUsageSource(runtimeEnv)
+  const flatMarginRate = resolveReconcileMarginRate(runtimeEnv, { requirePositive: APPLY && usageSource === 'local' })
+  const modelMarginRates = resolveReconcileModelMarginRates(runtimeEnv)
+  const explicitDriftTolerance = resolveReconcileToleranceCents(runtimeEnv)
+  const admin = getNewApiAdmin(runtimeEnv)
   if (usageSource === 'local' && flatMarginRate <= 0) {
     payload.logger.warn('NEWAPI_MARGIN_RATE 未配置或为 0：只拉用量，不会打开兑换池毛利')
   }
@@ -54,7 +56,7 @@ async function main() {
   const modelUsageRows: ModelUsageForMargin[] = []
 
   if (usageSource === 'local') {
-    if (APPLY && process.env.ALLOW_LOCAL_MARGIN_EXCHANGE !== '1') {
+    if (APPLY && runtimeEnv.ALLOW_LOCAL_MARGIN_EXCHANGE !== '1') {
       payload.logger.error(
         'NEWAPI_USAGE_SOURCE=local 只能作为保守估算；写回兑换池前必须显式设置 ALLOW_LOCAL_MARGIN_EXCHANGE=1',
       )
@@ -78,7 +80,7 @@ async function main() {
       payload.logger.warn('New API 管理 API 未配置，跳过真实用量/毛利对账')
       process.exit(0)
     }
-    quotaPerCredit = getCreditToQuota(process.env, { requireExplicit: true })
+    quotaPerCredit = getCreditToQuota(runtimeEnv, { requireExplicit: true })
     try {
       pricingSnapshot = await admin.fetchPricing()
     } catch (e) {
@@ -142,7 +144,7 @@ async function main() {
       )
     }
     const reportPath = await writeUserDriftReportFile(perUserDrifts, {
-      explicitPath: process.env.NEWAPI_RECONCILE_DRIFT_REPORT_PATH,
+      explicitPath: runtimeEnv.NEWAPI_RECONCILE_DRIFT_REPORT_PATH,
       monthStart,
       usageSource,
     })
@@ -206,7 +208,7 @@ async function main() {
         payload.logger.error(`${(e as Error).message}；禁止写回毛利`)
         process.exit(2)
       }
-    } else if (flatMarginRate > 0 && process.env.ALLOW_FLAT_NEWAPI_MARGIN_RATE === '1') {
+    } else if (flatMarginRate > 0 && runtimeEnv.ALLOW_FLAT_NEWAPI_MARGIN_RATE === '1') {
       // 只允许 dry-run 观察旧单一毛利口径；真钱写回必须走 token×/api/pricing。
       marginCents = cents(revenueCents * flatMarginRate)
       marginLabel = `单一毛利率 dry-run ${flatMarginRate}`

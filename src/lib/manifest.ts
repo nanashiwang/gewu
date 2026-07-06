@@ -9,7 +9,7 @@ function computeChecksum(core: any): string {
 
 // 构造 Hengshu Skill Spec v1 manifest（可移植、可校验、可验真）。
 // 不含时间戳，保证同一版本每次导出字节一致、checksum/签名稳定。
-export function buildManifest(skill: any, version: any, opts: { siteUrl?: string } = {}) {
+export function buildManifest(skill: any, version: any, opts: { siteUrl?: string; env?: Record<string, string | undefined> } = {}) {
   const author = typeof skill.author === 'object' ? skill.author?.username : undefined
   const category = typeof skill.category === 'object' ? skill.category?.slug : undefined
   const outputSchema = version?.outputSchema || {}
@@ -51,10 +51,10 @@ export function buildManifest(skill: any, version: any, opts: { siteUrl?: string
   if (opts.siteUrl) core.skill_url = `${opts.siteUrl}/skills/${skill.slug}`
 
   const integrity: any = { checksum: computeChecksum(core) }
-  const signature = signCanonical(core)
+  const signature = signCanonical(core, opts.env)
   if (signature) {
     integrity.signature = signature
-    integrity.keyId = getSigningKeyId()
+    integrity.keyId = getSigningKeyId(opts.env)
     integrity.algorithm = 'ed25519'
   }
   return { ...core, integrity }

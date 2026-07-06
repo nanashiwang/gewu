@@ -1,6 +1,7 @@
 import type { Payload } from 'payload'
 import { buildManifest, manifestToJson, manifestToYaml } from './manifest'
 import { getServerUrl } from './siteUrl'
+import { resolveRuntimeEnv } from './deploymentSettings'
 
 export type ArtifactFormat = 'yaml' | 'json'
 
@@ -33,7 +34,8 @@ export async function ensureArtifact(
       ? skill
       : await payload.findByID({ collection: 'skills', id: skill.id, depth: 2, overrideAccess: true })
 
-  const manifest = buildManifest(populated, version, { siteUrl: getServerUrl() })
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const manifest = buildManifest(populated, version, { siteUrl: getServerUrl(runtimeEnv), env: runtimeEnv })
   const body = format === 'json' ? manifestToJson(manifest) : manifestToYaml(manifest)
   const checksum = (manifest as any).integrity?.checksum
 

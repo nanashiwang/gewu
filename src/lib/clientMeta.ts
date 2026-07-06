@@ -3,8 +3,8 @@ import { hmacDigest } from './secrets'
 // 取客户端 IP。⚠️ X-Forwarded-For 最左段可被客户端伪造，故从右往左取：
 // 最右是最近可信反代追加的对端 IP；TRUSTED_PROXY_COUNT 指定己方可信代理层数（默认 0=取最右）。
 // 生产务必让反代 append 真实对端（如 Nginx $proxy_add_x_forwarded_for / 覆盖式 X-Real-IP），否则 IP 不可信。
-export function getClientIp(headers: Headers): string {
-  const trusted = Math.max(0, Number(process.env.TRUSTED_PROXY_COUNT || 0))
+export function getClientIp(headers: Headers, env: Record<string, string | undefined> = process.env): string {
+  const trusted = Math.max(0, Number(env.TRUSTED_PROXY_COUNT || 0))
   const xff = headers.get('x-forwarded-for')
   if (xff) {
     const chain = xff

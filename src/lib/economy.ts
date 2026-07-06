@@ -1,5 +1,6 @@
 import type { Payload } from 'payload'
 import { sql } from 'drizzle-orm'
+import { resolveRuntimeEnv, type RuntimeEnv } from './deploymentSettings'
 
 // 变现经济：配置读取 + 兑换池/用户额度核算。credit 与「分」1:1（1 credit=¥0.01=1 分）。
 
@@ -43,8 +44,8 @@ const DEFAULTS: EconomyConfig = {
   perUserMonthlyMaxCredit: 5000,
 }
 
-function localMarginAllowed(): boolean {
-  return process.env.NEWAPI_USAGE_SOURCE === 'local' && process.env.ALLOW_LOCAL_MARGIN_EXCHANGE === '1'
+function localMarginAllowed(env: RuntimeEnv): boolean {
+  return env.NEWAPI_USAGE_SOURCE === 'local' && env.ALLOW_LOCAL_MARGIN_EXCHANGE === '1'
 }
 
 function isFreshReconcileTime(value?: string): boolean {
@@ -56,13 +57,16 @@ function isFreshReconcileTime(value?: string): boolean {
 }
 
 export async function getEconomyConfig(payload: Payload): Promise<EconomyConfig> {
-  const g = (await payload.findGlobal({ slug: 'economy-settings' }).catch(() => null)) as any
+  const [g, runtimeEnv] = await Promise.all([
+    payload.findGlobal({ slug: 'economy-settings' }).catch(() => null),
+    resolveRuntimeEnv(payload),
+  ]) as [any, RuntimeEnv]
   if (!g) return { ...DEFAULTS }
   const num = (v: any, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d)
   const marginSource = ['newapi', 'local', 'manual'].includes(g.marginSource) ? g.marginSource : 'manual'
   const marginReconciledAt = typeof g.marginReconciledAt === 'string' ? g.marginReconciledAt : undefined
   // local 只是本平台 consume 流水估算，不是 New API /api/log 真值；必须显式确认才允许开兑换。
-  const trustedMarginSource = marginSource === 'newapi' || (marginSource === 'local' && localMarginAllowed())
+  const trustedMarginSource = marginSource === 'newapi' || (marginSource === 'local' && localMarginAllowed(runtimeEnv))
   const freshMargin = trustedMarginSource && isFreshReconcileTime(marginReconciledAt)
   return {
     // 保命红线：管理员手填毛利/旧月份毛利不能让兑换开关生效；必须由 worker 本月对账写入。

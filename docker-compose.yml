@@ -7,11 +7,11 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: payload
-      POSTGRES_PASSWORD: payload
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-payload}
       POSTGRES_DB: skillhub
     ports:
       # 主机 5433 → 容器 5432（避开本机已占用的 5432）
-      - '5433:5432'
+      - '${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5433}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -26,7 +26,7 @@ services:
     restart: unless-stopped
     ports:
       # 主机 6380 → 容器 6379（避开本机已占用的 6379）
-      - '6380:6379'
+      - '${REDIS_BIND:-127.0.0.1}:${REDIS_PORT:-6380}:6379'
     volumes:
       - redisdata:/data
     healthcheck:
@@ -45,17 +45,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    env_file: .env
     environment:
-      # 覆盖 .env 中的本机地址，改用容器内网服务名
-      DATABASE_URL: postgres://payload:payload@postgres:5432/skillhub
+      # 只注入最小启动项；模型网关/New API/签名等部署后在后台配置
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET}
+      DATABASE_URL: postgres://payload:${POSTGRES_PASSWORD:-payload}@postgres:5432/skillhub
       REDIS_URL: redis://redis:6379
-      NEXT_PUBLIC_SERVER_URL: http://localhost:8787
+      SERVER_URL: ${SERVER_URL}
+      NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL}
       # 媒体上传目录，指向下方挂载的持久卷
       MEDIA_DIR: /app/media
     ports:
       # 主机 8787 → 容器 3000（避开本机 dev 的 3000）
-      - '8787:3000'
+      - '${APP_PORT:-8787}:3000'
     healthcheck:
       test:
         - CMD-SHELL

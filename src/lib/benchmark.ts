@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 import { runSkill } from './skillRunner'
 import { recomputeLocalScore } from './compat'
 import { approvedPlatformModels } from './constants'
+import { resolveRuntimeEnv, type RuntimeEnv } from './deploymentSettings'
 
 // 发布即评测(#8)：对一个 Skill 用其黄金样例 × 一组模型跑系统评测，回流 source=benchmark 兼容报告，
 // 再重算 LocalScore——让新 Skill 出生即带初始数据，消灭详情页"N=0 战绩积累中"的劝退。
@@ -37,8 +38,8 @@ function deriveInputs(version: any): Record<string, unknown>[] {
 }
 
 // 选评测模型：入参优先 → 作者推荐云模型 ∩ 已备案白名单 → 默认取白名单前若干
-function pickModels(version: any, models?: string[]): string[] {
-  const approved = approvedPlatformModels()
+function pickModels(version: any, env: RuntimeEnv, models?: string[]): string[] {
+  const approved = approvedPlatformModels(env)
   const source: string[] = models && models.length ? models : version?.recommendedModels?.cloud || []
   let list = source.filter((m) => approved.has(m))
   if (list.length === 0) list = [...approved].slice(0, 3)
@@ -60,7 +61,8 @@ export async function benchmarkSkill(
 ): Promise<BenchmarkResult> {
   const { skill, version } = args
   const inputs = deriveInputs(version)
-  const models = pickModels(version, args.models)
+  const runtimeEnv = await resolveRuntimeEnv(payload)
+  const models = pickModels(version, runtimeEnv, args.models)
   const maxAttempts = Math.max(1, Number(args.maxAttempts || MAX_EXAMPLES * MAX_MODELS))
 
   let attempted = 0
