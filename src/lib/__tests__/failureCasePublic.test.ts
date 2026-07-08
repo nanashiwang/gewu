@@ -53,6 +53,26 @@ describe('failureCasePublic — 公开失败知识库输出', () => {
       evidenceVerifyPageUrl: '/verify?targetType=failure_case&targetId=failure-1',
       modelProfileUrl: '/models?modelName=qwen-plus&modelVersion=2026-07-01',
       adaptersUrl: '/v1/adapters?modelName=qwen-plus&failureId=failure-1&modelVersion=2026-07-01',
+      playbook: {
+        customerValue: expect.stringContaining('可复用排障线索'),
+        safeForPublic: true,
+        profileKey: 'skill|500-2k|json_parse_error',
+        nextActions: expect.arrayContaining([
+          expect.objectContaining({ label: '确认是否同类失败' }),
+          expect.objectContaining({
+            label: '查看模型画像',
+            href: '/models?modelName=qwen-plus&modelVersion=2026-07-01',
+          }),
+          expect.objectContaining({
+            label: '生成或复用 Adapter',
+            href: '/v1/adapters?modelName=qwen-plus&failureId=failure-1&modelVersion=2026-07-01',
+          }),
+          expect.objectContaining({
+            label: '验签证据',
+            href: '/verify?targetType=failure_case&targetId=failure-1',
+          }),
+        ]),
+      },
       modelBreakdown: { 'qwen-plus': 3 },
       modelVersions: ['2026-07-01', '2026-07-02'],
       modelVersionBreakdown: { '2026-07-01': 2, '2026-07-02': 1 },
@@ -63,6 +83,7 @@ describe('failureCasePublic — 公开失败知识库输出', () => {
     expect(row.outputText).toBeUndefined()
     expect(row.repairTemplate).toBeUndefined()
     expect(row.verifyTemplate).toBeUndefined()
+    expect(JSON.stringify(row.playbook)).not.toContain('强制输出 JSON')
   })
 
   it('截断公开失败库筛选中的超长字符串，并清洗 source 动态 key', () => {

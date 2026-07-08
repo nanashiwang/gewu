@@ -105,7 +105,7 @@ curl http://127.0.0.1:8787/health
 | `POST /v1/skills/[slug]/run` | 在线试跑 Skill；请求可携带 `modelProvider` / `modelVersion`，运行回流会绑定对应 ModelProfile、FailureCase 和 Adapter 版本链路 |
 | `POST /v1/certificates/verify` | 校验完整证书响应或裸 certificate 的 hash 与 ed25519 签名，并返回绑定的 Contract/Passport/基准摘要和未达正式达标原因；前台 `/verify?certificateUrl=...` 可自动加载证书并验签 |
 | `GET /v1/model-profiles` | 公开读取模型画像、版本漂移、回归告警、有效样本和来源权重；支持 modelName/modelVersion/provider/status 过滤，并返回失败库/Adapter 排障入口 |
-| `GET /v1/failures` | 公开读取脱敏失败知识库、修复/复验建议、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 skillId/profileKey/inputBucket/modelVersion/source 过滤 |
+| `GET /v1/failures` | 公开读取脱敏失败知识库、客户排障 playbook、修复/复验建议、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 skillId/profileKey/inputBucket/modelVersion/source 过滤 |
 | `GET /v1/adapters` | 公开读取 active Adapter 效果摘要、lift 指标和 API/页面证据验签入口；支持 skillId/modelName/modelVersion/failureType/failureId/modelProfile 过滤，不暴露补丁正文或草稿 |
 | `GET /v1/evidence/verify?targetType=...&targetId=...` | 校验已知 Passport / FailureCase / Adapter 的证据快照，返回公开脱敏 `targetSummary`、payloadHash 和签名状态；不提供匿名全量枚举 |
 | `POST /v1/anchors/verify` | 校验 score/evidence 外锚 JSONL + manifest + 可信发布/时间戳声明，并返回外锚可信等级 |

@@ -86,6 +86,40 @@ function adaptersUrl(row: any) {
   return `/v1/adapters?${params.toString()}`
 }
 
+function publicFailurePlaybook(row: any) {
+  const profileKey =
+    row?.profileKey ||
+    [row?.errorType, row?.modelName].filter(Boolean).join('|') ||
+    null
+  return {
+    customerValue:
+      '把一次失败沉淀成可复用排障线索：先判断是否命中已知失败模式，再看模型画像，最后由作者生成 Adapter 草稿并复验效果。',
+    profileKey,
+    safeForPublic: true,
+    nextActions: [
+      {
+        label: '确认是否同类失败',
+        description: '对照错误类型、输入档、模型版本、症状和可能原因，不需要暴露原始输入输出。',
+      },
+      {
+        label: '查看模型画像',
+        description: '判断失败是否集中在某个模型或版本，决定换模型、锁版本还是等待适配。',
+        href: modelProfileUrl(row?.modelName, row?.primaryModelVersion),
+      },
+      {
+        label: '生成或复用 Adapter',
+        description: '作者/审核员可从失败案例生成补丁草稿；公开用户只能看是否已有验证过的 Adapter 效果。',
+        href: adaptersUrl(row),
+      },
+      {
+        label: '验签证据',
+        description: '复核这条失败画像是否来自公开可验证的证据快照。',
+        href: evidenceVerifyPageUrl('failure_case', row?.id),
+      },
+    ],
+  }
+}
+
 function objectOrEmpty(value: any) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
 }
@@ -101,6 +135,7 @@ export function publicFailureCase(row: any) {
     primaryModelVersion: row?.primaryModelVersion || null,
     modelProfileUrl: modelProfileUrl(row?.modelName, row?.primaryModelVersion),
     adaptersUrl: adaptersUrl(row),
+    playbook: publicFailurePlaybook(row),
     skill,
     symptom: row?.symptom || null,
     likelyCause: row?.likelyCause || null,

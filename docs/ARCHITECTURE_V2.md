@@ -48,8 +48,8 @@
 | `/skills/[slug]/run` | 在线试跑页；运行前展示 Passport 可信分，并提供 Passport、Contract、达标证书和证据验签入口；运行请求可携带 modelProvider/modelVersion，结果进入私人台账并按模型版本回流兼容证据。 |
 | `/models` | 中立模型榜；显示 ModelProfile 稳定/回归告警、来源权重、有效样本和画像筛选表单；每行可跳转模型画像 API、该模型失败库与 Adapter API，不污染排序。 |
 | `/v1/model-profiles` | 公开读取模型画像、版本漂移、回归告警、有效样本和来源权重；支持 modelName/modelVersion/provider/status 过滤；返回失败库和 Adapter 排障入口，不暴露平台收益字段。 |
-| `/failures` | 优先读取 FailureCases；展示“发现失败模式 → 生成 Adapter 草稿 → 复验 lift”的闭环；展示 profileKey、主输入档、模型分布、Adapter 建议、模型画像入口、Adapter API、失败/Adapter 证据验签入口和多维筛选表单；只有 Skill 作者、审核员或管理员可从失败案例生成 Adapter 草稿并直达后台草稿审核。 |
-| `/v1/failures` | 公开读取脱敏 FailureCase 列表、修复/复验建议、模型/来源分布、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 errorType/modelName/modelVersion/status/skillId/profileKey/inputBucket/source 过滤。 |
+| `/failures` | 优先读取 FailureCases；展示“发现失败模式 → 生成 Adapter 草稿 → 复验 lift”的闭环和“客户怎么用”排障步骤；展示 profileKey、主输入档、模型分布、Adapter 建议、模型画像入口、Adapter API、失败/Adapter 证据验签入口和多维筛选表单；只有 Skill 作者、审核员或管理员可从失败案例生成 Adapter 草稿并直达后台草稿审核。 |
+| `/v1/failures` | 公开读取脱敏 FailureCase 列表、客户排障 playbook、修复/复验建议、模型/来源分布、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 errorType/modelName/modelVersion/status/skillId/profileKey/inputBucket/source 过滤。 |
 | `/rank` | 可信发现榜；公开说明排序口径，把可信分（skillRank）、成功率、可信兼容运行数和 Passport 可信分放在一起，并提供公开 Passport 证据入口，避免把下载量/普通调用量当成可信度。 |
 | `/bounties` | 求术悬赏；引导用户把需求写成可验收标准，创作者交付可版本化、可签名、可进入 Passport 闭环的 Skill，而不是一次性答案。 |
 | `/console` | 个人控制台概览；展示已安装 Skill、Runner、私人台账、兼容贡献，并突出私人运行台账的总运行、成功、格式有效、可信兼容和换模型重跑。 |

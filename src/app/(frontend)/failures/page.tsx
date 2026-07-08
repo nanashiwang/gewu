@@ -351,6 +351,16 @@ export default async function FailuresPage({
                   </p>
                 </div>
 
+                <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 text-xs">
+                  <b>客户怎么用：</b>
+                  <div className="mt-2 grid gap-2 text-[var(--muted)] sm:grid-cols-2">
+                    <span>1. 对照错误类型/输入档，判断是否命中同类失败。</span>
+                    <span>2. 看模型画像，确认是否集中在某个模型版本。</span>
+                    <span>3. 作者可生成 Adapter 草稿，普通用户可看是否已有验证修复。</span>
+                    <span>4. 通过证据验签复核这条失败画像来源。</span>
+                  </div>
+                </div>
+
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
                   {c.primaryInputBucket && (
                     <span>主输入：{c.primaryInputBucket}</span>
