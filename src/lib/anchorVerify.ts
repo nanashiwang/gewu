@@ -38,6 +38,7 @@ export function verifyAnchorManifestBundle(args: {
   trustedPublication?: AnchorTrustedPublicationResult
   externalTimestampReceipt?: AnchorReceiptVerifyResult
   assurance: AnchorAssuranceResult
+  playbook: AnchorAssurancePlaybook
 } {
   const inputBytes = approxBytes(args.jsonl) + approxBytes(args.manifest) + approxBytes(args.externalTimestampReceipt)
   if (inputBytes > MAX_ANCHOR_VERIFY_BYTES) {
@@ -47,6 +48,7 @@ export function verifyAnchorManifestBundle(args: {
       chainHead: null,
       entries: 0,
       assurance: { level: 'invalid', passed: false, reason: '外锚校验输入过大' },
+      playbook: anchorAssurancePlaybook({ level: 'invalid', passed: false, reason: '外锚校验输入过大' }),
     }
   }
   const lines = normalizeAnchorLines(args.jsonl)
@@ -57,6 +59,7 @@ export function verifyAnchorManifestBundle(args: {
       chainHead: null,
       entries: lines.length,
       assurance: { level: 'invalid', passed: false, reason: '外锚 JSONL 行数超过公开校验上限' },
+      playbook: anchorAssurancePlaybook({ level: 'invalid', passed: false, reason: '外锚 JSONL 行数超过公开校验上限' }),
     }
   }
   const manifest = typeof args.manifest === 'string' ? JSON.parse(args.manifest) : args.manifest
@@ -65,12 +68,14 @@ export function verifyAnchorManifestBundle(args: {
     : verifyEvidenceAnchorManifest(lines, manifest as EvidenceAnchorManifest, args.publicKeyInfo)
   const trustedPublication = evaluateTrustedAnchorPublication(manifest, args.trustedPublishers)
   const externalTimestampReceipt = evaluateExternalTimestampReceipt(manifest, args.externalTimestampReceipt)
+  const assurance = evaluateAnchorAssurance(result, manifest, trustedPublication, externalTimestampReceipt)
   return {
     ...result,
     entries: lines.length,
     trustedPublication,
     externalTimestampReceipt,
-    assurance: evaluateAnchorAssurance(result, manifest, trustedPublication, externalTimestampReceipt),
+    assurance,
+    playbook: anchorAssurancePlaybook(assurance),
   }
 }
 
@@ -126,6 +131,64 @@ export type AnchorAssuranceResult = {
   level: AnchorAssuranceLevel
   passed: boolean
   reason: string
+}
+
+export type AnchorAssuranceDecision = 'accept' | 'review' | 'archive_only' | 'reject'
+
+export type AnchorAssurancePlaybook = {
+  customerValue: string
+  decision: AnchorAssuranceDecision
+  assuranceChecklist: string[]
+  nextActions: string[]
+}
+
+export function anchorAssurancePlaybook(assurance: AnchorAssuranceResult): AnchorAssurancePlaybook {
+  const decisionByLevel: Record<AnchorAssuranceLevel, AnchorAssuranceDecision> = {
+    external_timestamped: 'accept',
+    trusted_published: 'review',
+    self_signed: 'review',
+    chain_only: 'archive_only',
+    invalid: 'reject',
+  }
+  const checklist = [
+    '复算 JSONL 行数、fileHash、chainHead 与 manifest 是否一致',
+    '校验 manifest ed25519 签名和当前公钥 keyId 是否匹配',
+    '核对 publishedTo 是否命中组织认可的可信发布目标',
+    '核对 externalTimestamp.receiptHash 是否与上传 receipt 的 sha256 匹配',
+  ]
+  const nextActionsByLevel: Record<AnchorAssuranceLevel, string[]> = {
+    external_timestamped: [
+      '可作为采购、审计或第三方复核证据归档',
+      '把 manifest、JSONL、receipt 与公钥 keyId 一并保存',
+      '后续抽检时用同一接口重新校验 chainHead 和 receiptHash',
+    ],
+    trusted_published: [
+      '先作为可信发布证据进入人工复核',
+      '补充外部时间戳 receipt 后重新校验到 external_timestamped',
+      '确认发布 URL、组织白名单和 manifest chainHead 一致',
+    ],
+    self_signed: [
+      '先确认站点公钥是否来自可信渠道',
+      '补充可信发布目标或第三方时间戳 receipt 后再用于对外承诺',
+      '不要把站点自签单独当作第三方背书',
+    ],
+    chain_only: [
+      '仅可证明 JSONL 与 manifest 内部一致，建议只做内部归档',
+      '补签 manifest，并配置可信发布目标后重新校验',
+      '补充外部时间戳 receipt 以形成不可抵赖时间证据',
+    ],
+    invalid: [
+      '拒绝采用该外锚包，重新导出 JSONL 与 manifest',
+      '检查文件是否被截断、篡改或 kind 选择错误',
+      '重新获取公钥和 manifest 签名后再提交校验',
+    ],
+  }
+  return {
+    customerValue: '把外锚从“平台自称有效”翻译成客户、采购和审计可逐项复核的证据链。',
+    decision: decisionByLevel[assurance.level],
+    assuranceChecklist: checklist,
+    nextActions: nextActionsByLevel[assurance.level],
+  }
 }
 
 export function evaluateAnchorAssurance(

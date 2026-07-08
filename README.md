@@ -113,7 +113,7 @@ curl http://127.0.0.1:8787/health
 | `GET /v1/failures` | 公开读取脱敏失败知识库、客户排障 playbook、triage checklist、私人台账复现、修复/复验建议、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 skillId/profileKey/inputBucket/modelVersion/source 过滤 |
 | `GET /v1/adapters` | 公开读取 active Adapter 效果摘要、lift 指标、复用/复验 checklist、私人台账复验入口和 API/页面证据验签入口；支持 skillId/modelName/modelVersion/failureType/failureId/modelProfile 过滤，不暴露补丁正文或草稿 |
 | `GET /v1/evidence/verify?targetType=...&targetId=...` | 校验已知 Passport / FailureCase / Adapter 的证据快照，返回公开脱敏 `targetSummary`、payloadHash 和签名状态；不提供匿名全量枚举 |
-| `POST /v1/anchors/verify` | 校验 score/evidence 外锚 JSONL + manifest + 可信发布/时间戳声明，并返回外锚可信等级 |
+| `POST /v1/anchors/verify` | 校验 score/evidence 外锚 JSONL + manifest + 可信发布/时间戳声明，返回可信等级和采购/审计复核 playbook |
 | `GET /v1/runs` | 当前用户私人运行台账导出；支持 skillId/model/modelVersion/routeMode/success/formatValid/trustedCompatible/rerunOf 过滤；默认不含输入/输出，返回模型画像、可信兼容标记、失败库排障入口和换模型重跑 playbook，`includeIO=1` 仅本人导出原文并写审计 |
 | `POST /v1/runs/[id]/rerun` | 用私人台账中的历史输入换模型重跑，可携带 modelProvider/modelVersion，写入重跑血缘 |
 | `GET /v1/enterprise/registry/[id]/passport` | 企业内读取已批准/可审 Skill 的 Passport、治理状态、证书状态摘要、准入治理 checklist、审计/失败库入口和绑定 Contract 的达标证书 |

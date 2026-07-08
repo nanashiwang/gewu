@@ -18,6 +18,12 @@ type VerifyResult = {
     actual?: string
   }
   assurance?: { level: string; passed: boolean; reason: string }
+  playbook?: {
+    customerValue: string
+    decision: string
+    assuranceChecklist: string[]
+    nextActions: string[]
+  }
   error?: string
 }
 
@@ -203,6 +209,26 @@ export function AnchorVerifyForm() {
               ) : null}
               {result.externalTimestampReceipt ? (
                 <div className="text-xs">时间戳回执：{result.externalTimestampReceipt.status} · {result.externalTimestampReceipt.reason}</div>
+              ) : null}
+              {result.playbook ? (
+                <div className="rounded-lg border border-current/20 bg-black/10 p-3 text-xs">
+                  <div className="font-semibold">复核结论：{result.playbook.decision}</div>
+                  <div className="mt-1">客户价值：{result.playbook.customerValue}</div>
+                  <div className="mt-2 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <div className="font-semibold">复核清单</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-4">
+                        {result.playbook.assuranceChecklist.map((item) => <li key={item}>{item}</li>)}
+                      </ul>
+                    </div>
+                    <div>
+                      <div className="font-semibold">下一步</div>
+                      <ul className="mt-1 list-disc space-y-1 pl-4">
+                        {result.playbook.nextActions.map((item) => <li key={item}>{item}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               ) : null}
             </div>
           )}

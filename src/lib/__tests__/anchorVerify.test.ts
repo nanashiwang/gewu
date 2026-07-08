@@ -139,7 +139,48 @@ describe('anchorVerify — 公开外锚 bundle 校验', () => {
       publicKeyInfo: getPublicKeyInfo(env),
       trustedPublishers: [{ target: 'github-release', urlPrefix: 'https://github.com/acme/hengshu/releases/' }],
       externalTimestampReceipt: receipt,
-    }).assurance).toMatchObject({ level: 'external_timestamped', passed: true })
+    })).toMatchObject({
+      assurance: { level: 'external_timestamped', passed: true },
+      playbook: {
+        decision: 'accept',
+        customerValue: expect.stringContaining('客户、采购和审计'),
+        assuranceChecklist: expect.arrayContaining([
+          '复算 JSONL 行数、fileHash、chainHead 与 manifest 是否一致',
+          '核对 externalTimestamp.receiptHash 是否与上传 receipt 的 sha256 匹配',
+        ]),
+        nextActions: expect.arrayContaining(['可作为采购、审计或第三方复核证据归档']),
+      },
+    })
+  })
+
+  it('按可信等级返回客户可执行决策，且不泄漏 receipt 原文', () => {
+    const env = envWithKey()
+    const receipt = 'do not leak receipt body'
+    const receiptHash = createHash('sha256').update(receipt).digest('hex')
+    const entry = buildEvidenceAnchorEntry({
+      snapshotId: 'e2',
+      targetType: 'adapter_profile',
+      targetId: 'adapter-1',
+      evidenceHash: 'adapter-evidence-hash',
+      signedAt: '2026-07-08T00:00:00.000Z',
+      computedHash: 'adapter-evidence-hash',
+      verifyStatus: 'valid',
+    }, null)
+    const line = canonicalString(entry)
+    const manifest = signEvidenceAnchorManifest(buildEvidenceAnchorManifest([line], '2026-07-08T00:00:00.000Z', {
+      externalTimestamp: { provider: 'ots', receiptHash },
+    }), env)
+
+    const result = verifyAnchorManifestBundle({
+      kind: 'evidence',
+      jsonl: [line],
+      manifest,
+      publicKeyInfo: getPublicKeyInfo(env),
+      externalTimestampReceipt: receipt,
+    })
+
+    expect(result.playbook.decision).toBe('accept')
+    expect(JSON.stringify(result)).not.toContain(receipt)
   })
 
   it('可校验外部时间戳 receipt 内容 hash', () => {
