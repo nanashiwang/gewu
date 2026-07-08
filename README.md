@@ -94,6 +94,7 @@ curl http://127.0.0.1:8787/health
 | `npm run worker:verify-score-anchors` | 校验分数外锚 JSONL + manifest 签名 |
 | `npm run worker:export-evidence-anchors` | 导出证据快照外锚 JSONL + 自签 manifest（可带第三方发布/时间戳声明 env） |
 | `npm run worker:verify-evidence-anchors` | 校验证据快照外锚 JSONL + manifest 签名 + 第三方声明格式；可信发布目标可在部署设置配置，公开 API 可校验命中状态和时间戳 receiptHash |
+| `npm run worker:reverify-queue` | 消费失败库私人台账复验队列，按候选历史运行自动重跑并回写 verificationCoverage |
 | `node runner/hengshu.mjs <cmd>` | 本地 Runner（login/install/run/... ） |
 
 ## 关键 API
@@ -112,7 +113,7 @@ curl http://127.0.0.1:8787/health
 | `GET /v1/model-profiles` | 公开读取模型画像、版本漂移、输入规模档、任务画像与 Skill 任务画像表现、回归告警、有效样本、来源权重、采用复验 checklist 和客户决策 playbook；支持 modelName/modelVersion/provider/status 过滤，并返回私人台账复验、失败库/Adapter 排障入口 |
 | `GET /v1/failures` | 公开读取脱敏失败知识库、人工归因摘要、复验覆盖、客户排障 playbook、triage checklist、私人台账复现、修复/复验建议、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 skillId/profileKey/inputBucket/modelVersion/source 过滤 |
 | `GET /v1/failures/[id]/reverify-plan` | 登录后基于当前用户私人台账生成失败复现与 Adapter 复验计划：候选失败运行、rerunUrl、覆盖缺口、已批准 Adapter 和 triage 回写动作；不暴露原始输入输出或补丁正文 |
-| `POST /v1/failures/[id]/reverify-queue` | 登录后把该失败案例的私人台账复验计划放入 Redis 批量队列；按 failureCaseId+userId 去重，返回 plan 和 jobPreview，未配置 Redis 时显式 503 降级 |
+| `POST /v1/failures/[id]/reverify-queue` | 登录后把该失败案例的私人台账复验计划放入 Redis 批量队列；按 failureCaseId+userId 去重，返回 plan 和 jobPreview，未配置 Redis 时显式 503 降级；`worker:reverify-queue` 消费后回写复验覆盖 |
 | `GET /v1/adapters` | 公开读取已批准 active Adapter 效果摘要、lift 指标、复用/复验 checklist、私人台账复验入口和 API/页面证据验签入口；支持 skillId/modelName/modelVersion/failureType/failureId/modelProfile 过滤，不暴露补丁正文或未批准草稿 |
 | `GET /v1/evidence/verify?targetType=...&targetId=...` | 校验已知 Passport / FailureCase / Adapter 的证据快照，返回公开脱敏 `targetSummary`、payloadHash 和签名状态；不提供匿名全量枚举 |
 | `POST /v1/anchors/verify` | 校验 score/evidence 外锚 JSONL + manifest + 可信发布/时间戳声明，返回可信等级和采购/审计复核 playbook；`/v1/anchors/timestamp-request` 可生成第三方时间戳 imprint 请求包 |
