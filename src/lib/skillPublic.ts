@@ -1,5 +1,5 @@
 import { certificateVerifyPageUrl, evidenceVerifyApiUrl, evidenceVerifyPageUrl } from './evidenceLinks'
-import { publicSkillRankBasis } from './skillrank'
+import { publicSkillRankBasis, publicSkillRankExplanation } from './skillrank'
 
 export type StarterPackOverride = {
   reason?: string | null
@@ -137,6 +137,7 @@ export function publicSkillSummary(skill: any, passport?: any, starterOverride?:
     isFeatured: Boolean(skill?.isFeatured),
     skillRank: Math.round(Number(skill?.skillRank || 0)),
     rankBasis: publicSkillRankBasis(skill, passport),
+    rankExplanation: publicSkillRankExplanation(skill, passport),
     localScore: Math.round(Number(skill?.localScore || 0)),
     successRate: skill?.successRate ?? null,
     trustedCompatibleRunCount: passportInfo.trustedCompatibleRunCount,

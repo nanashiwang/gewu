@@ -26,7 +26,7 @@
 - **护城河数据层**：逐模型/版本兼容真值表（时间衰减 + 来源权重 + 置信度，并展示有效样本）· ModelProfile 漂移曲线/输入规模档/任务画像/Skill任务画像表现 · 黄金样例逐条打分 · 在线运行回流喂评测数据 · 私人台账单条/批量换模型重跑 · 失败知识库（`/failures` + 归因看板，含人工归因/审核员批量确认/复验覆盖/证据验签/私人台账复验计划）· 从失败案例生成待评审 Adapter 草稿并直达前台评审看板，批准后自动复验入队 · 企业内 Passport/达标证书 · 企业准入批量重审 · 企业私有评测（不进公开榜/公开 Passport）· 企业策略包/身份策略骨架 · 企业失败知识库 · 来源分级权重
 - **创作者供给**：前台发布 Skill（`/console/skills/new`，引导上传包→Contract→Passport→适配维护，并返回发布后维护 playbook）· AI 合规审核通过自动上架/未通过转人工 · GitHub README / Claude Skill / GPTs 配置导入为待审 Imported Skill · 批量来源导入 worker · 我的作品展示 Contract/Passport/证书预览/失败库入口 · 未发布 Skill 作者可预览
 - **经济闭环（骨架）**：credit 台账 + 贡献值兑换池（`/console/exchange`，默认关闭待接真值）
-- **前台**：首页发现（后台 Starter Pack 配置的必备 Skill）· Skill 市场（必备筛选/分类/排序/搜索）· 详情（Passport/Contract diff筛选/兼容矩阵/评论/版本）· 可信榜（公开排序口径，非下载量热榜）· 悬赏区 · 控制台 · Adapter 评审看板/批量评审/自动复验 · 失败归因看板 · 订阅更新通知 · 移动端导航 · SEO(sitemap/robots/metadata)
+- **前台**：首页发现（后台 Starter Pack 配置的必备 Skill）· Skill 市场（必备筛选/分类/排序/搜索）· 详情（Passport/Contract diff筛选/兼容矩阵/评论/版本）· 可信榜（公开排序口径/逐项解释，非下载量热榜）· 悬赏区 · 控制台 · Adapter 评审看板/批量评审/自动复验 · 失败归因看板 · 订阅更新通知 · 移动端导航 · SEO(sitemap/robots/metadata)
 
 ## 快速开始
 
@@ -101,7 +101,7 @@ curl http://127.0.0.1:8787/health
 
 | API | 用途 |
 |---|---|
-| `GET /v1/skills` | 公开读取 Skill 摘要列表，支持 `essential=1` 作为必备 Skill onboarding 接口；优先读取后台 Starter Pack 的排序、推荐理由和公开默认示例，未配置时回退 `isEssential`，并返回新手 starterPlaybook、可信榜排序依据、顶层 trustedCompatibleRunCount、Passport 可信摘要、API/页面证据验签入口、试跑入口和台账入口 |
+| `GET /v1/skills` | 公开读取 Skill 摘要列表，支持 `essential=1` 作为必备 Skill onboarding 接口；优先读取后台 Starter Pack 的排序、推荐理由和公开默认示例，未配置时回退 `isEssential`，并返回新手 starterPlaybook、可信榜排序依据/解释、顶层 trustedCompatibleRunCount、Passport 可信摘要、API/页面证据验签入口、试跑入口和台账入口 |
 | `GET /v1/skills/[slug]/contract` | 公开读取当前未废弃版本的 Skill 能力契约摘要、contractHash、prompt hash、availableBaselines、可选 compareVersion/compareVersionId 基线 diff 和客户复核 playbook；详情页已可视化 diff，不暴露 prompt 正文 |
 | `GET /v1/skills/[slug]/passport` | 公开读取清洗后的 Skill Passport、黄金样例摘要、可信兼容运行计数、证据验签入口、最新证据验签摘要和客户复核 playbook |
 | `GET /v1/skills/[slug]/certificate` | 公开读取 Skill 达标证书，绑定当前未废弃 Contract 摘要、Passport、可信兼容运行计数、黄金样例逐条摘要和证据验签状态，含 `certificateHash`、签名、公开公钥、`statusReasons` 和 Passport 证据验签页面入口 |

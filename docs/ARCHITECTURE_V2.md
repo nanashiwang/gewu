@@ -55,7 +55,7 @@
 | `/v1/model-profiles` | 公开读取模型画像、版本漂移、输入规模档/任务画像/Skill任务画像表现，任务 profileKey 下沉到输入档 × errorType × modelVersion，Skill profileKey 下沉到 Skill × 输入档 × errorType × modelVersion；支持 modelName/modelVersion/provider/status 过滤；返回采用复验 checklist、私人台账复验、失败库和 Adapter 排障入口，不暴露平台收益字段。 |
 | `/failures` | 优先读取 FailureCases；展示“发现失败模式 → 生成 Adapter 草稿 → 复验 lift”的闭环和“客户怎么用”排障步骤；展示含 modelVersion 的 profileKey、主输入档、模型分布、Adapter 建议、Adapter 复用/复验说明、模型画像入口、Adapter API、失败/Adapter 证据验签入口和多维筛选表单；只有 Skill 作者、审核员或管理员可从失败案例生成待人工评审 Adapter 草稿并直达后台草稿审核。 |
 | `/v1/failures` | 公开读取脱敏 FailureCase 列表、人工归因摘要、复验覆盖、客户排障 playbook、triage checklist、私人台账复现入口、修复/复验建议、模型/来源分布、模型画像/Adapter/复验计划入口和 API/页面证据验签入口；支持 errorType/modelName/modelVersion/status/skillId/profileKey/inputBucket/source 过滤。 |
-| `/rank` | 可信发现榜；公开说明排序口径，把可信分（skillRank）、成功率、可信兼容运行数和 Passport 可信分放在一起，并提供公开 Passport 证据入口，避免把下载量/普通调用量当成可信度。 |
+| `/rank` | 可信发现榜；公开说明排序口径，把可信分（skillRank）、成功率、可信兼容运行数和 Passport 可信分放在一起，展示基础可信分/可信证据/饱和防刷公式，并可逐项展开“为什么排这里”和采用建议；提供公开 Passport 证据入口，避免把下载量/普通调用量当成可信度。 |
 | `/bounties` | 求术悬赏；引导用户把需求写成可验收标准，创作者交付可版本化、可签名、可进入 Passport 闭环的 Skill，而不是一次性答案。 |
 | `/console` | 个人控制台概览；展示已安装 Skill、Runner、私人台账、兼容贡献，并突出私人运行台账的总运行、成功、格式有效、可信兼容和换模型重跑。 |
 | `/console/skills/new` | 创作者发布页；按“上传包 → 生成 Contract → 刷新 Passport → 适配维护”解释发布闭环，并提示 manifest、schema、示例、权限和推荐模型会影响 Passport/证书质量；提交成功后展示 Contract/Passport/证书/失败库维护 playbook；待审阶段证据入口按作者预览口径展示。 |

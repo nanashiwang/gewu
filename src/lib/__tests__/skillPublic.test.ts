@@ -49,6 +49,18 @@ describe('skillPublic — 公开 Skill 列表输出', () => {
           '可信兼容样本采用对数饱和，避免刷量支配',
         ]),
       },
+      rankExplanation: {
+        decision: 'priority_try',
+        formula: {
+          baseScore: expect.stringContaining('85%'),
+          trustedEvidence: expect.stringContaining('15%'),
+        },
+        customerHint: expect.stringContaining('Passport'),
+        reasons: expect.arrayContaining([
+          'Passport 92',
+          '7 次可信兼容运行',
+        ]),
+      },
       trustedCompatibleRunCount: 7,
       passport: {
         status: 'current',

@@ -100,3 +100,47 @@ export function publicSkillRankBasis(skill: any, passport?: any) {
     ],
   }
 }
+
+export function publicSkillRankExplanation(skill: any, passport?: any) {
+  const basis = publicSkillRankBasis(skill, passport)
+  const trustScore = basis.factors.passportTrustScore
+  const trustedRuns = basis.factors.trustedCompatibleRunCount
+  const successRate = Number(basis.factors.successRate ?? 0)
+  const formatRate = Number(basis.factors.formatSuccessRate ?? 0)
+  const decision =
+    trustScore != null && trustScore >= 80 && trustedRuns >= 5
+      ? 'priority_try'
+      : trustedRuns <= 0 || trustScore == null
+        ? 'verify_first'
+        : 'small_trial'
+  return {
+    ...basis,
+    formula: {
+      baseScore: '成功率/稳定性/成本/延迟/格式率/维护/用户反馈合成 85%',
+      trustedEvidence: '可信兼容运行数按对数饱和补强 15%',
+      saturation: '可信兼容样本 100 条左右接近满权重，继续刷量收益很低',
+    },
+    factorWeights: [
+      { key: 'evalPassRate', label: '成功/评测通过', weight: 0.35 },
+      { key: 'stability', label: '稳定性', weight: 0.15 },
+      { key: 'costAdvantage', label: '成本优势', weight: 0.15 },
+      { key: 'latencyScore', label: '延迟表现', weight: 0.1 },
+      { key: 'formatSuccessRate', label: '格式成功', weight: 0.1 },
+      { key: 'maintenance', label: '维护活跃', weight: 0.1 },
+      { key: 'userFeedback', label: '用户反馈', weight: 0.05 },
+    ],
+    decision,
+    reasons: [
+      successRate > 0 ? `历史成功率 ${Math.round(successRate * 100)}%` : '成功率样本不足',
+      formatRate > 0 ? `格式成功率 ${Math.round(formatRate * 100)}%` : '格式率样本不足',
+      trustScore != null ? `Passport ${trustScore}` : 'Passport 待生成',
+      `${trustedRuns} 次可信兼容运行`,
+    ],
+    customerHint:
+      decision === 'priority_try'
+        ? '证据较强，可优先试跑；采购前仍建议看 Passport/证书并用自己的输入复验。'
+        : decision === 'small_trial'
+          ? '已有部分证据，适合小流量试用后再决定是否采用。'
+          : '证据不足，先验签 Passport/证书并用默认输入或私人台账复验。',
+  }
+}

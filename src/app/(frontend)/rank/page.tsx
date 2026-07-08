@@ -3,6 +3,7 @@ import { getPayloadClient } from '@/lib/payload'
 import { Pagination } from '@/components/Pagination'
 import { formatNumber, formatPercent } from '@/lib/format'
 import { publicContributionUser, publicContributionUserWhere } from '@/lib/userPublic'
+import { publicSkillRankExplanation } from '@/lib/skillrank'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,6 +61,7 @@ export default async function RankPage({
     }),
   )
   const passportBySkillId = new Map(passports)
+  const rankGuide = publicSkillRankExplanation({ skillRank: 0 })
   const skillBase = ((skills.page || skillPage) - 1) * PAGE_SIZE
   const userBase = ((users.page || userPage) - 1) * PAGE_SIZE
   const publicUsers = (users.docs as any[]).map(publicContributionUser)
@@ -99,6 +101,30 @@ export default async function RankPage({
           </p>
         </div>
       </section>
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel-2)] p-4 text-xs text-[var(--muted)]">
+        <div className="font-medium text-[var(--text)]">排序口径怎么读</div>
+        <div className="mt-2 grid gap-2 md:grid-cols-3">
+          <div className="rounded border border-[var(--border)] bg-[var(--bg)] p-2">
+            <div className="text-[var(--text)]">基础可信分 85%</div>
+            <div className="mt-1">{rankGuide.formula.baseScore}</div>
+          </div>
+          <div className="rounded border border-[var(--border)] bg-[var(--bg)] p-2">
+            <div className="text-[var(--text)]">可信证据 15%</div>
+            <div className="mt-1">{rankGuide.formula.trustedEvidence}</div>
+          </div>
+          <div className="rounded border border-[var(--border)] bg-[var(--bg)] p-2">
+            <div className="text-[var(--text)]">饱和防刷</div>
+            <div className="mt-1">{rankGuide.formula.saturation}</div>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {rankGuide.factorWeights.map((factor) => (
+            <span key={factor.key} className="rounded-full border border-[var(--border)] px-2 py-1">
+              {factor.label} {Math.round(factor.weight * 100)}%
+            </span>
+          ))}
+        </div>
+      </section>
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5">
           <h2 className="mb-1 text-sm font-semibold">Skill 可信榜</h2>
@@ -110,46 +136,66 @@ export default async function RankPage({
             {skills.docs.map((s: any, i: number) => {
               const rank = skillBase + i + 1
               const passport = passportBySkillId.get(s.id) as any
+              const explanation = publicSkillRankExplanation(s, passport)
               const trustedCompatibleRunCount = Number(
                 passport?.reliabilitySummary?.trustedCompatibleRunCount ??
                   passport?.evidenceSummary?.trustedCompatibleRunCount ??
                   0,
               )
               return (
-                <li key={s.id} className="flex items-center gap-3 py-2">
-                  <span
-                    className={`w-6 text-right ${rank <= 3 ? 'font-bold text-[var(--accent)]' : 'text-[var(--muted)]'}`}
-                  >
-                    {rank}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <Link
-                      href={`/skills/${s.slug}`}
-                      className="block truncate hover:text-[var(--accent)]"
+                <li key={s.id} className="py-2">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`w-6 text-right ${rank <= 3 ? 'font-bold text-[var(--accent)]' : 'text-[var(--muted)]'}`}
                     >
-                      {s.title}
-                    </Link>
-                    <span className="text-xs text-[var(--muted)]">
-                      成功 {formatPercent(s.successRate)} ·{' '}
-                      {formatNumber(trustedCompatibleRunCount)} 次可信兼容
-                      {passport
-                        ? ` · Passport ${Math.round(passport.trustScore || 0)}`
-                        : ' · Passport 待生成'}
+                      {rank}
                     </span>
-                  </span>
-                  {passport ? (
-                    <a
-                      href={`/v1/skills/${s.slug}/passport`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
-                    >
-                      证据
-                    </a>
-                  ) : null}
-                  <span className="w-10 text-right font-semibold text-[var(--accent)]">
-                    {Math.round(s.skillRank || 0)}
-                  </span>
+                    <span className="min-w-0 flex-1">
+                      <Link
+                        href={`/skills/${s.slug}`}
+                        className="block truncate hover:text-[var(--accent)]"
+                      >
+                        {s.title}
+                      </Link>
+                      <span className="text-xs text-[var(--muted)]">
+                        成功 {formatPercent(s.successRate)} ·{' '}
+                        {formatNumber(trustedCompatibleRunCount)} 次可信兼容
+                        {passport
+                          ? ` · Passport ${Math.round(passport.trustScore || 0)}`
+                          : ' · Passport 待生成'}
+                      </span>
+                    </span>
+                    {passport ? (
+                      <a
+                        href={`/v1/skills/${s.slug}/passport`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded border border-[var(--border)] px-1.5 py-0.5 text-[10px] text-[var(--muted)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+                      >
+                        证据
+                      </a>
+                    ) : null}
+                    <span className="w-10 text-right font-semibold text-[var(--accent)]">
+                      {Math.round(s.skillRank || 0)}
+                    </span>
+                  </div>
+                  <details className="ml-9 mt-1 text-xs text-[var(--muted)]">
+                    <summary className="cursor-pointer hover:text-[var(--accent)]">
+                      为什么排这里：{explanation.customerHint}
+                    </summary>
+                    <div className="mt-2 rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-2">
+                      <div className="flex flex-wrap gap-2">
+                        {explanation.reasons.map((reason) => (
+                          <span key={reason} className="rounded-full border border-[var(--border)] px-2 py-0.5">
+                            {reason}
+                          </span>
+                        ))}
+                      </div>
+                      <div className="mt-2">
+                        护栏：{explanation.guardrails.join('；')}。
+                      </div>
+                    </div>
+                  </details>
                 </li>
               )
             })}

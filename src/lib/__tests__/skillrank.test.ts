@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  publicSkillRankExplanation,
   publicSkillRankBasis,
   skillRankFromAggregates,
   trustedCompatibleEvidenceScore,
@@ -60,5 +61,31 @@ describe('skillrank — 可信分', () => {
       expect.arrayContaining(['不按下载量排序', '普通调用量不直接加分']),
     )
     expect(JSON.stringify(basis)).not.toContain('9999')
+  })
+
+  it('公开排名解释给出公式、决策和客户复核提示', () => {
+    const explanation = publicSkillRankExplanation(
+      { skillRank: 90, successRate: 0.92, formatSuccessRate: 0.88 },
+      { trustScore: 86, reliabilitySummary: { trustedCompatibleRunCount: 12 } },
+    )
+
+    expect(explanation).toMatchObject({
+      decision: 'priority_try',
+      formula: {
+        baseScore: expect.stringContaining('85%'),
+        trustedEvidence: expect.stringContaining('15%'),
+      },
+      factorWeights: expect.arrayContaining([
+        { key: 'evalPassRate', label: '成功/评测通过', weight: 0.35 },
+        { key: 'formatSuccessRate', label: '格式成功', weight: 0.1 },
+      ]),
+      customerHint: expect.stringContaining('看 Passport'),
+    })
+    expect(explanation.reasons).toEqual(expect.arrayContaining([
+      '历史成功率 92%',
+      '格式成功率 88%',
+      'Passport 86',
+      '12 次可信兼容运行',
+    ]))
   })
 })
