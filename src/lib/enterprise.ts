@@ -1,5 +1,5 @@
 import type { Payload } from 'payload'
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto'
+import { createHash, createHmac, createPublicKey, createVerify, randomBytes, timingSafeEqual } from 'crypto'
 import { bucketSize } from './compat'
 import { aggregateFailureKnowledge, type FailureKnowledgeGroup, type FailureKnowledgeReport } from './failureKnowledge'
 import { resolveRuntimeEnv } from './deploymentSettings'
@@ -27,6 +27,7 @@ export type EnterpriseIdentityPolicy = {
     authorizationEndpoint?: string
     tokenEndpoint?: string
     jwksUri?: string
+    jwks?: { keys?: any[] }
   }
   scim?: {
     enabled?: boolean
@@ -58,6 +59,7 @@ export function normalizeEnterpriseIdentityPolicy(raw: unknown): EnterpriseIdent
       authorizationEndpoint: typeof ssoRaw.authorizationEndpoint === 'string' ? ssoRaw.authorizationEndpoint.trim() : typeof ssoRaw.authorization_endpoint === 'string' ? ssoRaw.authorization_endpoint.trim() : undefined,
       tokenEndpoint: typeof ssoRaw.tokenEndpoint === 'string' ? ssoRaw.tokenEndpoint.trim() : typeof ssoRaw.token_endpoint === 'string' ? ssoRaw.token_endpoint.trim() : undefined,
       jwksUri: typeof ssoRaw.jwksUri === 'string' ? ssoRaw.jwksUri.trim() : typeof ssoRaw.jwks_uri === 'string' ? ssoRaw.jwks_uri.trim() : undefined,
+      jwks: ssoRaw.jwks && typeof ssoRaw.jwks === 'object' && !Array.isArray(ssoRaw.jwks) ? ssoRaw.jwks : undefined,
     },
     scim: {
       enabled: scimRaw.enabled === true || input.scimEnabled === true || input.scim_enabled === true,
@@ -65,7 +67,7 @@ export function normalizeEnterpriseIdentityPolicy(raw: unknown): EnterpriseIdent
       tokenDigest: typeof scimRaw.tokenDigest === 'string' ? scimRaw.tokenDigest.trim() : typeof scimRaw.token_digest === 'string' ? scimRaw.token_digest.trim() : undefined,
     },
   }
-  if (!policy.sso?.enabled && !policy.sso?.provider && !policy.sso?.issuer && !policy.sso?.clientId && !policy.sso?.discoveryUrl && !policy.sso?.authorizationEndpoint && !policy.sso?.tokenEndpoint && !policy.sso?.jwksUri) delete policy.sso
+  if (!policy.sso?.enabled && !policy.sso?.provider && !policy.sso?.issuer && !policy.sso?.clientId && !policy.sso?.discoveryUrl && !policy.sso?.authorizationEndpoint && !policy.sso?.tokenEndpoint && !policy.sso?.jwksUri && !policy.sso?.jwks) delete policy.sso
   if (!policy.scim?.enabled && !policy.scim?.baseUrl && !policy.scim?.tokenDigest) delete policy.scim
   if (!policy.requireSso) delete policy.requireSso
   return Object.keys(policy).length ? policy : undefined
@@ -167,7 +169,7 @@ export function publicEnterpriseIdentityPolicy(rawPolicy: unknown): EnterpriseId
   const policy = normalizeEnterpriseIdentityPolicy(rawPolicy)
   if (!policy) return undefined
   const safe: EnterpriseIdentityPolicy = { ...policy }
-  if (policy.sso) safe.sso = { ...policy.sso }
+  if (policy.sso) safe.sso = { ...policy.sso, ...(policy.sso.jwks ? { jwks: { keys: 'configured' as any } } : {}) }
   if (policy.scim) {
     const { tokenDigest: _tokenDigest, ...scim } = policy.scim
     safe.scim = {
@@ -437,6 +439,26 @@ function decodeJwtClaims(token: string): { header: any; claims: any } | null {
   return { header, claims }
 }
 
+function verifyJwtWithConfiguredJwks(token: string, header: any, sso: EnterpriseIdentityPolicy['sso']): { configured: boolean; valid: boolean; reason?: string } {
+  const keys = Array.isArray(sso?.jwks?.keys) ? sso?.jwks?.keys || [] : []
+  if (!keys.length) return { configured: false, valid: false }
+  if (String(header?.alg || '') !== 'RS256') return { configured: true, valid: false, reason: '仅支持 RS256 JWKS 签名校验' }
+  const parts = String(token || '').split('.')
+  if (parts.length !== 3) return { configured: true, valid: false, reason: 'JWT 格式无效' }
+  const kid = header?.kid ? String(header.kid) : ''
+  const jwk = keys.find((key: any) => key?.kty === 'RSA' && (!kid || String(key?.kid || '') === kid))
+  if (!jwk) return { configured: true, valid: false, reason: kid ? `JWKS 未找到 kid=${kid}` : 'JWKS 未找到 RSA 公钥' }
+  try {
+    const verifier = createVerify('RSA-SHA256')
+    verifier.update(`${parts[0]}.${parts[1]}`)
+    verifier.end()
+    const key = createPublicKey({ key: jwk, format: 'jwk' } as any)
+    return { configured: true, valid: verifier.verify(key, Buffer.from(parts[2], 'base64url')) }
+  } catch (e) {
+    return { configured: true, valid: false, reason: (e as Error).message }
+  }
+}
+
 export function verifyEnterpriseOidcIdTokenClaims(
   rawPolicy: unknown,
   args: { idToken: string; nonce?: string; nowSeconds?: number },
@@ -448,7 +470,9 @@ export function verifyEnterpriseOidcIdTokenClaims(
   const decoded = decodeJwtClaims(args.idToken)
   if (!decoded) return { ok: false, code: 'ID_TOKEN_INVALID_FORMAT', reason: 'ID Token 不是合法 JWT' }
   const { header, claims } = decoded
-  const warnings = ['当前校验 issuer/audience/exp/nonce/email 与组织成员边界；JWKS 签名校验需在真实 IdP token exchange 后接入']
+  const signature = verifyJwtWithConfiguredJwks(args.idToken, header, sso)
+  if (signature.configured && !signature.valid) return { ok: false, code: 'ID_TOKEN_SIGNATURE_INVALID', reason: signature.reason || 'ID Token 签名校验失败', claims, warnings: [] }
+  const warnings = signature.configured ? [] : ['未配置 JWKS 公钥；当前仅校验 issuer/audience/exp/nonce/email 与组织成员边界']
   const issuer = String(claims.iss || '')
   if (issuer !== sso.issuer.replace(/\/$/, '')) return { ok: false, code: 'ISSUER_MISMATCH', reason: 'ID Token issuer 与组织配置不一致', claims, warnings }
   const audience = Array.isArray(claims.aud) ? claims.aud.map(String) : [String(claims.aud || '')]

@@ -75,7 +75,7 @@
 | `/v1/enterprise/failures` | 组织内失败知识库，只从企业审计元数据聚合，含模型版本分布，不暴露输入输出。 |
 | `/v1/enterprise/registry` + `/console/enterprise` | GET 返回内置策略模板；POST 更新准入/白名单/策略包并冻结 Contract/Passport/证书采用基线，返回治理 checklist/playbook；控制台展示“批准 Skill → 绑定策略 → 留审计 → 查失败库”治理闭环，可编辑 Registry 策略模板并直达组织内 Passport/证书状态、审计导出（含模型版本）和企业失败知识库。 |
 | `/v1/enterprise/identity` + `/console/enterprise` | 更新组织身份策略：邮箱域白名单、requireSso、OIDC provider/issuer/clientId/discoveryUrl、SCIM baseUrl/tokenDigest；保存时阻断非 HTTPS URL、缺失 OIDC 必填项和非法 tokenDigest；返回身份接入 playbook，串起域名白名单、SSO 测试、SCIM 同步和成员边界复核。 |
-| `/v1/enterprise/identity/authorize` + `/v1/enterprise/identity/callback` | 企业 OIDC SSO 连接器骨架；authorize 返回 IdP 跳转 URL、callbackUrl、HMAC state/nonce 和接入 playbook；callback 校验 state 后还原 organizationId/redirectPath，并返回不含明文授权码的 tokenExchange 请求包；可选 `id_token` 会校验 issuer/audience/exp/nonce/email/email_verified、邮箱域白名单和组织 active 成员绑定，JWKS 签名校验后续接真实 IdP。 |
+| `/v1/enterprise/identity/authorize` + `/v1/enterprise/identity/callback` | 企业 OIDC SSO 连接器骨架；authorize 返回 IdP 跳转 URL、callbackUrl、HMAC state/nonce 和接入 playbook；callback 校验 state 后还原 organizationId/redirectPath，并返回不含明文授权码的 tokenExchange 请求包；可选 `id_token` 会校验 issuer/audience/exp/nonce/email/email_verified、JWKS RS256 签名、邮箱域白名单和组织 active 成员绑定；正式会话签发后续接真实 IdP。 |
 | `/v1/enterprise/scim/users` | SCIM provision 入口：用 Bearer token digest 校验后，兼容 `userName`/`emails`/`roles` payload、`userName/email/emails.value eq` filter 和 PATCH Operations；支持按 email 查询、无 email 返回 ListResponse、创建/绑定或停用组织成员。 |
 | `/v1/enterprise/members` | 添加/更新/移除组织成员；添加 active 成员时执行组织身份策略，移除时保留 suspended 记录。 |
 | `/v1/enterprise/registry/[id]/passport` | 组织内读取已批准/可审 Registry 的 Skill Passport、治理状态、批准时采用基线、基线漂移告警、准入治理 checklist、证据验签摘要、证书状态摘要、审计/失败库入口和绑定 Contract 的达标证书，便于企业采购/审计复核。 |
@@ -94,7 +94,7 @@
 
 | 能力 | 现状 | 下一步 |
 |---|---|---|
-| SSO / SCIM | 配置校验 + 最小 SCIM provision + OIDC claims/成员绑定预检 + 接入 playbook | `Organizations.identityPolicy` + `/v1/enterprise/identity` + `/v1/enterprise/scim/users` + 控制台身份策略面板已承接 domainAllowlist、requireSso、OIDC、SCIM 配置；保存时校验 HTTPS URL、OIDC 必填项与 tokenDigest；SCIM 已支持查询、ListResponse 列表、`userName/email/emails.value eq` filter、PATCH Operations、创建/绑定、停用成员；callback 已校验 ID Token claims、邮箱域和 active 成员绑定；后续补 JWKS 签名校验、正式会话签发、SAML 登录和更复杂的 SCIM filter 兼容。 |
+| SSO / SCIM | 配置校验 + 最小 SCIM provision + OIDC claims/成员绑定预检 + 接入 playbook | `Organizations.identityPolicy` + `/v1/enterprise/identity` + `/v1/enterprise/scim/users` + 控制台身份策略面板已承接 domainAllowlist、requireSso、OIDC、SCIM 配置；保存时校验 HTTPS URL、OIDC 必填项与 tokenDigest；SCIM 已支持查询、ListResponse 列表、`userName/email/emails.value eq` filter、PATCH Operations、创建/绑定、停用成员；callback 已校验 ID Token claims、JWKS RS256 签名、邮箱域和 active 成员绑定；后续补正式会话签发、SAML 登录和更复杂的 SCIM filter 兼容。 |
 
 ## 当前开发原则
 

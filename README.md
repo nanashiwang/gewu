@@ -121,7 +121,7 @@ curl http://127.0.0.1:8787/health
 | `GET /v1/runs` | 当前用户私人运行台账导出；支持 skillId/model/modelVersion/routeMode/success/formatValid/trustedCompatible/rerunOf 过滤；默认不含输入/输出，返回模型画像、可信兼容标记、失败库排障入口和换模型重跑 playbook，`includeIO=1` 仅本人导出原文并写审计 |
 | `POST /v1/runs/[id]/rerun` | 用私人台账中的历史输入换模型重跑，可携带 modelProvider/modelVersion，写入重跑血缘 |
 | `GET /v1/enterprise/registry/[id]/passport` | 企业内读取已批准/可审 Skill 的 Passport、治理状态、批准时采用基线、基线漂移告警、证书状态摘要、准入治理 checklist、审计/失败库入口和绑定 Contract 的达标证书 |
-| `GET /v1/enterprise/identity/authorize` | 生成企业 OIDC SSO 登录发起包：authorizeUrl、callbackUrl、HMAC state/nonce、IdP 跳转和回调接入指引；callback 先校验 state、还原组织上下文并返回服务端 tokenExchange 请求包，可选校验 ID Token claims、邮箱域和 active 成员绑定；JWKS 签名校验仍待真实 IdP 接入 |
+| `GET /v1/enterprise/identity/authorize` | 生成企业 OIDC SSO 登录发起包：authorizeUrl、callbackUrl、HMAC state/nonce、IdP 跳转和回调接入指引；callback 先校验 state、还原组织上下文并返回服务端 tokenExchange 请求包，可选校验 ID Token claims、JWKS RS256 签名、邮箱域和 active 成员绑定；正式会话签发仍待真实 IdP 接入 |
 | `GET /v1/enterprise/audit/export` | 企业审计 CSV 导出，含模型版本治理元数据，不含输入输出原文 |
 | `GET /v1/enterprise/failures` | 从企业审计元数据聚合组织内失败知识库和模型版本分布 |
 | `POST /v1/enterprise/identity` | 企业身份策略保存：域名白名单、requireSso、OIDC/SCIM 格式校验，并返回 SSO/SCIM 接入 playbook |

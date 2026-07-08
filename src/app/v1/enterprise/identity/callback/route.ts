@@ -66,7 +66,7 @@ export async function GET(request: Request) {
         : { ok: false, code: memberBinding.code, reason: memberBinding.reason, binding: memberBinding.binding || null }
       : null,
     next: ready
-      ? '已完成 state、ID Token claims、邮箱域和组织 active 成员绑定校验；真实登录会话签发仍应在服务端完成并接入 JWKS 签名校验。'
+      ? '已完成 state、ID Token claims/JWKS、邮箱域和组织 active 成员绑定校验；真实登录会话签发仍应在服务端完成。'
       : '已完成 state 签名校验并还原组织上下文；下一步按 tokenExchange 在服务端换 token，再提交 ID Token 做 claims、邮箱域和组织成员绑定校验。',
   }, { status: ready ? 200 : 501 })
 }

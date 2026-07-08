@@ -1,3 +1,4 @@
+import { createSign, generateKeyPairSync } from 'crypto'
 import { describe, expect, it } from 'vitest'
 import {
   canAccessEnterpriseSkill,
@@ -49,6 +50,15 @@ import {
 function unsignedJwt(claims: Record<string, unknown>, header: Record<string, unknown> = { alg: 'RS256', typ: 'JWT' }) {
   const enc = (value: Record<string, unknown>) => Buffer.from(JSON.stringify(value)).toString('base64url')
   return `${enc(header)}.${enc(claims)}.signature`
+}
+
+function signedJwt(claims: Record<string, unknown>, jwk: JsonWebKey, privateKey: any, header: Record<string, unknown> = { alg: 'RS256', typ: 'JWT' }) {
+  const enc = (value: Record<string, unknown>) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const signingInput = `${enc({ ...header, kid: (jwk as any).kid })}.${enc(claims)}`
+  const signer = createSign('RSA-SHA256')
+  signer.update(signingInput)
+  signer.end()
+  return `${signingInput}.${signer.sign(privateKey).toString('base64url')}`
 }
 
 describe('enterprise — 企业 Registry 授权', () => {
@@ -280,7 +290,7 @@ describe('enterprise — 企业 Registry 授权', () => {
     expect(verifyEnterpriseOidcIdTokenClaims(policy, { idToken: token, nonce: 'nonce-1', nowSeconds: 100 })).toMatchObject({
       ok: true,
       email: 'alice@example.com',
-      warnings: expect.arrayContaining([expect.stringContaining('JWKS')]),
+      warnings: expect.arrayContaining([expect.stringContaining('未配置 JWKS')]),
     })
     expect(verifyEnterpriseOidcIdTokenClaims(policy, { idToken: token, nonce: 'bad', nowSeconds: 100 })).toMatchObject({
       ok: false,
@@ -294,6 +304,46 @@ describe('enterprise — 企业 Registry 授权', () => {
       ok: false,
       code: 'DOMAIN_REJECTED',
     })
+  })
+
+
+  it('企业 OIDC ID Token 支持本地 JWKS RS256 签名校验', () => {
+    const { publicKey, privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 })
+    const jwk = publicKey.export({ format: 'jwk' }) as JsonWebKey
+    (jwk as any).kid = 'kid-1'
+    const policy = {
+      requireSso: true,
+      domainAllowlist: ['example.com'],
+      sso: {
+        enabled: true,
+        provider: 'oidc',
+        issuer: 'https://idp.example.com',
+        clientId: 'client-1',
+        jwks: { keys: [jwk] },
+      },
+    }
+    const token = signedJwt({
+      iss: 'https://idp.example.com',
+      aud: 'client-1',
+      exp: 200,
+      nonce: 'nonce-1',
+      email: 'alice@example.com',
+      email_verified: true,
+    }, jwk, privateKey)
+
+    expect(verifyEnterpriseOidcIdTokenClaims(policy, { idToken: token, nonce: 'nonce-1', nowSeconds: 100 })).toMatchObject({
+      ok: true,
+      email: 'alice@example.com',
+      warnings: [],
+    })
+    const tampered = token.replace('alice%40example.com', 'alice%40example.com')
+    const parts = token.split('.')
+    const badClaims = Buffer.from(JSON.stringify({ iss: 'https://idp.example.com', aud: 'client-1', exp: 200, nonce: 'nonce-1', email: 'mallory@example.com', email_verified: true })).toString('base64url')
+    expect(verifyEnterpriseOidcIdTokenClaims(policy, { idToken: `${parts[0]}.${badClaims}.${parts[2]}`, nonce: 'nonce-1', nowSeconds: 100 })).toMatchObject({
+      ok: false,
+      code: 'ID_TOKEN_SIGNATURE_INVALID',
+    })
+    expect(tampered).toBe(token)
   })
 
   it('SCIM token 使用 sha256 digest 校验', () => {
