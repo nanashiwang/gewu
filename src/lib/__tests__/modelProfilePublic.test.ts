@@ -75,11 +75,54 @@ describe('modelProfilePublic — 公开模型画像输出', () => {
       driftHistory: [{ successRate: 0.9 }],
       failuresUrl: '/failures?modelName=gpt-4.1-mini&modelVersion=2026-07-01',
       adaptersUrl: '/v1/adapters?modelName=gpt-4.1-mini&modelVersion=2026-07-01',
+      playbook: {
+        customerValue: expect.stringContaining('可执行判断'),
+        decision: 'review',
+        nextActions: expect.arrayContaining([
+          expect.objectContaining({ label: '确认模型版本' }),
+          expect.objectContaining({ label: '看有效样本和来源' }),
+          expect.objectContaining({ label: '处理漂移/回归' }),
+          expect.objectContaining({
+            label: '查失败库/Adapter',
+            href: '/failures?modelName=gpt-4.1-mini&modelVersion=2026-07-01',
+          }),
+        ]),
+      },
     })
     expect(row.inputPrice).toBeUndefined()
     expect(row.outputPrice).toBeUndefined()
     expect(row.platformPayAllowed).toBeUndefined()
     expect(row.capabilities.platformRevenue).toBeUndefined()
     expect(row.regressionAlerts).toEqual([{ reason: 'ok' }])
+  })
+
+  it('模型画像 playbook 根据稳定性给出 use/review/avoid 动作', () => {
+    expect(
+      (publicModelProfile({
+        id: 'stable',
+        modelName: 'qwen-plus',
+        profileStatus: 'verified',
+        capabilities: { effectiveSamples: 8 },
+        driftSummary: { status: 'stable' },
+      }) as any).playbook.decision,
+    ).toBe('use')
+    expect(
+      (publicModelProfile({
+        id: 'warn',
+        modelName: 'qwen-plus',
+        profileStatus: 'stale',
+        capabilities: { effectiveSamples: 8 },
+        regressionAlerts: [{ severity: 'warning' }],
+      }) as any).playbook.decision,
+    ).toBe('review')
+    expect(
+      (publicModelProfile({
+        id: 'critical',
+        modelName: 'qwen-plus',
+        profileStatus: 'verified',
+        capabilities: { effectiveSamples: 8 },
+        regressionAlerts: [{ severity: 'critical' }],
+      }) as any).playbook.decision,
+    ).toBe('avoid')
   })
 })

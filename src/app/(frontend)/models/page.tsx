@@ -152,6 +152,33 @@ export default async function ModelsPage({
         </p>
       </div>
 
+      <section className="grid gap-3 rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-4 text-xs md:grid-cols-4">
+        <div>
+          <div className="font-semibold text-[var(--text)]">1. 先看版本</div>
+          <p className="mt-1 text-[var(--muted)]">
+            同名模型不同版本可能表现不同，优先用明确 modelVersion 复核。
+          </p>
+        </div>
+        <div>
+          <div className="font-semibold text-[var(--text)]">2. 看有效样本</div>
+          <p className="mt-1 text-[var(--muted)]">
+            样本少只建议试跑；有效样本和来源权重比普通调用量更重要。
+          </p>
+        </div>
+        <div>
+          <div className="font-semibold text-[var(--text)]">3. 看漂移/回归</div>
+          <p className="mt-1 text-[var(--muted)]">
+            有回归告警时先锁版本、换模型，或等待 Adapter 修复。
+          </p>
+        </div>
+        <div>
+          <div className="font-semibold text-[var(--text)]">4. 查失败库</div>
+          <p className="mt-1 text-[var(--muted)]">
+            对应模型可直达失败库和 Adapter，判断是否已有修复经验。
+          </p>
+        </div>
+      </section>
+
       <div className="flex gap-1 text-sm">
         {SORTS.map((s) => (
           <a
