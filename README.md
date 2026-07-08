@@ -1,10 +1,10 @@
 # 衡术 Hengshu
 
-> AI Skill 的可信与兼容控制平面。
+> AI Skill 的可信与兼容控制平面：给 Skill 上身份、版本、签名、Passport、兼容证据、失败库和企业治理。
 
 **衡术 Hengshu 让 AI Skill 像软件包一样拥有身份、版本、签名、兼容证据、失败记录和企业治理能力。**
 
-衡术不是 Prompt 市场、通用模型网关或靠 New API margin 打价格战的平台；它真正解决的是：让 Skill 适配用户已经选择的模型、网关、本地 Runner 和企业环境，并持续证明它是否可信、稳定、可治理。
+衡术不是 Prompt 市场、通用模型网关或靠 New API margin 打价格战的平台；它真正解决的是：用户已经有自己的模型、网关、Runner 或企业环境，衡术负责证明某个 Skill 是否可信、能否稳定运行、失败后怎么修、换模型后能否继续复用。
 
 > 完整产品方向、对象定义与落地路线见 **[`docs/衡术-总纲.md`](docs/衡术-总纲.md)**（唯一开发依据）。
 
@@ -112,6 +112,7 @@ curl http://127.0.0.1:8787/health
 | `GET /v1/model-profiles` | 公开读取模型画像、版本漂移、输入规模档、任务画像与 Skill 任务画像表现、回归告警、有效样本、来源权重、采用复验 checklist 和客户决策 playbook；支持 modelName/modelVersion/provider/status 过滤，并返回私人台账复验、失败库/Adapter 排障入口 |
 | `GET /v1/failures` | 公开读取脱敏失败知识库、人工归因摘要、复验覆盖、客户排障 playbook、triage checklist、私人台账复现、修复/复验建议、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 skillId/profileKey/inputBucket/modelVersion/source 过滤 |
 | `GET /v1/failures/[id]/reverify-plan` | 登录后基于当前用户私人台账生成失败复现与 Adapter 复验计划：候选失败运行、rerunUrl、覆盖缺口、已批准 Adapter 和 triage 回写动作；不暴露原始输入输出或补丁正文 |
+| `POST /v1/failures/[id]/reverify-queue` | 登录后把该失败案例的私人台账复验计划放入 Redis 批量队列；按 failureCaseId+userId 去重，返回 plan 和 jobPreview，未配置 Redis 时显式 503 降级 |
 | `GET /v1/adapters` | 公开读取已批准 active Adapter 效果摘要、lift 指标、复用/复验 checklist、私人台账复验入口和 API/页面证据验签入口；支持 skillId/modelName/modelVersion/failureType/failureId/modelProfile 过滤，不暴露补丁正文或未批准草稿 |
 | `GET /v1/evidence/verify?targetType=...&targetId=...` | 校验已知 Passport / FailureCase / Adapter 的证据快照，返回公开脱敏 `targetSummary`、payloadHash 和签名状态；不提供匿名全量枚举 |
 | `POST /v1/anchors/verify` | 校验 score/evidence 外锚 JSONL + manifest + 可信发布/时间戳声明，返回可信等级和采购/审计复核 playbook；`/v1/anchors/timestamp-request` 可生成第三方时间戳 imprint 请求包 |
