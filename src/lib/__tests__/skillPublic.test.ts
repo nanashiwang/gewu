@@ -14,6 +14,7 @@ describe('skillPublic — 公开 Skill 列表输出', () => {
         status: 'published',
         visibility: 'public',
         isEssential: true,
+        essentialReason: '第一跑推荐理由',
         skillRank: 87.4,
         runCount: 999,
         systemPrompt: 'secret',
@@ -33,6 +34,7 @@ describe('skillPublic — 公开 Skill 列表输出', () => {
     expect(row).toMatchObject({
       slug: 'writer',
       isEssential: true,
+      essentialReason: '第一跑推荐理由',
       skillRank: 87,
       trustedCompatibleRunCount: 7,
       passport: {

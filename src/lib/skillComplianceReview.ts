@@ -50,6 +50,7 @@ export const SKILL_COMPLIANCE_REVIEWER_SKILL = {
   description: '审核待上架 Skill 的用途、manifest、README、权限声明和包内风险信号，给出自动通过或转人工结论。',
   category: 'evaluation',
   essential: true,
+  essentialReason: '发布前就能看懂风险和是否可上架，适合创作者第一时间验证平台可信流程。',
   featured: true,
   license: 'MIT',
   systemPrompt: SKILL_REVIEW_SYSTEM_PROMPT,

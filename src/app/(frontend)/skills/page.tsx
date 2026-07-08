@@ -196,6 +196,11 @@ export default async function SkillsPage({
                   <p className="mt-1 line-clamp-2 text-xs text-[var(--muted)]">
                     {s.description}
                   </p>
+                  {s.essentialReason && (
+                    <p className="mt-2 line-clamp-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-[11px] leading-relaxed text-emerald-100">
+                      为什么先跑：{s.essentialReason}
+                    </p>
+                  )}
                   <div className="mt-2 flex items-center justify-between gap-2 text-xs text-[var(--faint)]">
                     <span>
                       成功率 {formatPercent(s.successRate)} · 可信兼容{' '}
@@ -366,6 +371,11 @@ export default async function SkillsPage({
                       <div className="mt-0.5 flex items-center gap-1.5">
                         <SkillStatusTags skill={s} />
                       </div>
+                      {s.isEssential && s.essentialReason && (
+                        <div className="mt-1 max-w-md text-xs text-emerald-200">
+                          为什么先跑：{s.essentialReason}
+                        </div>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-xs text-[var(--muted)]">
                       {author?.username || '—'}

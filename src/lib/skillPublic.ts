@@ -69,6 +69,7 @@ export function publicSkillSummary(skill: any, passport?: any) {
     status: skill?.status || null,
     visibility: skill?.visibility || null,
     isEssential: Boolean(skill?.isEssential),
+    essentialReason: skill?.essentialReason || null,
     isFeatured: Boolean(skill?.isFeatured),
     skillRank: Math.round(Number(skill?.skillRank || 0)),
     localScore: Math.round(Number(skill?.localScore || 0)),

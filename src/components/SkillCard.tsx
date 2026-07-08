@@ -30,6 +30,11 @@ export function SkillCard({ skill }: { skill: any }) {
           <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[var(--muted)]">
             {skill.description}
           </p>
+          {skill.isEssential && skill.essentialReason && (
+            <p className="mt-2 line-clamp-2 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2 py-1.5 text-[11px] leading-relaxed text-emerald-100">
+              为什么先跑：{skill.essentialReason}
+            </p>
+          )}
         </div>
         <div
           className="flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border"

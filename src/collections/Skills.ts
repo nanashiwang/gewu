@@ -121,6 +121,15 @@ export const Skills: CollectionConfig = {
       label: '必备',
       admin: { description: '新用户上手第一屏推荐，强调快速尝到甜头。' },
     },
+    {
+      name: 'essentialReason',
+      type: 'textarea',
+      label: '必备推荐理由',
+      admin: {
+        description: '解释为什么适合作为新用户第一跑，会展示在首页、市场和公开 API。',
+        condition: (_, siblingData) => Boolean(siblingData?.isEssential),
+      },
+    },
     { name: 'isFeatured', type: 'checkbox', defaultValue: false, label: '精选' },
     { name: 'isFreeleech', type: 'checkbox', defaultValue: false, label: '限免' },
     // ── 列表行内操作（下架/发布 + 删除）──

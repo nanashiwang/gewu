@@ -7,6 +7,7 @@ export interface SeedSkill {
   description: string
   category: string // 对应 SKILL_CATEGORIES 的 slug
   essential?: boolean
+  essentialReason?: string
   featured?: boolean
   systemPrompt: string // Spec prompt.system
   promptTemplate: string // Spec prompt.user_template（含 {{变量}}）
@@ -54,6 +55,7 @@ export const SEED_SKILLS: SeedSkill[] = [
     description: '根据主题、人群与风格，一键生成 10 个高点击小红书标题。',
     category: 'content-creation',
     essential: true,
+    essentialReason: '输入一个主题就能立刻看到 10 个可用标题，反馈最直观，适合第一跑。',
     featured: true,
     license: LICENSE,
     systemPrompt: '你是一名资深小红书内容编辑，擅长写有点击欲、不违规的标题。',
@@ -95,6 +97,7 @@ export const SEED_SKILLS: SeedSkill[] = [
     description: '把零散的会议记录整理为结构化纪要：议题、结论、待办与负责人。',
     category: 'office',
     essential: true,
+    essentialReason: '粘贴零散会议记录即可得到结论和待办，是办公室最高频、最容易复用的场景。',
     featured: true,
     license: LICENSE,
     systemPrompt: '你是一名专业的会议秘书，善于把零散记录整理成规范纪要。',
@@ -134,6 +137,7 @@ export const SEED_SKILLS: SeedSkill[] = [
     description: '把口语化或粗糙的邮件草稿润色为得体、专业的中文商务邮件。',
     category: 'office',
     essential: true,
+    essentialReason: '低风险文本润色，输入门槛低，能快速感知不同模型的表达质量。',
     license: LICENSE,
     systemPrompt: '你是一名中文商务沟通专家，擅长把粗糙草稿润色为得体专业的邮件。',
     promptTemplate: [
@@ -169,6 +173,7 @@ export const SEED_SKILLS: SeedSkill[] = [
     description: '根据本周要点与下周计划，自动生成结构清晰的工作周报。',
     category: 'office',
     essential: true,
+    essentialReason: '把零散要点变成结构化周报，适合每周重复使用，台账价值会持续累积。',
     license: LICENSE,
     systemPrompt: '你是一名职场写作助手，擅长把零散要点整理成条理清晰的周报。',
     promptTemplate: [
@@ -212,6 +217,7 @@ export const SEED_SKILLS: SeedSkill[] = [
     description: '针对用户差评生成真诚、专业、可平息情绪的客服回复建议。',
     category: 'customer-service',
     essential: true,
+    essentialReason: '客服场景边界清晰，容易比较模型语气、稳定性和是否真正解决问题。',
     featured: true,
     license: LICENSE,
     systemPrompt: '你是一名经验丰富的客服主管，回复真诚、不甩锅、给出具体方案。',

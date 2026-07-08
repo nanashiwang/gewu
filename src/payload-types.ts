@@ -226,6 +226,10 @@ export interface Skill {
    * 新用户上手第一屏推荐，强调快速尝到甜头。
    */
   isEssential?: boolean | null;
+  /**
+   * 解释为什么适合作为新用户第一跑，会展示在首页、市场和公开 API。
+   */
+  essentialReason?: string | null;
   isFeatured?: boolean | null;
   isFreeleech?: boolean | null;
   skillRank?: number | null;
@@ -1645,6 +1649,7 @@ export interface SkillsSelect<T extends boolean = true> {
   currentVersion?: T;
   isOfficial?: T;
   isEssential?: T;
+  essentialReason?: T;
   isFeatured?: T;
   isFreeleech?: T;
   skillRank?: T;

@@ -7,7 +7,7 @@ describe('seed skills — 冷启动供给与平台代付合规', () => {
     expect(SEED_SKILLS.length).toBeGreaterThanOrEqual(20)
   })
 
-  it('必备 Skill 至少 5 个且都有示例输入，保证新用户能快速试跑', () => {
+  it('必备 Skill 至少 5 个，且都有示例输入和第一跑推荐理由', () => {
     const essentials = SEED_SKILLS.filter((skill) => skill.essential)
     expect(essentials.length).toBeGreaterThanOrEqual(5)
     expect(essentials.map((skill) => skill.slug)).toEqual(
@@ -21,6 +21,7 @@ describe('seed skills — 冷启动供给与平台代付合规', () => {
     )
     for (const skill of essentials) {
       expect(skill.examples?.[0]?.input).toBeTruthy()
+      expect(skill.essentialReason?.length).toBeGreaterThan(10)
     }
   })
 

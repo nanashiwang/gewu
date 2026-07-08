@@ -98,7 +98,7 @@ curl http://127.0.0.1:8787/health
 
 | API | 用途 |
 |---|---|
-| `GET /v1/skills` | 公开读取 Skill 摘要列表，支持 `essential=1` 作为必备 Skill onboarding 接口，并返回顶层 trustedCompatibleRunCount、Passport 可信摘要、API/页面证据验签入口、试跑入口和台账入口 |
+| `GET /v1/skills` | 公开读取 Skill 摘要列表，支持 `essential=1` 作为必备 Skill onboarding 接口，并返回必备推荐理由、顶层 trustedCompatibleRunCount、Passport 可信摘要、API/页面证据验签入口、试跑入口和台账入口 |
 | `GET /v1/skills/[slug]/contract` | 公开读取当前未废弃版本的 Skill 能力契约摘要、contractHash 和 prompt hash，不暴露 prompt 正文 |
 | `GET /v1/skills/[slug]/passport` | 公开读取清洗后的 Skill Passport、黄金样例摘要、可信兼容运行计数、证据验签入口和最新证据验签摘要 |
 | `GET /v1/skills/[slug]/certificate` | 公开读取 Skill 达标证书，绑定当前未废弃 Contract 摘要、Passport、可信兼容运行计数、黄金样例逐条摘要和证据验签状态，含 `certificateHash`、签名、公开公钥、`statusReasons` 和 Passport 证据验签页面入口 |

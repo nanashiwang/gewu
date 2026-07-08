@@ -58,8 +58,11 @@ async function seed() {
       })
     ).docs[0]
     if (exists) {
-      const patch: Record<string, boolean> = {}
+      const patch: Record<string, boolean | string | null> = {}
       if (Boolean((exists as any).isEssential) !== Boolean(s.essential)) patch.isEssential = Boolean(s.essential)
+      if (((exists as any).essentialReason || null) !== (s.essentialReason || null)) {
+        patch.essentialReason = s.essentialReason || null
+      }
       if (Boolean((exists as any).isFeatured) !== Boolean(s.featured)) patch.isFeatured = Boolean(s.featured)
       if (Object.keys(patch).length > 0) {
         await payload.update({
@@ -86,6 +89,7 @@ async function seed() {
         status: 'published',
         isOfficial: true,
         isEssential: !!s.essential,
+        essentialReason: s.essentialReason || undefined,
         isFeatured: !!s.featured,
       },
     })
