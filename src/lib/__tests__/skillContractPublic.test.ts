@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { publicSkillContract } from '@/lib/skillContractPublic'
+import { publicSkillContract, selectContractBaseline } from '@/lib/skillContractPublic'
 
 describe('skillContractPublic — 公开 Skill Contract 摘要', () => {
   it('输出 contract hash 和 prompt hash，不暴露 prompt 正文', () => {
@@ -105,5 +105,40 @@ describe('skillContractPublic — 公开 Skill Contract 摘要', () => {
     expect(text).not.toContain('old secret')
     expect(text).not.toContain('hidden')
     expect(text).not.toContain('secret route prompt')
+  })
+
+  it('支持选择 Contract diff 对比基线，且列出可用基线', () => {
+    const current = { id: 'v3', version: '3.0.0' }
+    const versions = [
+      current,
+      { id: 'v2', version: '2.0.0', status: 'published', inputSchema: { topic: 'string' } },
+      { id: 'v1', version: '1.0.0', status: 'published', inputSchema: { title: 'string' } },
+      { id: 'old', version: '0.9.0', status: 'deprecated' },
+    ]
+
+    expect(selectContractBaseline(versions, current, new URLSearchParams({ compareVersion: '1.0.0' }))).toMatchObject({
+      previousVersion: { id: 'v1', version: '1.0.0' },
+      baselineSource: 'requested_version',
+      availableBaselines: [
+        expect.objectContaining({ id: 'v2', version: '2.0.0', contractHash: expect.any(String) }),
+        expect.objectContaining({ id: 'v1', version: '1.0.0', contractHash: expect.any(String) }),
+      ],
+    })
+    expect(selectContractBaseline(versions, current, new URLSearchParams({ compareVersionId: 'v2' }))).toMatchObject({
+      previousVersion: { id: 'v2' },
+      baselineSource: 'requested_id',
+    })
+    expect(selectContractBaseline(versions, current, new URLSearchParams({ compareVersion: 'none' }))).toMatchObject({
+      previousVersion: undefined,
+      baselineSource: 'none',
+    })
+    expect(selectContractBaseline(versions, current, new URLSearchParams({ compareVersion: 'missing' }))).toMatchObject({
+      missing: true,
+      baselineSource: 'requested_version',
+    })
+    expect(publicSkillContract(current, {
+      previousVersion: versions[1],
+      baselineSource: 'requested_id',
+    }).diff).toMatchObject({ baselineSource: 'requested_id' })
   })
 })

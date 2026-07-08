@@ -2,11 +2,11 @@ import { getPayload } from 'payload'
 import config from '@payload-config'
 import { headers as nextHeaders } from 'next/headers'
 import { canReadSkillEvidence } from '@/lib/skillEvidenceAccess'
-import { publicSkillContract } from '@/lib/skillContractPublic'
+import { publicSkillContract, selectContractBaseline } from '@/lib/skillContractPublic'
 import { resolveCurrentSkillVersionForPublicEvidence } from '@/lib/skillVersionPublic'
 
 // GET /v1/skills/{slug}/contract —— 公开/作者预览读取能力契约摘要；不暴露 prompt 正文。
-export async function GET(_request: Request, { params }: { params: Promise<{ slug: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const payload = await getPayload({ config })
   const { user } = await payload.auth({ headers: await nextHeaders() }).catch(() => ({ user: null }))
@@ -33,12 +33,21 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
     limit: 10,
     overrideAccess: true,
   })
-  const previousVersion = versions.docs.find((candidate: any) => (
-    String(candidate.id) !== String(version.id) && candidate.status !== 'deprecated'
-  ))
+  const baseline = selectContractBaseline(versions.docs as any[], version, new URL(request.url).searchParams)
+  if (baseline.missing) {
+    return Response.json({
+      error: 'compareVersion/compareVersionId 未命中可比较版本',
+      availableBaselines: baseline.availableBaselines,
+    }, { status: 400 })
+  }
 
   return Response.json({
     skill: { id: String(skill.id), slug: String(skill.slug), title: String(skill.title) },
-    contract: publicSkillContract(version, { slug: skill.slug, previousVersion }),
+    availableBaselines: baseline.availableBaselines,
+    contract: publicSkillContract(version, {
+      slug: skill.slug,
+      previousVersion: baseline.previousVersion,
+      baselineSource: baseline.baselineSource,
+    }),
   })
 }

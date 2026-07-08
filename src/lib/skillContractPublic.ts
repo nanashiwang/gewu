@@ -16,6 +16,7 @@ export function publicRoutePolicy(routePolicy: any) {
 export type PublicSkillContractOptions = {
   slug?: string | null
   previousVersion?: any
+  baselineSource?: 'auto_previous' | 'requested_version' | 'requested_id' | 'none'
 }
 
 const CONTRACT_DIFF_FIELDS = [
@@ -31,6 +32,36 @@ const CONTRACT_DIFF_FIELDS = [
 
 const BREAKING_DIFF_FIELDS = new Set(['inputSchema', 'outputSchema', 'permissions', 'minRunnerVersion'])
 const HASH_ONLY_DIFF_FIELDS = new Set(['systemPrompt', 'promptTemplate'])
+
+export function publicContractBaselineList(versions: any[], currentId?: string) {
+  return versions
+    .filter((version) => String(version?.id || '') !== String(currentId || '') && version?.status !== 'deprecated')
+    .map((version) => ({
+      id: String(version?.id || ''),
+      version: version?.version || null,
+      status: version?.status || null,
+      contractStatus: version?.contractStatus || 'initial',
+      contractHash: version?.contractHash || skillContractHash(version),
+      updatedAt: version?.updatedAt || null,
+    }))
+}
+
+export function selectContractBaseline(versions: any[], current: any, params: URLSearchParams = new URLSearchParams()) {
+  const currentId = String(current?.id || '')
+  const candidates = versions.filter((version) => String(version?.id || '') !== currentId && version?.status !== 'deprecated')
+  const requestedId = params.get('compareVersionId')?.trim()
+  const requestedVersion = params.get('compareVersion')?.trim()
+  if (requestedVersion === 'none') return { previousVersion: undefined, baselineSource: 'none' as const, availableBaselines: publicContractBaselineList(versions, currentId) }
+  if (requestedId) {
+    const found = candidates.find((version) => String(version?.id || '') === requestedId)
+    return { previousVersion: found, baselineSource: 'requested_id' as const, availableBaselines: publicContractBaselineList(versions, currentId), missing: !found }
+  }
+  if (requestedVersion) {
+    const found = candidates.find((version) => String(version?.version || '') === requestedVersion)
+    return { previousVersion: found, baselineSource: 'requested_version' as const, availableBaselines: publicContractBaselineList(versions, currentId), missing: !found }
+  }
+  return { previousVersion: candidates[0], baselineSource: 'auto_previous' as const, availableBaselines: publicContractBaselineList(versions, currentId) }
+}
 
 function publicContractFieldValue(field: string, value: unknown) {
   if (HASH_ONLY_DIFF_FIELDS.has(field)) return undefined
@@ -146,7 +177,7 @@ export function publicSkillContract(version: any, opts: PublicSkillContractOptio
     minRunnerVersion: version?.minRunnerVersion || null,
     examplesCount: Array.isArray(version?.examples) ? version.examples.length : 0,
     changelogHash: version?.changelog ? evidenceHash(version.changelog) : null,
-    diff,
+    diff: { ...diff, baselineSource: opts.baselineSource || (opts.previousVersion ? 'auto_previous' : 'none') },
     updatedAt: version?.updatedAt || null,
     playbook: contractReviewPlaybook(version, opts),
   }
