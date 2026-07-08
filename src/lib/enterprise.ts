@@ -417,6 +417,98 @@ export function buildEnterpriseOidcTokenRequest(
   }
 }
 
+
+function base64UrlJson(segment: string): any | null {
+  try {
+    const normalized = segment.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4)
+    return JSON.parse(Buffer.from(padded, 'base64').toString('utf8'))
+  } catch {
+    return null
+  }
+}
+
+function decodeJwtClaims(token: string): { header: any; claims: any } | null {
+  const parts = String(token || '').split('.')
+  if (parts.length !== 3) return null
+  const header = base64UrlJson(parts[0])
+  const claims = base64UrlJson(parts[1])
+  if (!header || !claims || typeof claims !== 'object') return null
+  return { header, claims }
+}
+
+export function verifyEnterpriseOidcIdTokenClaims(
+  rawPolicy: unknown,
+  args: { idToken: string; nonce?: string; nowSeconds?: number },
+): { ok: true; claims: any; email: string; header: any; warnings: string[] } | { ok: false; reason: string; code: string; claims?: any; warnings?: string[] } {
+  const policy = normalizeEnterpriseIdentityPolicy(rawPolicy)
+  const sso = policy?.sso
+  if (!sso?.enabled) return { ok: false, code: 'SSO_DISABLED', reason: '组织未启用 SSO' }
+  if (!sso.issuer || !sso.clientId) return { ok: false, code: 'OIDC_CONFIG_INCOMPLETE', reason: 'OIDC issuer/clientId 未配置' }
+  const decoded = decodeJwtClaims(args.idToken)
+  if (!decoded) return { ok: false, code: 'ID_TOKEN_INVALID_FORMAT', reason: 'ID Token 不是合法 JWT' }
+  const { header, claims } = decoded
+  const warnings = ['当前校验 issuer/audience/exp/nonce/email 与组织成员边界；JWKS 签名校验需在真实 IdP token exchange 后接入']
+  const issuer = String(claims.iss || '')
+  if (issuer !== sso.issuer.replace(/\/$/, '')) return { ok: false, code: 'ISSUER_MISMATCH', reason: 'ID Token issuer 与组织配置不一致', claims, warnings }
+  const audience = Array.isArray(claims.aud) ? claims.aud.map(String) : [String(claims.aud || '')]
+  if (!audience.includes(String(sso.clientId))) return { ok: false, code: 'AUDIENCE_MISMATCH', reason: 'ID Token audience 不包含 clientId', claims, warnings }
+  const now = args.nowSeconds ?? Math.floor(Date.now() / 1000)
+  const exp = Number(claims.exp || 0)
+  if (!Number.isFinite(exp) || exp <= now) return { ok: false, code: 'ID_TOKEN_EXPIRED', reason: 'ID Token 已过期', claims, warnings }
+  if (args.nonce && String(claims.nonce || '') !== String(args.nonce)) return { ok: false, code: 'NONCE_MISMATCH', reason: 'ID Token nonce 与 state 不一致', claims, warnings }
+  const email = String(claims.email || '').trim().toLowerCase()
+  if (!email || !email.includes('@')) return { ok: false, code: 'EMAIL_MISSING', reason: 'ID Token 缺少 email', claims, warnings }
+  if (claims.email_verified === false || claims.email_verified === 'false') return { ok: false, code: 'EMAIL_NOT_VERIFIED', reason: 'ID Token email 未验证', claims, warnings }
+  const policyCheck = evaluateEnterpriseIdentityPolicy(policy, { email, authMethod: 'sso' })
+  if (!policyCheck.ok) return { ok: false, code: 'DOMAIN_REJECTED', reason: policyCheck.reason, claims, warnings }
+  return { ok: true, claims, email, header, warnings }
+}
+
+export async function resolveEnterpriseSsoMemberBinding(
+  payload: Payload,
+  args: { organizationId: string; email: string },
+): Promise<{ ok: true; user: any; member: any; binding: any } | { ok: false; reason: string; code: string; binding?: any }> {
+  const email = String(args.email || '').trim().toLowerCase()
+  const users = await payload.find({
+    collection: 'users' as any,
+    where: { email: { equals: email } },
+    limit: 1,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const user = users.docs[0] as any
+  if (!user || user.accountStatus === 'banned') return { ok: false, code: 'USER_NOT_FOUND', reason: 'SSO 邮箱尚未绑定有效平台用户', binding: { email } }
+  const members = await payload.find({
+    collection: 'organization-members' as any,
+    where: {
+      and: [
+        { organization: { equals: args.organizationId } },
+        { user: { equals: user.id } },
+        { status: { equals: 'active' } },
+      ],
+    },
+    limit: 1,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const member = members.docs[0] as any
+  if (!member) return { ok: false, code: 'MEMBER_NOT_ACTIVE', reason: '该 SSO 用户尚未绑定为组织 active 成员', binding: { email, userId: String(user.id) } }
+  return {
+    ok: true,
+    user,
+    member,
+    binding: {
+      email,
+      userId: String(user.id),
+      organizationId: args.organizationId,
+      memberId: String(member.id),
+      role: member.role || 'member',
+      status: member.status || 'active',
+    },
+  }
+}
+
 export function publicEnterpriseOrganization(org: any) {
   if (!org) return null
   return {

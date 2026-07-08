@@ -12,6 +12,7 @@ import {
   enterpriseIdentityPlaybook,
   buildEnterpriseOidcTokenRequest,
   buildEnterpriseSsoAuthorizeUrl,
+  verifyEnterpriseOidcIdTokenClaims,
   signEnterpriseSsoState,
   verifyEnterpriseSsoState,
   deprovisionEnterpriseScimMember,
@@ -42,6 +43,11 @@ import {
   upsertEnterpriseRegistry,
   upsertOrganizationMember,
 } from '@/lib/enterprise'
+
+function unsignedJwt(claims: Record<string, unknown>, header: Record<string, unknown> = { alg: 'RS256', typ: 'JWT' }) {
+  const enc = (value: Record<string, unknown>) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  return `${enc(header)}.${enc(claims)}.signature`
+}
 
 describe('enterprise — 企业 Registry 授权', () => {
   it('模型白名单为空或缺失时放行；命中列表时放行', () => {
@@ -247,6 +253,45 @@ describe('enterprise — 企业 Registry 授权', () => {
       code: 'code',
       callbackUrl: 'https://hengshu.example.com/v1/enterprise/identity/callback',
     })).toMatchObject({ ok: false, reason: '身份策略存在阻断项，不能换取 OIDC token' })
+  })
+
+  it('企业 OIDC ID Token claims 校验 issuer/audience/nonce/email/domain', () => {
+    const policy = {
+      requireSso: true,
+      domainAllowlist: ['example.com'],
+      sso: {
+        enabled: true,
+        provider: 'oidc',
+        issuer: 'https://idp.example.com',
+        clientId: 'client-1',
+      },
+    }
+    const token = unsignedJwt({
+      iss: 'https://idp.example.com',
+      aud: 'client-1',
+      exp: 200,
+      nonce: 'nonce-1',
+      email: 'Alice@Example.com',
+      email_verified: true,
+    })
+
+    expect(verifyEnterpriseOidcIdTokenClaims(policy, { idToken: token, nonce: 'nonce-1', nowSeconds: 100 })).toMatchObject({
+      ok: true,
+      email: 'alice@example.com',
+      warnings: expect.arrayContaining([expect.stringContaining('JWKS')]),
+    })
+    expect(verifyEnterpriseOidcIdTokenClaims(policy, { idToken: token, nonce: 'bad', nowSeconds: 100 })).toMatchObject({
+      ok: false,
+      code: 'NONCE_MISMATCH',
+    })
+    expect(verifyEnterpriseOidcIdTokenClaims(policy, {
+      idToken: unsignedJwt({ iss: 'https://idp.example.com', aud: 'client-1', exp: 200, nonce: 'nonce-1', email: 'bob@other.com', email_verified: true }),
+      nonce: 'nonce-1',
+      nowSeconds: 100,
+    })).toMatchObject({
+      ok: false,
+      code: 'DOMAIN_REJECTED',
+    })
   })
 
   it('SCIM token 使用 sha256 digest 校验', () => {
