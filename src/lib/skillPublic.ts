@@ -57,6 +57,50 @@ function passportSummary(passport: any, slug: string | null) {
   }
 }
 
+function starterPlaybook(skill: any, passportInfo: any) {
+  const slug = skill?.slug ? String(skill.slug) : ''
+  const skillId = skill?.id ? String(skill.id) : ''
+  const isEssential = Boolean(skill?.isEssential)
+  const hasCurrentPassport = passportInfo?.status === 'current'
+  const decision = isEssential
+    ? 'start_here'
+    : hasCurrentPassport
+      ? 'try_with_evidence'
+      : 'review_first'
+
+  return {
+    customerValue:
+      '让新用户快速尝到甜头：先选有推荐理由和 Passport 证据的 Skill，用默认输入试跑，再回私人台账看结果并换模型重跑。',
+    decision,
+    nextActions: [
+      {
+        label: isEssential ? '先跑必备 Skill' : '先看适用场景',
+        description: isEssential
+          ? skill?.essentialReason || '这是适合新手第一跑的 Skill，先用默认输入验证效果。'
+          : '先确认该 Skill 是否覆盖你的任务，再决定是否试跑或收藏。',
+        href: slug ? `/skills/${encodeURIComponent(slug)}` : null,
+      },
+      {
+        label: '看 Passport',
+        description: hasCurrentPassport
+          ? '已有当前 Passport，可先看可信分、兼容证据、失败摘要和验签入口。'
+          : 'Passport 尚未达到当前状态，试跑前应降低信任预期。',
+        href: passportInfo?.url || null,
+      },
+      {
+        label: '默认输入试跑',
+        description: '用在线试跑或本地 Runner 跑一次，把结果沉淀到你的私人运行台账。',
+        href: slug ? `/skills/${encodeURIComponent(slug)}/run` : null,
+      },
+      {
+        label: '回台账重跑',
+        description: '如果结果有用，用同一输入换模型重跑，比较成功率、格式、成本和延迟。',
+        href: skillId ? `/console/runs?skillId=${encodeURIComponent(skillId)}` : '/console/runs',
+      },
+    ],
+  }
+}
+
 export function publicSkillSummary(skill: any, passport?: any) {
   const slug = skill?.slug ? String(skill.slug) : null
   const passportInfo = passportSummary(passport, slug)
@@ -95,6 +139,7 @@ export function publicSkillSummary(skill: any, passport?: any) {
       : null,
     evidenceVerifyUrl: passportInfo.evidenceVerifyUrl,
     evidenceVerifyPageUrl: passportInfo.evidenceVerifyPageUrl,
+    starterPlaybook: starterPlaybook(skill, passportInfo),
     updatedAt: skill?.updatedAt || null,
   }
 }

@@ -43,7 +43,7 @@
 | 页面/API | 当前能力 |
 |---|---|
 | 首页 + `/skills` | 首页“先跑必备 Skill”新手入口；必备卡片展示“为什么先跑”；首页 SkillCard 展示 Passport 可信分；首页引导从已有运行证据的 Skill fork 成新版本；`/skills?essential=1` 必备筛选；市场顶部 Starter Pack；必备页展示“看 Passport → 默认输入试跑 → 回控制台看台账/重跑”的新手路径；列表展示 Passport 可信分和证据入口，并可直达试跑页和该 Skill 私人台账；分类、搜索、排序。 |
-| `/v1/skills` | 公开 Skill 摘要列表 API，支持 `essential=1` 输出必备 Skill starter pack，并返回必备推荐理由、可信榜排序依据、Passport 可信摘要、证据入口、证书入口、试跑入口和台账入口。 |
+| `/v1/skills` | 公开 Skill 摘要列表 API，支持 `essential=1` 输出必备 Skill starter pack，并返回必备推荐理由、新手 starterPlaybook、可信榜排序依据、Passport 可信摘要、证据入口、证书入口、试跑入口和台账入口。 |
 | `/v1/skills/[slug]/contract` | 公开读取能力契约摘要；返回 contractHash、promptHash、schema/权限摘要和“核对 Hash → 检查破坏性变更 → 验签证书 → 试跑/重跑”的复核 playbook，不暴露 prompt 正文。 |
 | `/skills/[slug]` | Passport 区块、证据快照摘要、黄金样例基准分、公开 Contract/Passport API、达标证书可视化验签入口、证据验签入口、兼容矩阵；兼容矩阵可跳转模型画像、该 Skill×模型失败库与 Adapter API。 |
 | `/skills/[slug]/run` | 在线试跑页；运行前展示 Passport 可信分，并提供 Passport、Contract、达标证书和证据验签入口；运行请求可携带 modelProvider/modelVersion，结果进入私人台账并按模型版本回流兼容证据。 |

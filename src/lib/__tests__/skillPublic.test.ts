@@ -68,9 +68,31 @@ describe('skillPublic — 公开 Skill 列表输出', () => {
       detailUrl: '/skills/writer',
       runUrl: '/skills/writer/run',
       runLedgerUrl: '/console/runs?skillId=skill-1',
+      starterPlaybook: {
+        customerValue: expect.stringContaining('快速尝到甜头'),
+        decision: 'start_here',
+        nextActions: expect.arrayContaining([
+          expect.objectContaining({ label: '先跑必备 Skill', href: '/skills/writer' }),
+          expect.objectContaining({ label: '看 Passport', href: '/v1/skills/writer/passport' }),
+          expect.objectContaining({ label: '默认输入试跑', href: '/skills/writer/run' }),
+          expect.objectContaining({ label: '回台账重跑', href: '/console/runs?skillId=skill-1' }),
+        ]),
+      },
     })
     expect(row.systemPrompt).toBeUndefined()
     expect(row.promptTemplate).toBeUndefined()
     expect(row.runCount).toBeUndefined()
+    expect(JSON.stringify(row.starterPlaybook)).not.toContain('secret')
+  })
+
+  it('非必备且缺少 Passport 时提示先复核', () => {
+    const row = publicSkillSummary({ id: 'skill-2', slug: 'draft', isEssential: false }) as any
+
+    expect(row.starterPlaybook).toMatchObject({
+      decision: 'review_first',
+      nextActions: expect.arrayContaining([
+        expect.objectContaining({ label: '看 Passport', description: expect.stringContaining('尚未达到当前状态') }),
+      ]),
+    })
   })
 })
