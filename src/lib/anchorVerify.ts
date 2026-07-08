@@ -1,4 +1,5 @@
 import { createHash } from 'crypto'
+import { canonicalString } from './canonical'
 import { verifyEvidenceAnchorManifest, type EvidenceAnchorManifest } from './evidenceAnchor'
 import { verifyScoreAnchorManifest, type ScoreAnchorManifest } from './scoreAnchor'
 
@@ -76,6 +77,45 @@ export function verifyAnchorManifestBundle(args: {
     externalTimestampReceipt,
     assurance,
     playbook: anchorAssurancePlaybook(assurance),
+  }
+}
+
+
+export function anchorTimestampImprint(manifest: any): string {
+  const { manifestSignature: _sig, externalTimestamp: _ts, ...core } = manifest || {}
+  return createHash('sha256').update(canonicalString(core)).digest('hex')
+}
+
+export function buildAnchorTimestampRequest(manifest: any, provider = 'rfc3161') {
+  const imprint = anchorTimestampImprint(manifest)
+  return {
+    customerValue:
+      '把外锚 manifest 变成可提交给第三方时间戳服务的请求包；第三方回执原文回填后，只公开校验 receiptHash，不依赖平台自证。',
+    provider,
+    hashAlgorithm: 'sha256',
+    imprint,
+    imprintSource: 'manifest_without_signature_or_externalTimestamp',
+    manifestSummary: {
+      version: manifest?.version ?? null,
+      entries: manifest?.entries ?? null,
+      chainHead: manifest?.chainHead ?? null,
+      fileHash: manifest?.fileHash ?? null,
+      generatedAt: manifest?.generatedAt ?? null,
+    },
+    nextActions: [
+      {
+        label: '提交第三方时间戳',
+        description: '把 imprint 作为 RFC3161 messageImprint 或供应商等价字段提交；不要把私钥交给时间戳服务。',
+      },
+      {
+        label: '保存回执原文',
+        description: '拿到第三方 receipt 后原样归档；系统只要求回执原文 sha256 与 manifest.externalTimestamp.receiptHash 一致。',
+      },
+      {
+        label: '回填 manifest',
+        description: '把 provider、timestamp、receiptUrl 和 receiptHash 写入 externalTimestamp，再用 /v1/anchors/verify 复核到 external_timestamped。',
+      },
+    ],
   }
 }
 

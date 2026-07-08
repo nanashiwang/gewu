@@ -7,6 +7,7 @@ import { buildEvidenceAnchorEntry, buildEvidenceAnchorManifest, signEvidenceAnch
 import {
   evaluateTrustedAnchorPublication,
   evaluateExternalTimestampReceipt,
+  buildAnchorTimestampRequest,
   MAX_ANCHOR_VERIFY_LINES,
   normalizeAnchorLines,
   parseTrustedAnchorPublishers,
@@ -193,5 +194,33 @@ describe('anchorVerify — 公开外锚 bundle 校验', () => {
     expect(evaluateExternalTimestampReceipt({ externalTimestamp: { receiptHash } }, 'tampered')).toMatchObject({
       status: 'mismatch',
     })
+  })
+
+  it('生成第三方时间戳请求包，imprint 不受自签名和回填 externalTimestamp 影响', () => {
+    const base = {
+      version: 1,
+      generatedAt: '2026-07-08T00:00:00.000Z',
+      entries: 2,
+      chainHead: 'chain-head',
+      fileHash: 'file-hash',
+    }
+    const signed = {
+      ...base,
+      manifestSignature: { algorithm: 'ed25519', keyId: 'k1', signedAt: '2026-07-08T00:00:00.000Z', signature: 'sig' },
+      externalTimestamp: { provider: 'ots', receiptHash: 'a'.repeat(64) },
+    }
+    const req = buildAnchorTimestampRequest(base, 'ots')
+    expect(req).toMatchObject({
+      provider: 'ots',
+      hashAlgorithm: 'sha256',
+      imprintSource: 'manifest_without_signature_or_externalTimestamp',
+      manifestSummary: { entries: 2, chainHead: 'chain-head', fileHash: 'file-hash' },
+      nextActions: expect.arrayContaining([
+        expect.objectContaining({ label: '提交第三方时间戳' }),
+        expect.objectContaining({ label: '回填 manifest' }),
+      ]),
+    })
+    expect(req.imprint).toMatch(/^[a-f0-9]{64}$/)
+    expect(buildAnchorTimestampRequest(signed, 'ots').imprint).toBe(req.imprint)
   })
 })
