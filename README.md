@@ -125,6 +125,7 @@ curl http://127.0.0.1:8787/health
 | `GET /v1/enterprise/registry/[id]/passport` | 企业内读取已批准/可审 Skill 的 Passport、治理状态、批准时采用基线、基线漂移告警、证书状态摘要、准入治理 checklist、审计/失败库入口和绑定 Contract 的达标证书 |
 | `POST /v1/enterprise/registry/[id]/benchmark` | 企业管理员/审批员用组织内私有样例评测 Registry Skill；校验模型白名单和审计策略，只写 SkillRuns + 企业审计，不进入公开兼容报告、公开可信榜或公开 Passport，响应不回显输入输出 |
 | `GET/POST /v1/enterprise/registry/review-required` | 企业管理员/审批员批量列出需重审的 Registry，并可批量刷新采用基线、标记已复核或接受风险；用于 Contract/版本/Passport/证书漂移后的企业准入治理 |
+| `GET /v1/enterprise/overview` | 企业治理总览：聚合 Registry 状态、准入待办、SSO/SCIM readiness、成员、审计、失败知识库和导出入口，不暴露输入输出、tokenDigest 或 prompt |
 | `GET /v1/enterprise/identity/authorize` | 生成企业 OIDC SSO 登录发起包：authorizeUrl、callbackUrl、HMAC state/nonce、IdP 跳转和回调接入指引；callback 先校验 state、还原组织上下文并返回服务端 tokenExchange 请求包，可选校验 ID Token claims、JWKS RS256 签名、邮箱域和 active 成员绑定；校验通过后签发 Payload 登录会话 cookie |
 | `GET /v1/enterprise/audit/export` | 企业审计 CSV 导出，含模型版本治理元数据，不含输入输出原文 |
 | `GET /v1/enterprise/failures` | 从企业审计元数据聚合组织内失败知识库和模型版本分布 |

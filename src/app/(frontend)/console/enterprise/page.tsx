@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation'
+import type { ReactNode } from 'react'
 import { getCurrentUser } from '@/lib/auth'
 import { getPayloadClient } from '@/lib/payload'
 import { Section, Empty } from '@/components/console/ConsoleUI'
 import { EnterprisePolicyPanel } from '@/components/console/EnterprisePolicyPanel'
 import { EnterpriseIdentityPanel } from '@/components/console/EnterpriseIdentityPanel'
 import { listEnterprisePolicyTemplates, publicEnterpriseOrganization, publicEnterpriseRegistry } from '@/lib/enterprise'
+import { getEnterpriseGovernanceOverview } from '@/lib/enterpriseOverview'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,9 +58,102 @@ export default async function EnterpriseConsolePage() {
       auditPolicy: safe.auditPolicy,
     }
   })
+  const overviewResults = await Promise.all(
+    orgIds.map((organizationId) =>
+      getEnterpriseGovernanceOverview(payload, {
+        actorId: String(user.id),
+        actorRole: role,
+        organizationId,
+        auditLimit: 100,
+        failureLimit: 500,
+      }),
+    ),
+  )
+  const overviews = overviewResults
+    .filter((result): result is { ok: true; overview: any } => result.ok)
+    .map((result) => result.overview)
 
   return (
     <div className="space-y-5">
+      <Section title="企业治理总览">
+        {overviews.length === 0 ? (
+          <Empty>还没有可展示的组织治理数据。</Empty>
+        ) : (
+          <div className="space-y-3">
+            {overviews.map((overview) => (
+              <div
+                key={overview.organization.id}
+                className="rounded-xl border border-[var(--border)] bg-[var(--panel-2)] p-4 text-sm"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-[var(--text)]">
+                      {overview.organization.name}
+                    </div>
+                    <p className="mt-1 max-w-2xl text-xs text-[var(--muted)]">
+                      {overview.customerValue}
+                    </p>
+                  </div>
+                  <span className={`rounded-full border px-2 py-1 text-xs ${overview.decision === 'healthy' ? 'border-emerald-500/40 text-emerald-200' : 'border-amber-500/50 text-amber-200'}`}>
+                    {overview.decision === 'healthy' ? '治理正常' : '有待办'}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-4">
+                  <OverviewStat label="Registry 总数" value={overview.registry.total} />
+                  <OverviewStat label="已批准" value={overview.registry.byStatus.approved} />
+                  <OverviewStat label="准入待办" value={overview.reapproval.actionable} />
+                  <OverviewStat label="失败模式" value={overview.failures.totalGroups} />
+                </div>
+
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <OverviewBox title="审批状态">
+                    approved {overview.registry.byStatus.approved} · pending{' '}
+                    {overview.registry.byStatus.pending} · restricted{' '}
+                    {overview.registry.byStatus.restricted} · disabled{' '}
+                    {overview.registry.byStatus.disabled}
+                  </OverviewBox>
+                  <OverviewBox title="身份/成员">
+                    SSO {overview.identity.readiness.ssoEnabled ? '已启用' : '未启用'} · SCIM{' '}
+                    {overview.identity.readiness.scimEnabled ? '已启用' : '未启用'} · blocker{' '}
+                    {overview.identity.readiness.blockers} · active 成员{' '}
+                    {overview.members.byStatus.active}
+                  </OverviewBox>
+                  <OverviewBox title="近期审计">
+                    success {overview.audit.byOutcome.success} · failed{' '}
+                    {overview.audit.byOutcome.failed} · denied {overview.audit.byOutcome.denied}
+                  </OverviewBox>
+                </div>
+
+                {overview.failures.topGroups.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--muted)]">
+                    {overview.failures.topGroups.map((group: any) => (
+                      <span key={group.profileKey} className="rounded-full border border-[var(--border)] px-2 py-1">
+                        {group.label || group.errorType} · {group.count}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="mt-4 flex flex-wrap gap-2 text-xs">
+                  <a href={overview.links.reviewRequiredUrl} target="_blank" rel="noreferrer" className="rounded-full border border-[var(--border)] px-3 py-1 hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                    准入重审
+                  </a>
+                  <a href={overview.links.failuresUrl} target="_blank" rel="noreferrer" className="rounded-full border border-[var(--border)] px-3 py-1 hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                    失败库
+                  </a>
+                  <a href={overview.links.auditExportUrl} target="_blank" rel="noreferrer" className="rounded-full border border-[var(--border)] px-3 py-1 hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                    导出审计
+                  </a>
+                  <a href={overview.links.identityAuthorizeUrl} target="_blank" rel="noreferrer" className="rounded-full border border-[var(--border)] px-3 py-1 hover:border-[var(--accent)] hover:text-[var(--accent)]">
+                    SSO 发起包
+                  </a>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
       <Section title="企业 Registry 闭环">
         <div className="grid gap-3 text-sm md:grid-cols-4">
           <div className="rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3">
@@ -125,6 +220,24 @@ export default async function EnterpriseConsolePage() {
           </p>
         </div>
       </Section>
+    </div>
+  )
+}
+
+function OverviewStat({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3">
+      <div className="text-lg font-semibold text-[var(--accent)]">{value}</div>
+      <div className="text-xs text-[var(--muted)]">{label}</div>
+    </div>
+  )
+}
+
+function OverviewBox({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg)] p-3 text-xs text-[var(--muted)]">
+      <div className="mb-1 font-medium text-[var(--text)]">{title}</div>
+      {children}
     </div>
   )
 }
