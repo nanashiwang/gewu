@@ -16,6 +16,9 @@ node runner/hengshu.mjs whoami
 # 轮换本机 Runner 令牌（旧令牌立即失效）
 node runner/hengshu.mjs rotate-token
 
+# 安装 Skill：下载冻结 manifest，校验 checksum + ed25519 签名，并打印后续回流指引
+node runner/hengshu.mjs install xhs-title-generator --hub http://localhost:3000
+
 # 运行（默认连本地 Ollama）
 node runner/hengshu.mjs run xhs-title-generator \
   --hub http://localhost:3000 \
@@ -47,3 +50,12 @@ node runner/hengshu.mjs run ./xhs-title-generator-1.0.0.yaml \
 任意 **OpenAI 兼容** `/chat/completions` endpoint：Ollama、LM Studio、vLLM、llama.cpp server、LocalAI，或你自己的网关。
 
 > Runner 默认拒绝未签名/签名无效的远端 manifest；自建调试可显式加 `--allow-unsigned`。
+
+## 安装后的可信闭环
+
+`install` 响应会给 Runner 一份 playbook，并在终端提示：
+
+1. 校验 manifest：使用 `/v1/keys` 公钥验证 checksum 与 ed25519 签名。
+2. 本地运行：绑定 Ollama、LM Studio、vLLM 或自有 OpenAI 兼容网关。
+3. 脱敏回流：`run --report` 只上传成功率、格式、延迟、错误类型等指标，不上传输入/输出原文。
+4. 保持新鲜：`outdated` / `update` 先更新 checksum；过期安装提交报告会被 Hub 拒绝。

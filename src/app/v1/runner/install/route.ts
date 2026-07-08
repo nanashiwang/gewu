@@ -5,6 +5,7 @@ import { ensureArtifact } from '@/lib/artifacts'
 import { resolvePublishedSkill, upsertInstall } from '@/lib/installs'
 import { readJsonBodyWithLimit } from '@/lib/requestBody'
 import { isRunnerCommandError, MAX_RUNNER_COMMAND_REQUEST_BYTES, normalizeRunnerSlug } from '@/lib/runnerCommandRequest'
+import { runnerInstallPlaybook } from '@/lib/runnerInstallPlaybook'
 
 // POST /v1/runner/install  { slug }  (Bearer) —— 安装 Skill：记录安装事件并返回冻结 manifest
 export async function POST(request: Request) {
@@ -40,5 +41,11 @@ export async function POST(request: Request) {
     version: version.version,
     checksum: artifact.checksum,
     manifest: artifact.manifest,
+    playbook: runnerInstallPlaybook({
+      slug: skill.slug,
+      version: version.version,
+      checksum: artifact.checksum,
+      signed: /(^|\n|\{)\s*"?signature"?\s*:/.test(String(artifact.manifest || '')),
+    }),
   })
 }

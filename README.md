@@ -21,7 +21,7 @@
 
 ## 已实现能力
 
-- **下载→运行主线**：Skill Spec v1 · 发布快照+checksum · Runner 设备码登录 · 本地安装/离线运行（CLI 六命令）· 兼容报告回流形成兼容分 · 贡献值规则引擎 · 求术悬赏闭环
+- **下载→运行主线**：Skill Spec v1 · 发布快照+checksum · Runner 设备码登录 · 本地安装/离线运行（CLI 六命令）· 安装响应返回“验签→本地跑→脱敏回流→更新”playbook · 兼容报告回流形成兼容分 · 贡献值规则引擎 · 求术悬赏闭环
 - **信任模型**：manifest ed25519 签名 + Runner 验签 + `/v1/keys` 公钥分发 + `/verify` 分数快照公开验签 + `/v1/evidence/verify` 证据快照验签 + `/v1/anchors/verify` 外锚 manifest 验签 + `/v1/skills/[slug]/certificate` 达标证书 + `/v1/certificates/verify` 证书验签（完整响应或裸证书均可）
 - **护城河数据层**：逐模型/版本兼容真值表（时间衰减 + 来源权重 + 置信度，并展示有效样本）· ModelProfile 漂移曲线 · 黄金样例逐条打分 · 在线运行回流喂评测数据 · 失败知识库（`/failures`，含证据验签）· 从失败案例生成 Adapter 草稿并直达审核 · 企业内 Passport/达标证书 · 企业策略包/身份策略骨架 · 企业失败知识库 · 来源分级权重
 - **创作者供给**：前台发布 Skill（`/console/skills/new`，引导上传包→Contract→Passport→适配维护，并返回发布后维护 playbook）· AI 合规审核通过自动上架/未通过转人工 · GitHub README / Claude Skill / GPTs 配置导入为待审 Imported Skill · 批量来源导入 worker · 我的作品展示 Contract/Passport/证书预览/失败库入口 · 未发布 Skill 作者可预览
@@ -105,6 +105,8 @@ curl http://127.0.0.1:8787/health
 | `GET /v1/skills/[slug]/passport` | 公开读取清洗后的 Skill Passport、黄金样例摘要、可信兼容运行计数、证据验签入口和最新证据验签摘要 |
 | `GET /v1/skills/[slug]/certificate` | 公开读取 Skill 达标证书，绑定当前未废弃 Contract 摘要、Passport、可信兼容运行计数、黄金样例逐条摘要和证据验签状态，含 `certificateHash`、签名、公开公钥、`statusReasons` 和 Passport 证据验签页面入口 |
 | `POST /v1/skills/[slug]/run` | 在线试跑 Skill；请求可携带 `modelProvider` / `modelVersion`，运行回流会绑定对应 ModelProfile、FailureCase 和 Adapter 版本链路 |
+| `POST /v1/runner/install` | Runner 安装公开 Skill，返回冻结 manifest、checksum 和“验签→本地运行→脱敏回流→更新”playbook |
+| `POST /v1/runner/report` | Runner 回流本地兼容报告；只接收指标，不接收输入/输出原文，且要求当前安装版本与 checksum 匹配 |
 | `POST /v1/certificates/verify` | 校验完整证书响应或裸 certificate 的 hash 与 ed25519 签名，并返回绑定的 Contract/Passport/基准摘要、客户复核指引和未达正式达标原因；前台 `/verify?certificateUrl=...` 可自动加载证书并验签 |
 | `GET /v1/model-profiles` | 公开读取模型画像、版本漂移、回归告警、有效样本、来源权重和客户决策 playbook；支持 modelName/modelVersion/provider/status 过滤，并返回失败库/Adapter 排障入口 |
 | `GET /v1/failures` | 公开读取脱敏失败知识库、客户排障 playbook、修复/复验建议、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 skillId/profileKey/inputBucket/modelVersion/source 过滤 |

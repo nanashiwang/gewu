@@ -252,6 +252,12 @@ async function cmdInstall(args) {
   const v = data._verify || {}
   const tag = v.signed ? (v.sigValid ? '· ✓ 签名有效' : '· ✗ 签名无效') : '· ⚠ 未签名'
   console.log(`   checksum ${data.checksum}  ${tag}`)
+  if (data.playbook?.nextActions?.length) {
+    console.log('   下一步：')
+    for (const action of data.playbook.nextActions.slice(0, 4)) {
+      console.log(`   · ${action.label}：${action.description}`)
+    }
+  }
 }
 function cmdList() {
   const items = listInstalled()
