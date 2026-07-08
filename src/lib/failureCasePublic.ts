@@ -109,6 +109,7 @@ function publicFailurePlaybook(row: any) {
     safeForPublic: true,
     triageChecklist: [
       '只对照错误类型、输入大小档、模型名/版本和症状，不需要暴露原始输入输出',
+      '优先看人工归因状态、根因分类和复验覆盖，不把自动聚类直接当最终结论',
       '先确认是否集中在某个模型版本，再判断是模型漂移、Prompt 边界还是 schema 问题',
       '生成 Adapter 前先用私人台账里的失败输入复现，避免把偶发问题固化成补丁',
       '修复后至少复验成功率、格式率和同输入重跑结果，再把 lift 当作证据',
@@ -142,6 +143,34 @@ function publicFailurePlaybook(row: any) {
   }
 }
 
+function failureTriageSummary(row: any) {
+  const triageStatus = String(row?.triageStatus || 'pending')
+  const coverage = objectOrEmpty(row?.verificationCoverage)
+  const verifiedRuns = Number((coverage as any).verifiedRuns || 0)
+  const targetRuns = Number((coverage as any).targetRuns || 0)
+  return {
+    triageStatus,
+    rootCauseCategory: row?.rootCauseCategory || null,
+    hasTriageNotes: Boolean(row?.triageNotes),
+    triagedAt: row?.triagedAt || null,
+    verificationCoverage: publicSanitize({
+      targetRuns: Number.isFinite(targetRuns) ? targetRuns : 0,
+      verifiedRuns: Number.isFinite(verifiedRuns) ? verifiedRuns : 0,
+      beforeSuccessRate: (coverage as any).beforeSuccessRate ?? null,
+      afterSuccessRate: (coverage as any).afterSuccessRate ?? null,
+      formatRateAfter: (coverage as any).formatRateAfter ?? null,
+    }),
+    decision:
+      triageStatus === 'verified'
+        ? 'reuse_or_close'
+        : triageStatus === 'attributed'
+          ? 'create_or_verify_adapter'
+          : triageStatus === 'needs_more_evidence'
+            ? 'collect_more_runs'
+            : 'triage_first',
+  }
+}
+
 function objectOrEmpty(value: any) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
 }
@@ -162,6 +191,7 @@ export function publicFailureCase(row: any) {
     skill,
     symptom: row?.symptom || null,
     likelyCause: row?.likelyCause || null,
+    triage: failureTriageSummary(row),
     hasRepairTemplate: Boolean(row?.repairTemplate),
     hasVerifyTemplate: Boolean(row?.verifyTemplate),
     primaryInputBucket: row?.primaryInputBucket || null,

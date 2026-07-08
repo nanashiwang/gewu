@@ -23,7 +23,7 @@
 
 - **下载→运行主线**：Skill Spec v1 · 发布快照+checksum · Runner 设备码登录 · 本地安装/离线运行（CLI 六命令）· 安装响应返回“验签→本地跑→脱敏回流→更新”playbook · 兼容报告回流形成兼容分 · 贡献值规则引擎 · 求术悬赏闭环
 - **信任模型**：manifest ed25519 签名 + Runner 验签 + `/v1/keys` 公钥分发 + `/verify` 分数快照公开验签 + `/v1/evidence/verify` 证据快照验签 + `/v1/anchors/verify` 外锚 manifest 验签 + `/v1/skills/[slug]/certificate` 达标证书 + `/v1/certificates/verify` 证书验签（完整响应或裸证书均可）
-- **护城河数据层**：逐模型/版本兼容真值表（时间衰减 + 来源权重 + 置信度，并展示有效样本）· ModelProfile 漂移曲线/输入规模档表现 · 黄金样例逐条打分 · 在线运行回流喂评测数据 · 失败知识库（`/failures`，含证据验签）· 从失败案例生成待评审 Adapter 草稿并直达前台评审看板 · 企业内 Passport/达标证书 · 企业策略包/身份策略骨架 · 企业失败知识库 · 来源分级权重
+- **护城河数据层**：逐模型/版本兼容真值表（时间衰减 + 来源权重 + 置信度，并展示有效样本）· ModelProfile 漂移曲线/输入规模档表现 · 黄金样例逐条打分 · 在线运行回流喂评测数据 · 失败知识库（`/failures`，含人工归因/复验覆盖/证据验签）· 从失败案例生成待评审 Adapter 草稿并直达前台评审看板 · 企业内 Passport/达标证书 · 企业策略包/身份策略骨架 · 企业失败知识库 · 来源分级权重
 - **创作者供给**：前台发布 Skill（`/console/skills/new`，引导上传包→Contract→Passport→适配维护，并返回发布后维护 playbook）· AI 合规审核通过自动上架/未通过转人工 · GitHub README / Claude Skill / GPTs 配置导入为待审 Imported Skill · 批量来源导入 worker · 我的作品展示 Contract/Passport/证书预览/失败库入口 · 未发布 Skill 作者可预览
 - **经济闭环（骨架）**：credit 台账 + 贡献值兑换池（`/console/exchange`，默认关闭待接真值）
 - **前台**：首页发现（先跑必备 Skill）· Skill 市场（必备筛选/分类/排序/搜索）· 详情（Passport/Contract diff/兼容矩阵/评论/版本）· 可信榜（公开排序口径，非下载量热榜）· 悬赏区 · 控制台 · Adapter 评审看板 · 订阅更新通知 · 移动端导航 · SEO(sitemap/robots/metadata)
@@ -110,7 +110,7 @@ curl http://127.0.0.1:8787/health
 | `POST /v1/runner/report` | Runner 回流本地兼容报告；只接收指标，不接收输入/输出原文，且要求当前安装版本与 checksum 匹配 |
 | `POST /v1/certificates/verify` | 校验完整证书响应或裸 certificate 的 hash 与 ed25519 签名，并返回绑定的 Contract/Passport/基准摘要、客户复核指引和未达正式达标原因；前台 `/verify?certificateUrl=...` 可自动加载证书并验签 |
 | `GET /v1/model-profiles` | 公开读取模型画像、版本漂移、输入规模档表现、回归告警、有效样本、来源权重、采用复验 checklist 和客户决策 playbook；支持 modelName/modelVersion/provider/status 过滤，并返回私人台账复验、失败库/Adapter 排障入口 |
-| `GET /v1/failures` | 公开读取脱敏失败知识库、客户排障 playbook、triage checklist、私人台账复现、修复/复验建议、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 skillId/profileKey/inputBucket/modelVersion/source 过滤 |
+| `GET /v1/failures` | 公开读取脱敏失败知识库、人工归因摘要、复验覆盖、客户排障 playbook、triage checklist、私人台账复现、修复/复验建议、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 skillId/profileKey/inputBucket/modelVersion/source 过滤 |
 | `GET /v1/adapters` | 公开读取已批准 active Adapter 效果摘要、lift 指标、复用/复验 checklist、私人台账复验入口和 API/页面证据验签入口；支持 skillId/modelName/modelVersion/failureType/failureId/modelProfile 过滤，不暴露补丁正文或未批准草稿 |
 | `GET /v1/evidence/verify?targetType=...&targetId=...` | 校验已知 Passport / FailureCase / Adapter 的证据快照，返回公开脱敏 `targetSummary`、payloadHash 和签名状态；不提供匿名全量枚举 |
 | `POST /v1/anchors/verify` | 校验 score/evidence 外锚 JSONL + manifest + 可信发布/时间戳声明，返回可信等级和采购/审计复核 playbook |

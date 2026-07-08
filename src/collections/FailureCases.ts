@@ -33,6 +33,36 @@ export const FailureCases: CollectionConfig = {
     { name: 'skillVersion', type: 'relationship', relationTo: 'skill-versions', label: '代表版本' },
     { name: 'symptom', type: 'textarea', label: '脱敏症状' },
     { name: 'likelyCause', type: 'textarea', label: '可能根因' },
+    {
+      name: 'triageStatus',
+      type: 'select',
+      defaultValue: 'pending',
+      index: true,
+      label: '人工归因状态',
+      options: [
+        { label: '待归因', value: 'pending' },
+        { label: '已归因', value: 'attributed' },
+        { label: '证据不足', value: 'needs_more_evidence' },
+        { label: '已复验', value: 'verified' },
+      ],
+    },
+    {
+      name: 'rootCauseCategory',
+      type: 'select',
+      label: '根因分类',
+      options: [
+        { label: '模型漂移', value: 'model_drift' },
+        { label: 'Prompt 边界', value: 'prompt_boundary' },
+        { label: 'Schema 不匹配', value: 'schema_mismatch' },
+        { label: 'Adapter 缺口', value: 'adapter_gap' },
+        { label: '数据/输入质量', value: 'data_quality' },
+        { label: '未知', value: 'unknown' },
+      ],
+    },
+    { name: 'triagedBy', type: 'relationship', relationTo: 'users', label: '归因人', admin: { readOnly: true } },
+    { name: 'triagedAt', type: 'date', label: '归因时间', admin: { readOnly: true } },
+    { name: 'triageNotes', type: 'textarea', label: '归因备注' },
+    { name: 'verificationCoverage', type: 'json', label: '复验覆盖' },
     { name: 'repairTemplate', type: 'textarea', label: '修复模板' },
     { name: 'verifyTemplate', type: 'textarea', label: '复验步骤' },
     { name: 'primaryInputBucket', type: 'text', label: '主输入规模档' },
@@ -59,4 +89,15 @@ export const FailureCases: CollectionConfig = {
     },
     { name: 'lastObservedAt', type: 'date', label: '最近观测时间' },
   ],
+  hooks: {
+    beforeChange: [
+      ({ data, originalDoc, req }) => {
+        if (data?.triageStatus && data.triageStatus !== originalDoc?.triageStatus && data.triageStatus !== 'pending') {
+          data.triagedAt = new Date().toISOString()
+          if (req?.user && ['admin', 'reviewer'].includes(String((req.user as any).role || ''))) data.triagedBy = (req.user as any).id
+        }
+        return data
+      },
+    ],
+  },
 }

@@ -41,6 +41,10 @@ describe('failureCasePublic — 公开失败知识库输出', () => {
       modelVersions: ['2026-07-01', '2026-07-02'],
       modelVersionBreakdown: { '2026-07-01': 2, '2026-07-02': 1, rawOutput: 'secret' },
       sourceBreakdown: { benchmark: 2, online: 1 },
+      triageStatus: 'attributed',
+      rootCauseCategory: 'schema_mismatch',
+      triageNotes: 'secret internal note',
+      verificationCoverage: { targetRuns: 3, verifiedRuns: 1, beforeSuccessRate: 0.2, afterSuccessRate: 0.8, rawInput: 'secret' },
       evidenceHash: 'a'.repeat(64),
       inputJson: { secret: true },
       outputText: 'raw output',
@@ -60,6 +64,7 @@ describe('failureCasePublic — 公开失败知识库输出', () => {
         profileKey: 'skill|500-2k|json_parse_error',
         triageChecklist: expect.arrayContaining([
           expect.stringContaining('不需要暴露原始输入输出'),
+          expect.stringContaining('人工归因状态'),
           expect.stringContaining('私人台账'),
         ]),
         nextActions: expect.arrayContaining([
@@ -87,11 +92,19 @@ describe('failureCasePublic — 公开失败知识库输出', () => {
       modelVersionBreakdown: { '2026-07-01': 2, '2026-07-02': 1 },
       hasRepairTemplate: true,
       hasVerifyTemplate: true,
+      triage: {
+        triageStatus: 'attributed',
+        rootCauseCategory: 'schema_mismatch',
+        hasTriageNotes: true,
+        decision: 'create_or_verify_adapter',
+        verificationCoverage: { targetRuns: 3, verifiedRuns: 1, beforeSuccessRate: 0.2, afterSuccessRate: 0.8 },
+      },
     })
     expect(row.inputJson).toBeUndefined()
     expect(row.outputText).toBeUndefined()
     expect(row.repairTemplate).toBeUndefined()
     expect(row.verifyTemplate).toBeUndefined()
+    expect(JSON.stringify(row.triage)).not.toContain('secret')
     expect(JSON.stringify(row.playbook)).not.toContain('强制输出 JSON')
   })
 

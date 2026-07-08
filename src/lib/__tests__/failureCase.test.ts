@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { FailureCases } from '@/collections/FailureCases'
 import { buildFailureCaseData } from '@/lib/failureCase'
 import type { FailureKnowledgeGroup } from '@/lib/failureKnowledge'
 
@@ -46,5 +47,17 @@ describe('failureCase — 失败知识一等资产', () => {
       lastObservedAt: '2026-07-08T00:00:00.000Z',
     })
     expect(data.evidenceHash).toHaveLength(64)
+  })
+
+  it('collection hook 记录人工归因时间和归因人', () => {
+    const beforeChange = FailureCases.hooks?.beforeChange?.[0] as any
+    const data = beforeChange({
+      data: { triageStatus: 'attributed', rootCauseCategory: 'model_drift' },
+      originalDoc: { triageStatus: 'pending' },
+      req: { user: { id: 'reviewer-1', role: 'reviewer' } },
+    })
+
+    expect(data.triagedAt).toBeTruthy()
+    expect(data.triagedBy).toBe('reviewer-1')
   })
 })
