@@ -27,6 +27,7 @@ import {
   storeSkillPackage,
 } from '@/lib/skillPackage'
 import { certificateVerifyPageUrl } from '@/lib/evidenceLinks'
+import { skillPublishPlaybook } from '@/lib/skillPublishPlaybook'
 
 // GET /v1/skills —— 公开读取 Skill 列表；可用于必备 Skill onboarding 和外部目录集成。
 export async function GET(request: Request) {
@@ -479,6 +480,7 @@ async function handlePackageSubmission(
     passportUrl: `/v1/skills/${encodeURIComponent(slug)}/passport`,
     certificateUrl: `/v1/skills/${encodeURIComponent(slug)}/certificate`,
     certificateVerifyPageUrl: certificateVerifyPageUrl(`/v1/skills/${encodeURIComponent(slug)}/certificate`),
+    playbook: skillPublishPlaybook({ slug, status, reviewDecision: review.decision, autoPublished: status === 'published' }),
     review: {
       decision: review.decision,
       riskLevel: review.riskLevel,
@@ -596,5 +598,6 @@ async function handlePromptSubmission(
     passportUrl: `/v1/skills/${encodeURIComponent(slug)}/passport`,
     certificateUrl: `/v1/skills/${encodeURIComponent(slug)}/certificate`,
     certificateVerifyPageUrl: certificateVerifyPageUrl(`/v1/skills/${encodeURIComponent(slug)}/certificate`),
+    playbook: skillPublishPlaybook({ slug, status: 'pending' }),
   })
 }

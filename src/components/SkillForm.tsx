@@ -17,6 +17,11 @@ type SubmitResult = {
   certificateVerifyPageUrl?: string
   autoPublished?: boolean
   requiresHumanReview?: boolean
+  playbook?: {
+    customerValue: string
+    decision: 'maintain' | 'review' | 'revise'
+    nextActions: Array<{ label: string; description: string; href?: string | null }>
+  }
   review?: {
     decision?: string
     riskLevel?: string
@@ -117,6 +122,33 @@ export function SkillForm({ categories }: { categories: Category[] }) {
               <li key={f}>{f}</li>
             ))}
           </ul>
+        ) : null}
+        {done.playbook ? (
+          <div className="mb-4 rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <b>发布后维护指引</b>
+              <span className="rounded-full border border-[var(--border)] px-2 py-0.5 text-[var(--muted)]">
+                {done.playbook.decision === 'maintain'
+                  ? '持续维护'
+                  : done.playbook.decision === 'revise'
+                    ? '先修改再提交'
+                    : '等待审核'}
+              </span>
+            </div>
+            <p className="mt-2 text-[var(--muted)]">{done.playbook.customerValue}</p>
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              {done.playbook.nextActions.map((action) => (
+                <a
+                  key={action.label}
+                  href={action.href || '#'}
+                  className="rounded border border-[var(--border)] p-2 text-[var(--muted)] hover:border-[var(--accent)]"
+                >
+                  <div className="font-medium text-[var(--text)]">{action.label}</div>
+                  <div className="mt-1">{action.description}</div>
+                </a>
+              ))}
+            </div>
+          </div>
         ) : null}
         <div className="mb-4 grid gap-2 text-xs md:grid-cols-3">
           <a

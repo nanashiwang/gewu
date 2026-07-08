@@ -53,7 +53,7 @@
 | `/rank` | 可信发现榜；公开说明排序口径，把可信分（skillRank）、成功率、可信兼容运行数和 Passport 可信分放在一起，并提供公开 Passport 证据入口，避免把下载量/普通调用量当成可信度。 |
 | `/bounties` | 求术悬赏；引导用户把需求写成可验收标准，创作者交付可版本化、可签名、可进入 Passport 闭环的 Skill，而不是一次性答案。 |
 | `/console` | 个人控制台概览；展示已安装 Skill、Runner、私人台账、兼容贡献，并突出私人运行台账的总运行、成功、格式有效、可信兼容和换模型重跑。 |
-| `/console/skills/new` | 创作者发布页；按“上传包 → 生成 Contract → 刷新 Passport → 适配维护”解释发布闭环，并提示 manifest、schema、示例、权限和推荐模型会影响 Passport/证书质量；待审阶段证据入口按作者预览口径展示。 |
+| `/console/skills/new` | 创作者发布页；按“上传包 → 生成 Contract → 刷新 Passport → 适配维护”解释发布闭环，并提示 manifest、schema、示例、权限和推荐模型会影响 Passport/证书质量；提交成功后展示 Contract/Passport/证书/失败库维护 playbook；待审阶段证据入口按作者预览口径展示。 |
 | `/console/skills` | 我的作品；每个 Skill 展示发布状态、可信兼容运行数、Contract 状态、Passport 可信分，并直达 Contract、Passport、证书/预览、失败库/Adapter。 |
 | `/console/runs` | 私人运行台账；页面按 Skill/模型/路由/成功/格式/可信兼容/重跑来源筛选；查看输入/输出；导出账本指标或本人输入/输出并沿用筛选；推荐模型或自定义 OpenAI 兼容模型名重跑；重跑血缘；展示重跑前后成本/延迟/成功结果对比；失败运行可直达模型画像和失败库；顶部解释“历史输入 → 换模型重跑 → 省钱回执 → 失败修复”的切换成本闭环。 |
 | `/v1/runs` | 当前用户私人运行台账导出 API；支持 skillId/model/modelVersion/routeMode/success/formatValid/trustedCompatible/rerunOf 过滤；默认只导出账本指标，同时返回 `modelProfileUrl`、`trustedCompatible`、失败运行的 `failureKnowledgeUrl` 与换模型重跑 playbook；`includeIO=1` 时仅本人导出输入/输出；导出动作写入审计日志。 |
