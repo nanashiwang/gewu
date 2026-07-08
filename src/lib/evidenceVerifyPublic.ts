@@ -98,7 +98,8 @@ export async function canVerifyEvidenceTarget(
       depth: 1,
       overrideAccess: true,
     }).catch(() => null) as any
-    return Boolean(adapter && adapter.status === 'active' && isPublicSkill(adapter.skill))
+    const reviewStatus = String(adapter?.reviewStatus || 'approved')
+    return Boolean(adapter && adapter.status === 'active' && reviewStatus === 'approved' && isPublicSkill(adapter.skill))
   }
 
   return false

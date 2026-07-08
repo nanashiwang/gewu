@@ -54,6 +54,7 @@ describe('adapterProfile — 适配补丁', () => {
           { or: [{ modelProfile: { equals: 'profile-1' } }, { modelName: { equals: 'qwen-plus' } }] },
           { or: [{ modelVersion: { equals: '2026-07-01' } }, { modelVersion: { exists: false } }] },
           { status: { equals: 'active' } },
+          { or: [{ reviewStatus: { equals: 'approved' } }, { reviewStatus: { exists: false } }] },
           expect.any(Object),
         ],
       },
@@ -83,6 +84,7 @@ describe('adapterProfile — 适配补丁', () => {
         skill: 's1',
         modelName: 'qwen-plus',
         status: 'active',
+        reviewStatus: 'approved',
         systemPromptAppend: '只输出 JSON。',
       },
       originalDoc: {},
@@ -123,6 +125,43 @@ describe('adapterProfile — 适配补丁', () => {
       data: { skill: 's1', modelName: 'qwen-plus' },
       req: { user: { id: 'user-2', role: 'creator' }, payload },
     })).rejects.toThrow('无权为他人的 Skill 创建或修改 Adapter')
+  })
+
+  it('collection hook 要求 Adapter 启用前先由审核员批准', async () => {
+    const beforeValidate = AdapterProfiles.hooks?.beforeValidate?.[0] as any
+    const payload = {
+      findByID: async ({ collection, id }: any) => {
+        if (collection === 'skills' && id === 's1') return { id: 's1', author: 'owner-1' }
+        return null
+      },
+    }
+
+    await expect(beforeValidate({
+      data: { skill: 's1', modelName: 'qwen-plus', status: 'active' },
+      req: { user: { id: 'owner-1', role: 'creator' }, payload },
+    })).rejects.toThrow('Adapter 启用前必须由审核员批准')
+
+    const data = await beforeValidate({
+      data: { skill: 's1', modelName: 'qwen-plus', status: 'active' },
+      req: { user: { id: 'reviewer-1', role: 'reviewer' }, payload },
+    })
+    expect(data.reviewStatus).toBe('approved')
+  })
+
+  it('collection hook 阻止创作者自行修改 Adapter 评审状态', async () => {
+    const beforeValidate = AdapterProfiles.hooks?.beforeValidate?.[0] as any
+    const payload = {
+      findByID: async ({ collection, id }: any) => {
+        if (collection === 'skills' && id === 's1') return { id: 's1', author: 'owner-1' }
+        return null
+      },
+    }
+
+    await expect(beforeValidate({
+      data: { skill: 's1', modelName: 'qwen-plus', reviewStatus: 'approved' },
+      originalDoc: { reviewStatus: 'pending' },
+      req: { user: { id: 'owner-1', role: 'creator' }, payload },
+    })).rejects.toThrow('只有审核员可以修改 Adapter 人工评审状态')
   })
 
   it('collection hook 校验 Adapter 的版本和失败案例必须归属同一 Skill', async () => {
@@ -212,6 +251,7 @@ describe('adapterProfile — 适配补丁', () => {
       modelName: 'qwen-plus',
       modelVersion: '2026-07-01',
       status: 'draft',
+      reviewStatus: 'pending',
       failureTypes: ['format_invalid'],
       retryPolicy: { source: 'failure_case', profileKey: 's1|small|format_invalid' },
     })
@@ -257,6 +297,7 @@ describe('adapterProfile — 适配补丁', () => {
         modelName: 'qwen-plus',
         modelVersion: '2026-07-01',
         status: 'draft',
+        reviewStatus: 'pending',
       },
     })
   })
@@ -271,6 +312,7 @@ describe('adapterProfile — 适配补丁', () => {
       modelName: 'qwen-plus',
       modelVersion: '2026-07-01',
       status: 'draft',
+      reviewStatus: 'pending',
       failureTypes: ['format_invalid'],
       systemPromptAppend: '强制输出 JSON。',
       userPromptAppend: '检查 JSON parse。',
@@ -287,6 +329,11 @@ describe('adapterProfile — 适配补丁', () => {
       modelName: 'qwen-plus',
       modelVersion: '2026-07-01',
       adminUrl: '/admin/collections/adapter-profiles/adapter-1',
+      review: {
+        decision: 'review',
+        reviewStatus: 'pending',
+        reviewChecklist: expect.arrayContaining([expect.stringContaining('未批准草稿不得进入公开 Adapter')]),
+      },
     })
     expect(summary.systemPromptAppend).toBeUndefined()
     expect(summary.userPromptAppend).toBeUndefined()

@@ -14,6 +14,7 @@ describe('adapterProfilePublic — 公开 Adapter 效果摘要', () => {
     expect(buildAdapterProfileWhere(params)).toEqual({
       and: [
         { status: { equals: 'active' } },
+        { or: [{ reviewStatus: { equals: 'approved' } }, { reviewStatus: { exists: false } }] },
         { 'skill.status': { equals: 'published' } },
         { 'skill.visibility': { equals: 'public' } },
         { skill: { equals: 'skill-1' } },
@@ -32,6 +33,7 @@ describe('adapterProfilePublic — 公开 Adapter 效果摘要', () => {
     expect(buildAdapterProfileWhere(new URLSearchParams({ status: 'all' }))).toEqual({
       and: [
         { status: { equals: 'active' } },
+        { or: [{ reviewStatus: { equals: 'approved' } }, { reviewStatus: { exists: false } }] },
         { 'skill.status': { equals: 'published' } },
         { 'skill.visibility': { equals: 'public' } },
       ],
@@ -39,6 +41,7 @@ describe('adapterProfilePublic — 公开 Adapter 效果摘要', () => {
     expect(buildAdapterProfileWhere(new URLSearchParams({ status: 'disabled' }))).toEqual({
       and: [
         { status: { equals: 'active' } },
+        { or: [{ reviewStatus: { equals: 'approved' } }, { reviewStatus: { exists: false } }] },
         { 'skill.status': { equals: 'published' } },
         { 'skill.visibility': { equals: 'public' } },
       ],
@@ -54,6 +57,7 @@ describe('adapterProfilePublic — 公开 Adapter 效果摘要', () => {
       modelVersion: '2026-07-01',
       modelProfile: { id: 'profile-1', modelName: 'qwen-plus', modelVersion: '2026-07-01', provider: 'qwen' },
       status: 'active',
+      reviewStatus: 'approved',
       failureTypes: ['json_parse_error'],
       liftScore: 12.5,
       beforeMetrics: { samples: 10, successRate: 0.6, newapiLogId: 'log-secret' },
@@ -70,11 +74,13 @@ describe('adapterProfilePublic — 公开 Adapter 效果摘要', () => {
       modelVersion: '2026-07-01',
       modelProfile: { id: 'profile-1', title: 'qwen-plus', modelVersion: '2026-07-01', provider: 'qwen' },
       liftScore: 12.5,
+      reviewStatus: 'approved',
       playbook: {
         customerValue: expect.stringContaining('可复用修复证据'),
         decision: 'reuse',
         reuseChecklist: expect.arrayContaining([
           expect.stringContaining('modelName/modelVersion'),
+          expect.stringContaining('reviewStatus=approved'),
           expect.stringContaining('私人台账'),
         ]),
         nextActions: expect.arrayContaining([
@@ -114,6 +120,7 @@ describe('adapterProfilePublic — 公开 Adapter 效果摘要', () => {
       (publicAdapterProfile({
         id: 'reuse',
         status: 'active',
+        reviewStatus: 'approved',
         skill: { id: 's', status: 'published', visibility: 'public' },
         liftScore: 1,
         afterMetrics: { samples: 3 },
@@ -123,6 +130,7 @@ describe('adapterProfilePublic — 公开 Adapter 效果摘要', () => {
       (publicAdapterProfile({
         id: 'verify',
         status: 'active',
+        reviewStatus: 'approved',
         skill: { id: 's', status: 'published', visibility: 'public' },
         liftScore: 1,
         afterMetrics: { samples: 1 },
@@ -132,6 +140,7 @@ describe('adapterProfilePublic — 公开 Adapter 效果摘要', () => {
       (publicAdapterProfile({
         id: 'observe',
         status: 'active',
+        reviewStatus: 'approved',
         skill: { id: 's', status: 'published', visibility: 'public' },
         liftScore: 0,
         afterMetrics: { samples: 5 },
@@ -147,6 +156,7 @@ describe('adapterProfilePublic — 公开 Adapter 效果摘要', () => {
       failureType: 'f'.repeat(100),
     })) as any
     expect(where.and).toContainEqual({ skill: { equals: 's'.repeat(160) } })
+    expect(where.and).toContainEqual({ or: [{ reviewStatus: { equals: 'approved' } }, { reviewStatus: { exists: false } }] })
     expect(where.and).toContainEqual({ modelName: { equals: 'm'.repeat(160) } })
     expect(where.and).toContainEqual({
       or: [
@@ -166,5 +176,14 @@ describe('adapterProfilePublic — 公开 Adapter 效果摘要', () => {
 
     expect(isPublicAdapterProfile(adapter)).toBe(false)
     expect(publicAdapterProfile(adapter).skill).toBeNull()
+  })
+
+  it('未批准的 active Adapter 不进入公开复用链路', () => {
+    expect(isPublicAdapterProfile({
+      id: 'pending-active',
+      status: 'active',
+      reviewStatus: 'pending',
+      skill: { id: 's', status: 'published', visibility: 'public' },
+    })).toBe(false)
   })
 })

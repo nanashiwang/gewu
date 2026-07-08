@@ -8,7 +8,8 @@ function isPublicSkillRelation(value: any) {
 }
 
 export function isPublicAdapterProfile(adapter: any) {
-  return Boolean(adapter && adapter.status === 'active' && isPublicSkillRelation(adapter.skill))
+  const reviewStatus = String(adapter?.reviewStatus || 'approved')
+  return Boolean(adapter && adapter.status === 'active' && reviewStatus === 'approved' && isPublicSkillRelation(adapter.skill))
 }
 
 export function buildAdapterProfileWhere(params: URLSearchParams) {
@@ -23,6 +24,7 @@ export function buildAdapterProfileWhere(params: URLSearchParams) {
 
   const and: any[] = []
   and.push({ status: { equals: status } })
+  and.push({ or: [{ reviewStatus: { equals: 'approved' } }, { reviewStatus: { exists: false } }] })
   and.push({ 'skill.status': { equals: 'published' } })
   and.push({ 'skill.visibility': { equals: 'public' } })
   if (skillId) and.push({ skill: { equals: skillId } })
@@ -89,6 +91,7 @@ function adapterPlaybook(adapter: any) {
     decision,
     reuseChecklist: [
       '确认 Skill、modelName/modelVersion 与你的运行环境一致',
+      '确认 reviewStatus=approved；未批准草稿不能作为公开修复依据',
       '确认失败类型和输入档与来源 FailureCase 一致',
       'after 样本不足 3 时先用私人台账复验，不直接大规模启用',
       '只信公开效果摘要和 evidenceHash，补丁正文仍需作者/审核员权限复核',
@@ -146,6 +149,7 @@ export function publicAdapterProfile(adapter: any) {
     modelName: adapter?.modelName || null,
     modelVersion: adapter?.modelVersion || adapter?.modelProfile?.modelVersion || null,
     status: adapter?.status || 'draft',
+    reviewStatus: adapter?.reviewStatus || 'pending',
     failureTypes: Array.isArray(adapter?.failureTypes) ? adapter.failureTypes : [],
     liftScore: adapter?.liftScore ?? 0,
     beforeMetrics: publicSanitize(adapter?.beforeMetrics || null),

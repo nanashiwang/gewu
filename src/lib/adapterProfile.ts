@@ -35,6 +35,7 @@ export function buildAdapterEvidenceHash(adapter: any): string {
     modelName: adapter?.modelName || null,
     modelVersion: adapter?.modelVersion || adapter?.modelProfile?.modelVersion || null,
     status: adapter?.status || 'draft',
+    reviewStatus: adapter?.reviewStatus || 'pending',
     systemPromptAppend: adapter?.systemPromptAppend || null,
     userPromptAppend: adapter?.userPromptAppend || null,
     outputSchemaPatch: adapter?.outputSchemaPatch || null,
@@ -104,6 +105,7 @@ export async function findActiveAdapter(payload: Payload, args: {
         modelWhere.length === 1 ? modelWhere[0] : { or: modelWhere },
         ...(versionWhere ? [versionWhere] : []),
         { status: { equals: 'active' } },
+        { or: [{ reviewStatus: { equals: 'approved' } }, { reviewStatus: { exists: false } }] },
         {
           or: [
             { skillVersion: { equals: args.versionId } },
@@ -211,6 +213,7 @@ export function buildAdapterDraftFromFailureCase(failureCase: any, overrides: Re
     modelName,
     modelVersion,
     status: 'draft',
+    reviewStatus: 'pending',
     systemPromptAppend: failureCase?.repairTemplate
       ? `针对历史失败「${errorType}」的修复约束：\n${String(failureCase.repairTemplate)}`
       : undefined,
@@ -239,10 +242,54 @@ export function adapterDraftSummary(adapter: any) {
     modelName: adapter.modelName || null,
     modelVersion: adapter.modelVersion || adapter.modelProfile?.modelVersion || null,
     status: adapter.status || 'draft',
+    reviewStatus: adapter.reviewStatus || 'pending',
+    review: adapterReviewPlaybook(adapter),
     failureTypes: Array.isArray(adapter.failureTypes) ? adapter.failureTypes : [],
     adminUrl: adapter.id ? `/admin/collections/adapter-profiles/${encodeURIComponent(String(adapter.id))}` : null,
     createdAt: adapter.createdAt || undefined,
     updatedAt: adapter.updatedAt || undefined,
+  }
+}
+
+export function adapterReviewPlaybook(adapter: any) {
+  const status = String(adapter?.reviewStatus || 'pending')
+  const decision =
+    status === 'approved'
+      ? 'ready_to_verify'
+      : status === 'needs_changes'
+        ? 'revise'
+        : status === 'rejected'
+          ? 'stop'
+          : 'review'
+  return {
+    decision,
+    reviewStatus: status,
+    customerValue: '把 Adapter 从“作者自己说能修”变成经人工复核、再用私人台账复验的修复资产。',
+    reviewChecklist: [
+      '确认来源 FailureCase、SkillVersion、modelName/modelVersion 属于同一问题链路',
+      '检查 prompt/schema/decoding/retry 补丁是否只修目标失败类型',
+      '用至少一条私人台账失败输入复验 before/after，避免只看草稿描述',
+      '批准后再启用 active；未批准草稿不得进入公开 Adapter 复用链路',
+    ],
+    nextActions: [
+      {
+        label: status === 'approved' ? '复验 lift' : '提交人工评审',
+        description: status === 'approved'
+          ? '已通过人工评审，下一步用真实失败输入复验 lift 和格式率。'
+          : '先由作者/审核员在后台核对补丁边界、来源失败和版本适用范围。',
+        href: adapter?.id ? `/admin/collections/adapter-profiles/${encodeURIComponent(String(adapter.id))}` : null,
+      },
+      {
+        label: '回到来源失败',
+        description: '对照失败画像确认症状、输入档和模型版本，避免把不相干问题合并到同一个 Adapter。',
+        href: adapter?.sourceFailureCase ? `/failures?failureId=${encodeURIComponent(String(relationId(adapter.sourceFailureCase) || adapter.sourceFailureCase))}` : null,
+      },
+      {
+        label: '用私人台账复验',
+        description: '筛出同模型失败运行，用原输入重跑，确认 Adapter 真的提升成功率和格式率。',
+        href: adapter?.modelName ? `/console/runs?model=${encodeURIComponent(String(adapter.modelName))}&success=false` : '/console/runs?success=false',
+      },
+    ],
   }
 }
 

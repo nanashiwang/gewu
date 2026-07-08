@@ -52,6 +52,22 @@ export const AdapterProfiles: CollectionConfig = {
         { label: '停用', value: 'disabled' },
       ],
     },
+    {
+      name: 'reviewStatus',
+      type: 'select',
+      defaultValue: 'pending',
+      index: true,
+      label: '人工评审状态',
+      options: [
+        { label: '待评审', value: 'pending' },
+        { label: '需修改', value: 'needs_changes' },
+        { label: '已批准', value: 'approved' },
+        { label: '已拒绝', value: 'rejected' },
+      ],
+    },
+    { name: 'reviewedBy', type: 'relationship', relationTo: 'users', label: '评审人', admin: { readOnly: true } },
+    { name: 'reviewedAt', type: 'date', label: '评审时间', admin: { readOnly: true } },
+    { name: 'reviewerNotes', type: 'textarea', label: '评审备注' },
     { name: 'systemPromptAppend', type: 'textarea', label: 'System 追加补丁' },
     { name: 'userPromptAppend', type: 'textarea', label: 'User 追加补丁' },
     { name: 'outputSchemaPatch', type: 'json', label: '输出 schema 补丁' },
@@ -77,10 +93,14 @@ export const AdapterProfiles: CollectionConfig = {
         if (!skill) throw new APIError('Adapter 关联的 Skill 不存在', 400)
 
         const user = req.user as any
+        const isStaff = user && ['admin', 'reviewer'].includes(String(user.role || ''))
         if (user && !['admin', 'reviewer'].includes(String(user.role || ''))) {
           const authorId = relationId(skill.author)
           if (!authorId || String(authorId) !== String(user.id)) {
             throw new APIError('无权为他人的 Skill 创建或修改 Adapter', 403)
+          }
+          if (data?.reviewStatus && String(data.reviewStatus) !== String(originalDoc?.reviewStatus || 'pending')) {
+            throw new APIError('只有审核员可以修改 Adapter 人工评审状态', 403)
           }
         }
 
@@ -104,14 +124,25 @@ export const AdapterProfiles: CollectionConfig = {
           }
         }
 
+        if (isStaff && data?.status === 'active' && !data.reviewStatus && merged.reviewStatus !== 'approved') {
+          data.reviewStatus = 'approved'
+        }
+        if (merged.status === 'active' && (data?.reviewStatus || merged.reviewStatus || 'pending') !== 'approved') {
+          throw new APIError('Adapter 启用前必须由审核员批准', 403)
+        }
+
         return data
       },
     ],
     beforeChange: [
-      ({ data, originalDoc }) => {
+      ({ data, originalDoc, req }) => {
         const merged = { ...(originalDoc || {}), ...(data || {}) }
         data.evidenceHash = buildAdapterEvidenceHash(merged)
         if (!data.lastVerifiedAt && data.status === 'active') data.lastVerifiedAt = new Date().toISOString()
+        if (data.reviewStatus && data.reviewStatus !== originalDoc?.reviewStatus && ['approved', 'rejected', 'needs_changes'].includes(String(data.reviewStatus))) {
+          data.reviewedAt = new Date().toISOString()
+          if (req?.user && ['admin', 'reviewer'].includes(String((req.user as any).role || ''))) data.reviewedBy = (req.user as any).id
+        }
         return data
       },
     ],

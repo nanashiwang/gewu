@@ -87,11 +87,18 @@ describe('evidenceVerifyPublic — 公开证据验签查询', () => {
     await expect(canVerifyEvidenceTarget(payload, 'failure_case', 'private')).resolves.toBe(false)
   })
 
-  it('只允许 active Adapter 被公开验签', async () => {
+  it('只允许已批准 active Adapter 被公开验签', async () => {
     const payload = fakePayload({
       'adapter-profiles:active': {
         id: 'active',
         status: 'active',
+        reviewStatus: 'approved',
+        skill: { id: 'skill-public', status: 'published', visibility: 'public' },
+      },
+      'adapter-profiles:pending': {
+        id: 'pending',
+        status: 'active',
+        reviewStatus: 'pending',
         skill: { id: 'skill-public', status: 'published', visibility: 'public' },
       },
       'adapter-profiles:private': {
@@ -112,6 +119,7 @@ describe('evidenceVerifyPublic — 公开证据验签查询', () => {
     })
 
     await expect(canVerifyEvidenceTarget(payload, 'adapter_profile', 'active')).resolves.toBe(true)
+    await expect(canVerifyEvidenceTarget(payload, 'adapter_profile', 'pending')).resolves.toBe(false)
     await expect(canVerifyEvidenceTarget(payload, 'adapter_profile', 'private')).resolves.toBe(false)
     await expect(canVerifyEvidenceTarget(payload, 'adapter_profile', 'draft')).resolves.toBe(false)
     await expect(canVerifyEvidenceTarget(payload, 'adapter_profile', 'disabled')).resolves.toBe(false)

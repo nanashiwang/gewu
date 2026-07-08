@@ -17,7 +17,7 @@
 | ModelProfile | `src/collections/ModelProfiles.ts`、`src/lib/modelProfile.ts`、`src/lib/modelProfilePublic.ts` | 支持 modelName + modelVersion；刷新 worker；记录 `driftHistory` 漂移曲线和 inputBucket 表现；回归/漂移告警；保留有效样本与来源权重；原始集合仅后台可读，公开读取走脱敏模型画像 API，并返回采用复验 checklist 与私人台账复验入口。 |
 | CompatTestCase | `src/collections/CompatTestCases.ts`、`src/lib/benchmark.ts`、`src/lib/benchmarkScoring.ts` | benchmark 优先读取测试用例，再回退 examples/schema；支持按黄金样例 requiredOutputPaths / expectedTextIncludes 逐条打分，并把 case 分数写回兼容报告；测试输入原文仅作者/审核/管理可读。 |
 | FailureCase | `src/collections/FailureCases.ts`、`src/lib/failureKnowledge.ts`、`src/lib/failureRefresh.ts`、`src/lib/failureCasePublic.ts` | 按 Skill × 输入档 × errorType 聚合任务失败画像；随失败回流自动刷新并写证据快照；原始集合仅后台可读，公开读取走脱敏失败库 API，并返回 triage checklist、私人台账复现、模型画像、Adapter 和证据验签入口。 |
-| AdapterProfile | `src/collections/AdapterProfiles.ts`、`src/lib/adapterProfile.ts`、`src/lib/adapterProfilePublic.ts`、`src/app/v1/failures/[id]/adapter/route.ts` | Skill × Model/Profile 的 prompt/schema/decoding/retry 补丁；运行时应用；自动 evidenceHash/快照；刷新 before/after lift；支持从 FailureCase 生成待审核草稿；公开 API 返回复用/复验 checklist、私人台账复验入口和证据验签入口；原始补丁正文仅作者/审核/管理可读。 |
+| AdapterProfile | `src/collections/AdapterProfiles.ts`、`src/lib/adapterProfile.ts`、`src/lib/adapterProfilePublic.ts`、`src/app/v1/failures/[id]/adapter/route.ts` | Skill × Model/Profile 的 prompt/schema/decoding/retry 补丁；运行时应用；自动 evidenceHash/快照；刷新 before/after lift；支持从 FailureCase 生成待审核草稿；未批准草稿不得启用 active，公开 API 只读已批准 active Adapter，返回复用/复验 checklist、私人台账复验入口和证据验签入口；原始补丁正文仅作者/审核/管理可读。 |
 | EvidenceSnapshots | `src/collections/EvidenceSnapshots.ts`、`src/lib/evidenceSnapshot.ts`、`src/lib/evidenceSnapshotVerify.ts`、`src/lib/evidenceAnchor.ts` | Passport / FailureCase / Adapter 的 append-only 证据快照；原始集合仅后台可读；公开验签必须带已知 targetType/targetId，不允许匿名枚举；支持 JSONL 外锚导出、manifest 自签/校验，以及第三方发布/时间戳声明。 |
 | 公开验签 | `src/app/(frontend)/verify/page.tsx`、`src/components/verify/CertificateVerifyForm.tsx`、`src/components/verify/EvidenceVerifyForm.tsx`、`src/components/verify/AnchorVerifyForm.tsx`、`src/app/v1/evidence/verify/route.ts`、`src/app/v1/anchors/verify/route.ts`、`src/app/v1/certificates/verify/route.ts`、`src/app/v1/skills/[slug]/passport/route.ts`、`src/lib/scoreAnchor.ts`、`src/lib/skillCertificateVerify.ts` | 分数快照、证据快照、Skill Passport 和达标证书均可公开复核；达标证书可通过 `/verify?certificateUrl=...` 直达自动加载并验签；证据快照表单可输入或通过 `/verify?targetType=...&targetId=...` 直达展示脱敏 targetSummary、payloadHash 和签名状态；Passport API 也返回带 evidenceHash 的黄金样例基准摘要；分数/证据外锚 manifest 支持 ed25519 自签/校验、可信发布目标/外部时间戳可信等级、页面粘贴校验和公开 API 校验，并返回采购/审计复核 playbook。 |
 | Enterprise Registry | `src/collections/Organizations.ts`、`OrganizationMembers.ts`、`EnterpriseRegistries.ts`、`src/app/v1/enterprise/registry/route.ts`、`members/route.ts`、`identity/route.ts`、`/console/enterprise` | 组织、成员、批准 Skill、模型白名单与治理边界；支持审批准入、成员增删改、组织内 Passport 读取、准入治理 checklist、审计/失败库入口、基础策略包执行、策略模板编辑和身份策略配置；添加成员时执行邮箱域/SSO 策略。 |
@@ -52,7 +52,7 @@
 | `/v1/runner/report` | Runner 本地兼容回流；要求当前 Runner 存在 active install 且 checksum 匹配，只存成功率、格式、延迟、错误类型、输入/输出大小档等指标，不存输入/输出原文。 |
 | `/models` | 中立模型榜；显示 ModelProfile 稳定/回归告警、输入规模档表现、来源权重、有效样本、客户决策步骤和画像筛选表单；每行可跳转模型画像 API、该模型失败库与 Adapter API，不污染排序。 |
 | `/v1/model-profiles` | 公开读取模型画像、版本漂移、输入规模档表现、回归告警、有效样本、来源权重和 use/trial/review/avoid 决策 playbook；支持 modelName/modelVersion/provider/status 过滤；返回采用复验 checklist、私人台账复验、失败库和 Adapter 排障入口，不暴露平台收益字段。 |
-| `/failures` | 优先读取 FailureCases；展示“发现失败模式 → 生成 Adapter 草稿 → 复验 lift”的闭环和“客户怎么用”排障步骤；展示 profileKey、主输入档、模型分布、Adapter 建议、Adapter 复用/复验说明、模型画像入口、Adapter API、失败/Adapter 证据验签入口和多维筛选表单；只有 Skill 作者、审核员或管理员可从失败案例生成 Adapter 草稿并直达后台草稿审核。 |
+| `/failures` | 优先读取 FailureCases；展示“发现失败模式 → 生成 Adapter 草稿 → 复验 lift”的闭环和“客户怎么用”排障步骤；展示 profileKey、主输入档、模型分布、Adapter 建议、Adapter 复用/复验说明、模型画像入口、Adapter API、失败/Adapter 证据验签入口和多维筛选表单；只有 Skill 作者、审核员或管理员可从失败案例生成待人工评审 Adapter 草稿并直达后台草稿审核。 |
 | `/v1/failures` | 公开读取脱敏 FailureCase 列表、客户排障 playbook、triage checklist、私人台账复现入口、修复/复验建议、模型/来源分布、模型画像/Adapter 排障入口和 API/页面证据验签入口；支持 errorType/modelName/modelVersion/status/skillId/profileKey/inputBucket/source 过滤。 |
 | `/rank` | 可信发现榜；公开说明排序口径，把可信分（skillRank）、成功率、可信兼容运行数和 Passport 可信分放在一起，并提供公开 Passport 证据入口，避免把下载量/普通调用量当成可信度。 |
 | `/bounties` | 求术悬赏；引导用户把需求写成可验收标准，创作者交付可版本化、可签名、可进入 Passport 闭环的 Skill，而不是一次性答案。 |
@@ -79,8 +79,8 @@
 | `/v1/enterprise/members` | 添加/更新/移除组织成员；添加 active 成员时执行组织身份策略，移除时保留 suspended 记录。 |
 | `/v1/enterprise/registry/[id]/passport` | 组织内读取已批准/可审 Registry 的 Skill Passport、治理状态、准入治理 checklist、证据验签摘要、证书状态摘要、审计/失败库入口和绑定 Contract 的达标证书，便于企业采购/审计复核。 |
 | `worker:export-evidence-anchors` / `worker:verify-evidence-anchors` | 导出证据快照 JSONL 哈希链，并用 manifest 校验行数、链头、文件哈希、manifest ed25519 自签名和第三方发布/时间戳声明格式。 |
-| `/v1/adapters` | 公开读取 active Adapter 的 lift 效果摘要、复用/复验 checklist、私人台账复验入口、模型画像入口和 API/页面证据验签入口；支持 skillId/modelName/modelVersion/failureType/failureId/modelProfile 过滤，不暴露 prompt/schema/decoding 补丁正文、草稿或停用补丁。 |
-| `/v1/failures/[id]/adapter` | 从失败案例生成 Adapter 草稿，由作者/审核员确认后启用。 |
+| `/v1/adapters` | 公开读取已批准 active Adapter 的 lift 效果摘要、复用/复验 checklist、私人台账复验入口、模型画像入口和 API/页面证据验签入口；支持 skillId/modelName/modelVersion/failureType/failureId/modelProfile 过滤，不暴露 prompt/schema/decoding 补丁正文、未批准草稿或停用补丁。 |
+| `/v1/failures/[id]/adapter` | 从失败案例生成 Adapter 待评审草稿；只有审核员批准后才能启用 active。 |
 | `/v1/skills` 包上传 | 支持 Hengshu Skill 包；也可导入 GitHub README、Claude Skill `SKILL.md`、GPTs 配置为待审 Imported Skill。 |
 | `worker:import-skill-sources` / `worker:sync-skill-sources` | 从 JSON 来源清单批量导入 GitHub README / Claude Skill / GPTs / Skill 包；用稳定来源键幂等创建，另存内容 hash；`--sync`/同步 worker 命中内容变化时生成新版本并记录差分，可直接挂 cron。 |
 
