@@ -69,6 +69,19 @@ describe('skillCertificateVerify — 证书公开验签', () => {
       hashValid: true,
       signatureValid: true,
       keyMatch: true,
+      auditPlaybook: {
+        customerValue: expect.stringContaining('采购/企业准入动作'),
+        decision: 'accept',
+        nextActions: expect.arrayContaining([
+          expect.objectContaining({ label: '核对签名与哈希' }),
+          expect.objectContaining({ label: '核对 Contract' }),
+          expect.objectContaining({
+            label: '核对 Passport 与样例',
+            href: '/verify?targetType=skill_passport&targetId=passport-1',
+          }),
+          expect.objectContaining({ label: '形成准入结论' }),
+        ]),
+      },
       certificateSummary: {
         subject: { slug: 'writer', title: 'Writer' },
         passport: {
@@ -155,7 +168,13 @@ describe('skillCertificateVerify — 证书公开验签', () => {
       certificateSignature: built.certificateSignature,
       publicKeyInfo: getPublicKeyInfo(env),
     })
-    expect(result).toMatchObject({ status: 'hash_mismatch', valid: false, hashValid: false, signatureValid: false })
+    expect(result).toMatchObject({
+      status: 'hash_mismatch',
+      valid: false,
+      hashValid: false,
+      signatureValid: false,
+      auditPlaybook: { decision: 'reject' },
+    })
   })
 
   it('篡改后重算 hash 但复用旧签名时返回 signature_invalid', () => {
@@ -174,6 +193,12 @@ describe('skillCertificateVerify — 证书公开验签', () => {
   it('无签名证书降级为 unsigned，但仍报告 hash 有效', () => {
     const built = buildSkillCertificate(baseInput, {})
     const result = verifySkillCertificate({ certificate: built.certificate, certificateSignature: null, publicKeyInfo: null })
-    expect(result).toMatchObject({ status: 'unsigned', valid: false, hashValid: true, signatureValid: false })
+    expect(result).toMatchObject({
+      status: 'unsigned',
+      valid: false,
+      hashValid: true,
+      signatureValid: false,
+      auditPlaybook: { decision: 'review' },
+    })
   })
 })

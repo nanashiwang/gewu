@@ -58,10 +58,10 @@
 | `/console/runs` | 私人运行台账；页面按 Skill/模型/路由/成功/格式/可信兼容/重跑来源筛选；查看输入/输出；导出账本指标或本人输入/输出并沿用筛选；推荐模型或自定义 OpenAI 兼容模型名重跑；重跑血缘；展示重跑前后成本/延迟/成功结果对比；失败运行可直达模型画像和失败库。 |
 | `/v1/runs` | 当前用户私人运行台账导出 API；支持 skillId/model/modelVersion/routeMode/success/formatValid/trustedCompatible/rerunOf 过滤；默认只导出账本指标，同时返回 `modelProfileUrl`、`trustedCompatible` 与失败运行的 `failureKnowledgeUrl`；`includeIO=1` 时仅本人导出输入/输出；导出动作写入审计日志。 |
 | `/docs` | 面向用户的模块化功能说明；首页按“找 Skill / 本地 Runner / 发布 / 私人台账 / 公开验签 / 企业 Registry”六条路径直达关键入口。 |
-| `/verify` | 解释分数快照、达标证书、证据快照、外锚包四类证据链；分数快照验签列表 + 达标证书在线验签表单（支持 certificateUrl 自动加载并展示绑定 Contract）+ 证据快照在线验签表单（支持 query 参数直达并展示 targetSummary）+ 外锚包在线校验表单；可粘贴证书、score/evidence JSONL、manifest、可信发布目标和时间戳 receipt，并展示外锚可信等级。 |
+| `/verify` | 解释分数快照、达标证书、证据快照、外锚包四类证据链和客户复核路径；分数快照验签列表 + 达标证书在线验签表单（支持 certificateUrl 自动加载、展示绑定 Contract 与准入复核指引）+ 证据快照在线验签表单（支持 query 参数直达并展示 targetSummary）+ 外锚包在线校验表单；可粘贴证书、score/evidence JSONL、manifest、可信发布目标和时间戳 receipt，并展示外锚可信等级。 |
 | `/v1/evidence/verify` | 公开验证已知 Passport/FailureCase/Adapter 证据快照；必须带 `targetType` 和 `targetId`，返回公开脱敏 `targetSummary`、payloadHash 和签名状态，不允许匿名枚举全部证据快照。 |
 | `/v1/anchors/verify` | 公开校验 score/evidence 外锚 JSONL + manifest，返回链头、行数、文件哈希、签名校验结果、可信发布目标命中状态、外部时间戳 receiptHash 校验结果和 `assurance.level`（chain_only/self_signed/trusted_published/external_timestamped）；可信发布目标可在部署设置配置。 |
-| `/v1/certificates/verify` | 公开校验绑定 Contract 摘要的 Skill 达标证书 certificateHash 与 ed25519 签名；支持完整证书响应或裸 certificate 对象，返回 valid/unsigned/hash_mismatch/key_unavailable/signature_invalid，并带证书绑定的 Contract/Passport/基准摘要和 `statusReasons` 供页面展示。 |
+| `/v1/certificates/verify` | 公开校验绑定 Contract 摘要的 Skill 达标证书 certificateHash 与 ed25519 签名；支持完整证书响应或裸 certificate 对象，返回 valid/unsigned/hash_mismatch/key_unavailable/signature_invalid，并带证书绑定的 Contract/Passport/基准摘要、`statusReasons` 和 accept/review/reject 客户复核 playbook 供页面、采购或企业 Registry 准入使用。 |
 | `worker:preflight-private` | NAS/私有部署 readiness：允许内网 HTTP，但阻断默认密钥/弱数据库密码/URL 不同源/非法端口，并提示备份与媒体持久化。 |
 | `worker:preflight-production` | 生产上线前检查可信发布目标格式；缺失只警告，非法 URL / 空目标阻断。 |
 | `/v1/skills/[slug]/contract` | 公开读取 Skill 能力契约摘要、contractHash 和 prompt hash，不暴露 prompt 正文。 |

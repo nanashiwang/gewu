@@ -12,6 +12,11 @@ type VerifyResult = {
   keyMatch?: boolean
   reason?: string
   publicKey?: { keyId: string; algorithm: string } | null
+  auditPlaybook?: {
+    customerValue: string
+    decision: 'accept' | 'review' | 'reject'
+    nextActions: Array<{ label: string; description: string; href?: string | null }>
+  }
   certificateSummary?: {
     subject?: { id?: string; slug?: string; title?: string }
     status?: string
@@ -234,6 +239,34 @@ export function CertificateVerifyForm({
           ) : (
             <div className="space-y-2">
               <div className="font-semibold">{resultTitle(result)}：{result.reason}</div>
+              {result.auditPlaybook ? (
+                <div className="rounded-lg border border-current/20 p-3 text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="font-semibold">客户复核指引</div>
+                    <span className="rounded-full border border-current/30 px-2 py-0.5">
+                      {result.auditPlaybook.decision === 'accept'
+                        ? '可作为准入候选'
+                        : result.auditPlaybook.decision === 'reject'
+                          ? '建议拒绝'
+                          : '需要人工复核'}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-current/80">{result.auditPlaybook.customerValue}</p>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {result.auditPlaybook.nextActions.map((action) => (
+                      <div key={action.label} className="rounded border border-current/15 p-2">
+                        <div className="font-medium">{action.label}</div>
+                        <div className="mt-1 text-current/75">{action.description}</div>
+                        {action.href ? (
+                          <a href={action.href} className="mt-1 inline-flex text-[var(--accent)] hover:underline">
+                            打开关联证据
+                          </a>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="grid gap-2 text-xs md:grid-cols-2 lg:grid-cols-4">
                 <div>状态：{result.status || '—'}</div>
                 <div>Hash：{result.hashValid ? '有效' : '异常'}</div>

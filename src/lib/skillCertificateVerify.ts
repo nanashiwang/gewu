@@ -26,7 +26,14 @@ export type SkillCertificateVerifyResult = {
   signatureValid: boolean
   keyMatch: boolean
   reason: string
+  auditPlaybook?: SkillCertificateAuditPlaybook
   certificateSummary?: SkillCertificateVerifySummary | null
+}
+
+export type SkillCertificateAuditPlaybook = {
+  customerValue: string
+  decision: 'accept' | 'review' | 'reject'
+  nextActions: Array<{ label: string; description: string; href?: string | null }>
 }
 
 export type SkillCertificateVerifySummary = {
@@ -196,6 +203,56 @@ function certificateSigningCore(certificate: any): any | null {
   return { ...certificate }
 }
 
+function certificateAuditPlaybook(
+  status: SkillCertificateVerifyStatus,
+  summary: SkillCertificateVerifySummary | null,
+): SkillCertificateAuditPlaybook {
+  const certificateStatus = summary?.status
+  const decision =
+    status === 'valid' && certificateStatus === 'passed'
+      ? 'accept'
+      : status === 'hash_mismatch' || status === 'signature_invalid' || status === 'invalid'
+        ? 'reject'
+        : 'review'
+  const reasons = summary?.statusReasons?.length
+    ? `未达标原因：${summary.statusReasons.join(' / ')}。`
+    : ''
+  return {
+    customerValue:
+      '把证书验签结果翻译成采购/企业准入动作：先确认签名与哈希，再核对 Contract、Passport、黄金样例和证据快照。',
+    decision,
+    nextActions: [
+      {
+        label: '核对签名与哈希',
+        description:
+          status === 'valid'
+            ? 'certificateHash 与 ed25519 签名均有效，证书载荷未被篡改。'
+            : '证书未通过完整验签，不应作为正式采购或企业准入依据。',
+      },
+      {
+        label: '核对 Contract',
+        description: summary?.contract?.contractHash
+          ? `已绑定 Contract ${summary.contract.version || ''}，确认权限、输入输出契约和 Runner 版本是否符合内部要求。`
+          : '证书未绑定可复核 Contract，需转人工复核。',
+      },
+      {
+        label: '核对 Passport 与样例',
+        description: `Passport 可信分 ${summary?.passport?.trustScore ?? '—'}，黄金样例 ${summary?.benchmark?.passed ?? 0}/${summary?.benchmark?.total ?? 0}。${reasons}`,
+        href: summary?.passport?.evidenceVerifyPageUrl || null,
+      },
+      {
+        label: '形成准入结论',
+        description:
+          decision === 'accept'
+            ? '可进入企业 Registry 或采购复核的通过候选。'
+            : decision === 'reject'
+              ? '证据链异常，建议拒绝或要求重新签发。'
+              : '签名或业务状态仍需人工复核，不要直接当作正式达标。',
+      },
+    ],
+  }
+}
+
 export function skillCertificateHash(certificate: any): string | null {
   const core = certificateSigningCore(certificate)
   if (!core) return null
@@ -233,6 +290,7 @@ export function verifySkillCertificate(args: {
       signatureValid: false,
       keyMatch: false,
       reason: 'certificateHash 与规范化证书载荷不一致',
+      auditPlaybook: certificateAuditPlaybook('hash_mismatch', summary),
       certificateSummary: summary,
     }
   }
@@ -247,6 +305,7 @@ export function verifySkillCertificate(args: {
       signatureValid: false,
       keyMatch: false,
       reason: '证书未签名，仅可验证哈希',
+      auditPlaybook: certificateAuditPlaybook('unsigned', summary),
       certificateSummary: summary,
     }
   }
@@ -259,6 +318,7 @@ export function verifySkillCertificate(args: {
       signatureValid: false,
       keyMatch: false,
       reason: '证书签名算法不支持',
+      auditPlaybook: certificateAuditPlaybook('signature_invalid', summary),
       certificateSummary: summary,
     }
   }
@@ -273,6 +333,7 @@ export function verifySkillCertificate(args: {
       signatureValid: false,
       keyMatch: false,
       reason: '当前站点未公开可用 ed25519 公钥',
+      auditPlaybook: certificateAuditPlaybook('key_unavailable', summary),
       certificateSummary: summary,
     }
   }
@@ -287,6 +348,7 @@ export function verifySkillCertificate(args: {
       signatureValid: false,
       keyMatch: false,
       reason: '证书 keyId 与当前公钥不一致',
+      auditPlaybook: certificateAuditPlaybook('key_unavailable', summary),
       certificateSummary: summary,
     }
   }
@@ -307,6 +369,10 @@ export function verifySkillCertificate(args: {
       signatureValid,
       keyMatch: true,
       reason: signatureValid ? '证书哈希与 ed25519 签名均有效' : '证书签名校验失败',
+      auditPlaybook: certificateAuditPlaybook(
+        signatureValid ? 'valid' : 'signature_invalid',
+        summary,
+      ),
       certificateSummary: summary,
     }
   } catch {
@@ -318,6 +384,7 @@ export function verifySkillCertificate(args: {
       signatureValid: false,
       keyMatch: true,
       reason: '公钥或签名格式无效',
+      auditPlaybook: certificateAuditPlaybook('signature_invalid', summary),
       certificateSummary: summary,
     }
   }

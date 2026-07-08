@@ -144,6 +144,16 @@ export default async function VerifyPage({
             </p>
           </div>
         </div>
+
+        <div className="mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 text-xs">
+          <div className="font-semibold text-[var(--text)]">客户复核路径</div>
+          <div className="mt-2 grid gap-2 text-[var(--muted)] md:grid-cols-4">
+            <span>1. 先验证 Hash / 签名是否有效。</span>
+            <span>2. 再核对 Contract、Passport、黄金样例和证据快照。</span>
+            <span>3. 证书未达 passed 时只作为预备线索，不做正式准入。</span>
+            <span>4. 企业可把验签结果带回 Registry 做审批和审计。</span>
+          </div>
+        </div>
       </div>
 
       <CertificateVerifyForm initialCertificateUrl={sp.certificateUrl} />
