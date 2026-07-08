@@ -1,4 +1,4 @@
-import type { Payload } from 'payload'
+import { generatePayloadCookie, getFieldsToSign, jwtSign, type Payload } from 'payload'
 import { createHash, createHmac, createPublicKey, createVerify, randomBytes, timingSafeEqual } from 'crypto'
 import { bucketSize } from './compat'
 import { aggregateFailureKnowledge, type FailureKnowledgeGroup, type FailureKnowledgeReport } from './failureKnowledge'
@@ -487,6 +487,44 @@ export function verifyEnterpriseOidcIdTokenClaims(
   const policyCheck = evaluateEnterpriseIdentityPolicy(policy, { email, authMethod: 'sso' })
   if (!policyCheck.ok) return { ok: false, code: 'DOMAIN_REJECTED', reason: policyCheck.reason, claims, warnings }
   return { ok: true, claims, email, header, warnings }
+}
+
+
+export async function issueEnterpriseSsoSession(
+  payload: Payload,
+  args: { user: any; email?: string },
+): Promise<{ token: string; exp: number; cookie: string; user: any }> {
+  const collectionConfig = (payload as any).collections?.users?.config
+  if (!collectionConfig?.auth) throw new Error('users auth collection is not configured')
+  const email = String(args.email || args.user?.email || '').trim().toLowerCase()
+  if (!email) throw new Error('SSO user email missing')
+  if (args.user?.accountStatus === 'banned') throw new Error('账号已被封禁')
+  const fieldsToSign = getFieldsToSign({
+    collectionConfig,
+    email,
+    user: args.user,
+  })
+  const { exp, token } = await jwtSign({
+    fieldsToSign,
+    secret: String((payload as any).secret || (payload as any).config?.secret || process.env.PAYLOAD_SECRET || 'dev-secret'),
+    tokenExpiration: Number(collectionConfig.auth.tokenExpiration || 7200),
+  })
+  const cookie = generatePayloadCookie({
+    collectionAuthConfig: collectionConfig.auth,
+    cookiePrefix: String((payload as any).config?.cookiePrefix || 'payload'),
+    token,
+  })
+  return {
+    token,
+    exp,
+    cookie,
+    user: {
+      id: String(args.user.id || ''),
+      email,
+      username: args.user.username || null,
+      role: args.user.role || 'user',
+    },
+  }
 }
 
 export async function resolveEnterpriseSsoMemberBinding(

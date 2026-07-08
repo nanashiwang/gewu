@@ -11,6 +11,7 @@ import {
   enterpriseScimTokenDigest,
   enterpriseScimUserResource,
   enterpriseIdentityPlaybook,
+  issueEnterpriseSsoSession,
   buildEnterpriseOidcTokenRequest,
   buildEnterpriseSsoAuthorizeUrl,
   buildEnterpriseAdoptionBaseline,
@@ -182,6 +183,37 @@ describe('enterprise — 企业 Registry 授权', () => {
       organizationId: 'org-1',
       baseUrl: 'https://hengshu.example.com',
     })).toMatchObject({ ok: false, reason: expect.stringContaining('OIDC') })
+  })
+
+
+  it('企业 SSO 校验通过后可签发 Payload 登录 cookie', async () => {
+    const payload = {
+      secret: 'test-secret-for-sso-session',
+      config: { cookiePrefix: 'payload' },
+      collections: {
+        users: {
+          config: {
+            slug: 'users',
+            auth: { tokenExpiration: 60, cookies: { sameSite: 'Lax', secure: false } },
+            fields: [],
+          },
+        },
+      },
+    }
+
+    const session = await issueEnterpriseSsoSession(payload as any, {
+      user: { id: 'user-1', email: 'Alice@Example.com', username: 'alice', role: 'user' },
+    })
+
+    expect(session).toMatchObject({
+      user: { id: 'user-1', email: 'alice@example.com', username: 'alice', role: 'user' },
+    })
+    expect(session.token.split('.')).toHaveLength(3)
+    expect(session.cookie).toContain('payload-token=')
+    expect(session.cookie).toContain('HttpOnly')
+    expect(session.cookie).toContain('SameSite=Lax')
+    expect(session.cookie).toContain('Expires=')
+    expect(session.cookie).not.toContain('test-secret-for-sso-session')
   })
 
   it('企业 SSO state 使用 HMAC 签名，callback 可还原组织上下文并拒绝篡改/过期', () => {

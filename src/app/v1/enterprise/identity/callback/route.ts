@@ -1,7 +1,7 @@
 import { getPayload } from 'payload'
 import config from '@payload-config'
 import { readEnterpriseOptionalQuery } from '@/lib/enterpriseRequest'
-import { buildEnterpriseOidcTokenRequest, resolveEnterpriseSsoMemberBinding, verifyEnterpriseOidcIdTokenClaims, verifyEnterpriseSsoState } from '@/lib/enterprise'
+import { buildEnterpriseOidcTokenRequest, issueEnterpriseSsoSession, resolveEnterpriseSsoMemberBinding, verifyEnterpriseOidcIdTokenClaims, verifyEnterpriseSsoState } from '@/lib/enterprise'
 
 // GET /v1/enterprise/identity/callback —— OIDC 回调：校验 state，可选校验 id_token claims 并绑定组织成员。
 export async function GET(request: Request) {
@@ -46,9 +46,12 @@ export async function GET(request: Request) {
       })
     : null
   const ready = idTokenCheck?.ok && memberBinding?.ok
-  return Response.json({
+  const session = ready
+    ? await issueEnterpriseSsoSession(payload, { user: memberBinding.user, email: idTokenCheck.email })
+    : null
+  const responseBody = {
     ok: Boolean(ready),
-    status: ready ? 'sso_verified_member_bound' : 'callback_received',
+    status: ready ? 'sso_session_issued' : 'callback_received',
     codeReceived: true,
     stateReceived: true,
     organizationId: stateCheck.payload.organizationId,
@@ -65,8 +68,18 @@ export async function GET(request: Request) {
         ? memberBinding.binding
         : { ok: false, code: memberBinding.code, reason: memberBinding.reason, binding: memberBinding.binding || null }
       : null,
+    session: session
+      ? { issued: true, user: session.user, exp: session.exp, cookie: 'set' }
+      : null,
     next: ready
-      ? '已完成 state、ID Token claims/JWKS、邮箱域和组织 active 成员绑定校验；真实登录会话签发仍应在服务端完成。'
+      ? '已完成 state、ID Token claims/JWKS、邮箱域和组织 active 成员绑定校验，并已签发 Payload 登录会话。'
       : '已完成 state 签名校验并还原组织上下文；下一步按 tokenExchange 在服务端换 token，再提交 ID Token 做 claims、邮箱域和组织成员绑定校验。',
-  }, { status: ready ? 200 : 501 })
+  }
+  if (!session) return Response.json(responseBody, { status: 501 })
+  const headers = new Headers({ 'Set-Cookie': session.cookie })
+  if (url.searchParams.get('json') === '1' || request.headers.get('accept')?.includes('application/json')) {
+    return Response.json(responseBody, { headers })
+  }
+  headers.set('Location', stateCheck.payload.redirectPath || '/console/enterprise')
+  return new Response(null, { status: 303, headers })
 }
