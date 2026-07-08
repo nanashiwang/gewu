@@ -224,6 +224,10 @@ export function publicEnterpriseMember(member: any) {
 
 function enterpriseRegistryPlaybook(registry: any) {
   const status = String(registry?.approvalStatus || 'pending')
+  const registryId = registry?.id ? String(registry.id) : ''
+  const organizationId = relationId(registry?.organization)
+  const skill = registry?.skill && typeof registry.skill === 'object' ? registry.skill : null
+  const skillSlug = skill?.slug ? String(skill.slug) : ''
   const decision =
     status === 'approved'
       ? 'allow'
@@ -239,17 +243,25 @@ function enterpriseRegistryPlaybook(registry: any) {
     customerValue:
       '企业 Registry 把 Skill 准入从“谁能用”变成可审计治理链：批准 Skill、绑定模型/审计策略、读取组织内 Passport、运行后沉淀审计和企业失败库。',
     decision,
+    governanceChecklist: [
+      '准入前复核组织内 Passport、达标证书、Contract 和证据验签状态',
+      '批准时绑定模型白名单、输入规模、BYOK、路由模式和审计策略',
+      '运行时必须携带 organizationId，保证授权、策略和审计都进入企业上下文',
+      '上线后定期导出审计并查看企业失败库，决定是否撤销、锁版本或补 Adapter',
+    ],
     nextActions: [
       {
         label: '复核证据',
         description:
           '先看组织内 Passport、达标证书和证据验签摘要；证书未 passed 时需要风险确认或继续人工复核。',
+        href: registryId ? `/v1/enterprise/registry/${encodeURIComponent(registryId)}/passport` : null,
       },
       {
         label: '绑定模型白名单',
         description: modelCount > 0
           ? `已限制 ${modelCount} 个模型，运行时会按组织准入边界检查。`
           : '尚未限制模型，建议按已验证模型版本设置白名单。',
+        href: '/console/enterprise',
       },
       {
         label: '执行运行授权',
@@ -257,11 +269,24 @@ function enterpriseRegistryPlaybook(registry: any) {
           decision === 'allow'
             ? '已批准 Registry 可进入企业运行授权；仍会执行审计策略、输入规模和 BYOK 等边界。'
             : '未批准前不应让普通成员使用该 Skill。',
+        href: skillSlug && organizationId
+          ? `/skills/${encodeURIComponent(skillSlug)}/run?organizationId=${encodeURIComponent(organizationId)}`
+          : null,
       },
       {
         label: '留审计并查失败库',
         description:
           '企业运行、策略拒绝和失败会进入审计；后续可聚合组织内失败知识库，不暴露员工输入输出原文。',
+        href: organizationId
+          ? `/v1/enterprise/failures?organizationId=${encodeURIComponent(organizationId)}`
+          : null,
+      },
+      {
+        label: '导出审计',
+        description: '导出组织运行审计 CSV，复核模型版本、策略拒绝和失败分布，不包含输入输出原文。',
+        href: organizationId
+          ? `/v1/enterprise/audit/export?organizationId=${encodeURIComponent(organizationId)}`
+          : null,
       },
     ],
   }

@@ -260,11 +260,16 @@ describe('enterprise — 企业 Registry 授权', () => {
       playbook: {
         customerValue: expect.stringContaining('可审计治理链'),
         decision: 'allow',
+        governanceChecklist: expect.arrayContaining([
+          expect.stringContaining('组织内 Passport'),
+          expect.stringContaining('organizationId'),
+        ]),
         nextActions: expect.arrayContaining([
-          expect.objectContaining({ label: '复核证据' }),
-          expect.objectContaining({ label: '绑定模型白名单' }),
-          expect.objectContaining({ label: '执行运行授权' }),
-          expect.objectContaining({ label: '留审计并查失败库' }),
+          expect.objectContaining({ label: '复核证据', href: '/v1/enterprise/registry/reg-1/passport' }),
+          expect.objectContaining({ label: '绑定模型白名单', href: '/console/enterprise' }),
+          expect.objectContaining({ label: '执行运行授权', href: '/skills/finance/run?organizationId=org-1' }),
+          expect.objectContaining({ label: '留审计并查失败库', href: '/v1/enterprise/failures?organizationId=org-1' }),
+          expect.objectContaining({ label: '导出审计', href: '/v1/enterprise/audit/export?organizationId=org-1' }),
         ]),
       },
     })

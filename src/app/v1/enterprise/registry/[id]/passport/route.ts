@@ -71,7 +71,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
     ? buildSkillCertificate({
         skill: { id: String(skillDoc.id), slug: String(skillDoc.slug || ''), title: String(skillDoc.title || '') },
         passport,
-        contractSummary: version ? publicSkillContract(version) : null,
+        contractSummary: version ? publicSkillContract(version, { slug: skillDoc.slug }) : null,
         benchmarkSummary: benchmarkEvidence,
         evidenceSnapshotVerify: evidenceVerify,
       }, runtimeEnv)
@@ -90,7 +90,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return Response.json({
     organizationId: result.organizationId,
     registry: { ...publicEnterpriseRegistry(registry), certificateSummary },
-    passport: passport ? { ...publicSkillPassport(passport, benchmarkEvidence), certificate } : null,
+    passport: passport ? { ...publicSkillPassport(passport, benchmarkEvidence, { slug: skillDoc?.slug }), certificate } : null,
     evidenceSnapshot: snapshot
       ? {
           id: snapshot.id,
