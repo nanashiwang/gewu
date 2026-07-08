@@ -111,7 +111,7 @@ curl http://127.0.0.1:8787/health
 | `POST /v1/anchors/verify` | 校验 score/evidence 外锚 JSONL + manifest + 可信发布/时间戳声明，并返回外锚可信等级 |
 | `GET /v1/runs` | 当前用户私人运行台账导出；支持 skillId/model/modelVersion/routeMode/success/formatValid/trustedCompatible/rerunOf 过滤；默认不含输入/输出，返回模型画像、可信兼容标记、失败库排障入口和换模型重跑 playbook，`includeIO=1` 仅本人导出原文并写审计 |
 | `POST /v1/runs/[id]/rerun` | 用私人台账中的历史输入换模型重跑，可携带 modelProvider/modelVersion，写入重跑血缘 |
-| `GET /v1/enterprise/registry/[id]/passport` | 企业内读取已批准/可审 Skill 的 Passport、治理状态、证书状态摘要和绑定 Contract 的达标证书 |
+| `GET /v1/enterprise/registry/[id]/passport` | 企业内读取已批准/可审 Skill 的 Passport、治理状态、证书状态摘要、准入治理 playbook 和绑定 Contract 的达标证书 |
 | `GET /v1/enterprise/audit/export` | 企业审计 CSV 导出，含模型版本治理元数据，不含输入输出原文 |
 | `GET /v1/enterprise/failures` | 从企业审计元数据聚合组织内失败知识库和模型版本分布 |
 | `POST/GET/PATCH/DELETE /v1/enterprise/scim/users` | 企业 SCIM 成员 provision：Bearer digest 校验、ListResponse 列表、基础 filter、PATCH active、创建/绑定/停用成员 |

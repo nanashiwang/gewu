@@ -20,7 +20,7 @@
 | AdapterProfile | `src/collections/AdapterProfiles.ts`、`src/lib/adapterProfile.ts`、`src/app/v1/failures/[id]/adapter/route.ts` | Skill × Model/Profile 的 prompt/schema/decoding/retry 补丁；运行时应用；自动 evidenceHash/快照；刷新 before/after lift；支持从 FailureCase 生成待审核草稿；原始补丁正文仅作者/审核/管理可读。 |
 | EvidenceSnapshots | `src/collections/EvidenceSnapshots.ts`、`src/lib/evidenceSnapshot.ts`、`src/lib/evidenceSnapshotVerify.ts`、`src/lib/evidenceAnchor.ts` | Passport / FailureCase / Adapter 的 append-only 证据快照；原始集合仅后台可读；公开验签必须带已知 targetType/targetId，不允许匿名枚举；支持 JSONL 外锚导出、manifest 自签/校验，以及第三方发布/时间戳声明。 |
 | 公开验签 | `src/app/(frontend)/verify/page.tsx`、`src/components/verify/CertificateVerifyForm.tsx`、`src/components/verify/EvidenceVerifyForm.tsx`、`src/components/verify/AnchorVerifyForm.tsx`、`src/app/v1/evidence/verify/route.ts`、`src/app/v1/anchors/verify/route.ts`、`src/app/v1/certificates/verify/route.ts`、`src/app/v1/skills/[slug]/passport/route.ts`、`src/lib/scoreAnchor.ts`、`src/lib/skillCertificateVerify.ts` | 分数快照、证据快照、Skill Passport 和达标证书均可公开复核；达标证书可通过 `/verify?certificateUrl=...` 直达自动加载并验签；证据快照表单可输入或通过 `/verify?targetType=...&targetId=...` 直达展示脱敏 targetSummary、payloadHash 和签名状态；Passport API 也返回带 evidenceHash 的黄金样例基准摘要；分数/证据外锚 manifest 支持 ed25519 自签/校验、可信发布目标/外部时间戳可信等级、页面粘贴校验和公开 API 校验。 |
-| Enterprise Registry | `src/collections/Organizations.ts`、`OrganizationMembers.ts`、`EnterpriseRegistries.ts`、`src/app/v1/enterprise/registry/route.ts`、`members/route.ts`、`identity/route.ts`、`/console/enterprise` | 组织、成员、批准 Skill、模型白名单与治理边界；支持审批准入、成员增删改、组织内 Passport 读取、基础策略包执行、策略模板编辑和身份策略配置；添加成员时执行邮箱域/SSO 策略。 |
+| Enterprise Registry | `src/collections/Organizations.ts`、`OrganizationMembers.ts`、`EnterpriseRegistries.ts`、`src/app/v1/enterprise/registry/route.ts`、`members/route.ts`、`identity/route.ts`、`/console/enterprise` | 组织、成员、批准 Skill、模型白名单与治理边界；支持审批准入、成员增删改、组织内 Passport 读取、准入治理 playbook、基础策略包执行、策略模板编辑和身份策略配置；添加成员时执行邮箱域/SSO 策略。 |
 | 企业运行授权 | `src/lib/enterprise.ts`、`src/app/v1/skills/[slug]/run/route.ts`、`compare/route.ts` | 企业 Skill 或传 organizationId 时必须组织成员 + approved registry。 |
 | 企业运行审计 / 失败知识 | `src/collections/EnterpriseAuditLogs.ts`、`src/app/v1/enterprise/audit/export/route.ts`、`src/app/v1/enterprise/failures/route.ts` | 成功/失败/策略拒绝均可审计；CSV 导出；可按组织聚合脱敏失败知识和模型版本分布；不含输入输出原文。 |
 | 上传审核 | `src/lib/skillComplianceReview.ts`、`src/app/v1/skills/route.ts` | 规则 + AI 审核 + 人工兜底；低风险 Prompt Skill 才能自动上架。 |
@@ -69,11 +69,11 @@
 | `/v1/skills/[slug]/certificate` | 公开读取 Skill 达标证书：合并 Contract 摘要、Passport、可信兼容运行计数、黄金样例逐条摘要、证据快照验签状态，输出 certificateHash、ed25519 签名、Passport 证据验签页面入口和未达正式达标原因。 |
 | `/v1/enterprise/audit/export` | 企业审计 CSV 导出，含模型版本治理元数据，不含输入输出原文。 |
 | `/v1/enterprise/failures` | 组织内失败知识库，只从企业审计元数据聚合，含模型版本分布，不暴露输入输出。 |
-| `/v1/enterprise/registry` + `/console/enterprise` | GET 返回内置策略模板；POST 更新准入/白名单/策略包；控制台展示“批准 Skill → 绑定策略 → 留审计 → 查失败库”治理闭环，可编辑 Registry 策略模板并直达组织内 Passport/证书状态、审计导出（含模型版本）和企业失败知识库。 |
+| `/v1/enterprise/registry` + `/console/enterprise` | GET 返回内置策略模板；POST 更新准入/白名单/策略包并返回治理 playbook；控制台展示“批准 Skill → 绑定策略 → 留审计 → 查失败库”治理闭环，可编辑 Registry 策略模板并直达组织内 Passport/证书状态、审计导出（含模型版本）和企业失败知识库。 |
 | `/v1/enterprise/identity` + `/console/enterprise` | 更新组织身份策略：邮箱域白名单、requireSso、OIDC provider/issuer/clientId/discoveryUrl、SCIM baseUrl/tokenDigest；保存时阻断非 HTTPS URL、缺失 OIDC 必填项和非法 tokenDigest。 |
 | `/v1/enterprise/scim/users` | SCIM provision 入口：用 Bearer token digest 校验后，兼容 `userName`/`emails`/`roles` payload、`userName/email/emails.value eq` filter 和 PATCH Operations；支持按 email 查询、无 email 返回 ListResponse、创建/绑定或停用组织成员。 |
 | `/v1/enterprise/members` | 添加/更新/移除组织成员；添加 active 成员时执行组织身份策略，移除时保留 suspended 记录。 |
-| `/v1/enterprise/registry/[id]/passport` | 组织内读取已批准/可审 Registry 的 Skill Passport、治理状态、证据验签摘要、证书状态摘要和绑定 Contract 的达标证书，便于企业采购/审计复核。 |
+| `/v1/enterprise/registry/[id]/passport` | 组织内读取已批准/可审 Registry 的 Skill Passport、治理状态、准入治理 playbook、证据验签摘要、证书状态摘要和绑定 Contract 的达标证书，便于企业采购/审计复核。 |
 | `worker:export-evidence-anchors` / `worker:verify-evidence-anchors` | 导出证据快照 JSONL 哈希链，并用 manifest 校验行数、链头、文件哈希、manifest ed25519 自签名和第三方发布/时间戳声明格式。 |
 | `/v1/adapters` | 公开读取 active Adapter 的 lift 效果摘要、复用/复验 playbook 和 API/页面证据验签入口；支持 skillId/modelName/modelVersion/failureType/failureId/modelProfile 过滤，不暴露 prompt/schema/decoding 补丁正文、草稿或停用补丁。 |
 | `/v1/failures/[id]/adapter` | 从失败案例生成 Adapter 草稿，由作者/审核员确认后启用。 |

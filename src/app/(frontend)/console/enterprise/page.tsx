@@ -86,6 +86,11 @@ export default async function EnterpriseConsolePage() {
             </p>
           </div>
         </div>
+        <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--panel-2)] p-3 text-xs text-[var(--muted)]">
+          <b className="text-[var(--text)]">准入判断：</b>
+          approved 才进入运行授权；pending/rejected/revoked 只作为复核记录。每条 Registry
+          会返回治理 playbook，串起证书复核、模型白名单、审计策略和企业失败库。
+        </div>
       </Section>
 
       <Section title="企业策略包">

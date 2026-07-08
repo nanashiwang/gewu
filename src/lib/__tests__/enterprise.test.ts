@@ -257,12 +257,29 @@ describe('enterprise — 企业 Registry 授权', () => {
       approvedBy: { id: 'user-1', email: 'owner@example.com' },
       modelAllowlist: { models: ['qwen-plus'] },
       auditPolicy: { requireByok: true },
+      playbook: {
+        customerValue: expect.stringContaining('可审计治理链'),
+        decision: 'allow',
+        nextActions: expect.arrayContaining([
+          expect.objectContaining({ label: '复核证据' }),
+          expect.objectContaining({ label: '绑定模型白名单' }),
+          expect.objectContaining({ label: '执行运行授权' }),
+          expect.objectContaining({ label: '留审计并查失败库' }),
+        ]),
+      },
     })
     expect(JSON.stringify(registry)).not.toContain('tokenDigest')
     expect(JSON.stringify(registry)).not.toContain('systemPrompt')
     expect(JSON.stringify(registry)).not.toContain('byokKeyEncrypted')
     expect(JSON.stringify(registry)).not.toContain('platformRevenue')
     expect(JSON.stringify(registry)).not.toContain('Bearer secret')
+  })
+
+  it('企业 Registry playbook 按审批状态给出准入动作', () => {
+    expect(publicEnterpriseRegistry({ id: 'pending', approvalStatus: 'pending' })?.playbook.decision).toBe('review')
+    expect(publicEnterpriseRegistry({ id: 'approved', approvalStatus: 'approved' })?.playbook.decision).toBe('allow')
+    expect(publicEnterpriseRegistry({ id: 'rejected', approvalStatus: 'rejected' })?.playbook.decision).toBe('block')
+    expect(publicEnterpriseRegistry({ id: 'revoked', approvalStatus: 'revoked' })?.playbook.decision).toBe('block')
   })
 
   it('组织成员 + approved registry 才能使用企业 Skill', async () => {
