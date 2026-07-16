@@ -8,6 +8,17 @@
 
 > 完整产品方向、对象定义与落地路线见 **[`docs/衡术-总纲.md`](docs/衡术-总纲.md)**（唯一开发依据）。
 
+## 仓库项目
+
+本仓库同时维护两个相互独立、后续可融合的项目：
+
+| 路径 | 项目 | 用途 | 许可证 |
+|---|---|---|---|
+| 仓库根目录 | 衡术 SkillHub | Skill 身份、版本、Passport、兼容证据和企业治理 | 见根目录 `package.json` |
+| [`detector/`](detector/) | 先测 AI | Claude / OpenAI / Gemini API 中转站协议与质量检测 | AGPL-3.0-or-later |
+
+两个项目拥有各自的依赖、启动方式和部署入口。根目录的 Node/Next.js 命令只操作 SkillHub；检测项目请进入 `detector/` 后按其 README 使用。
+
 ## 技术栈
 
 | 组件 | 用途 |

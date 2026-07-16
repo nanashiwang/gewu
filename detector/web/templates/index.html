@@ -1,0 +1,268 @@
+{% extends "base.html" %}
+
+{% block title %}Claude API 中转站检测 · thinking 签名回放验证 | 先测 AI{% endblock %}
+{% block description %}免费检测 Claude API 中转站的协议透传质量 — 对 thinking block 做原始回放和篡改对照,再结合 10 项辅助检测与 Token 用量检查。无需注册,API key 不持久化,代码开源。{% endblock %}
+{% block og_title %}Claude API 中转站检测 · thinking block 回放与协议评估{% endblock %}
+{% block og_description %}thinking block 原始/篡改回放验证 + 10 项辅助检测 + Token 用量风险识别。免费、不持久化 key、可分享 JPG 报告。{% endblock %}
+{% block canonical %}{{ brand.site_url }}/claude{% endblock %}
+{% block og_url %}{{ brand.site_url }}/claude{% endblock %}
+
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "先测 AI Claude 中转站检测",
+  "alternateName": ["Claude API 中转站检测", "Claude relay verifier"],
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "API Verification Tool",
+  "operatingSystem": "Web Browser",
+  "url": "{{ brand.site_url }}/claude",
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+  "featureList": [
+    "thinking block 原始/篡改回放验证",
+    "12 项独立检测维度(身份/行为/知识/PDF/工具调用/协议/流式/Token 用量/长上下文)",
+    "字段级跟官方 Anthropic baseline 1:1 对比",
+    "Stream / non-stream 一致性校验",
+    "tool_use ID 前缀合规检查",
+    "PDF 多模态能力检测",
+    "Kiro / Amazon Q / Bedrock 替身识别",
+    "可分享 JPG / HTML 报告"
+  ],
+  "description": "先测 AI 通过 Claude thinking signature 等 12 项检测维度,1 分钟内验证 AI API 中转站是否真实透传 Claude 模型,识别用 Kiro / Amazon Q / Bedrock 等后端伪装的中转站,并检查 Token 用量是否虚报、长上下文窗口是否真实兑现。"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"Claude API 中转站怎么验证?","acceptedAnswer":{"@type":"Answer","text":"先测 AI 先获取 thinking block,再分别回放原始块和篡改单个字符的对照块。只有原始块被接受、篡改块被明确以 thinking 校验错误拒绝才通过;再结合协议、工具调用、流式和用量等信号综合评分。"}},
+    {"@type":"Question","name":"Kiro / Amazon Q / Bedrock 等兼容网关怎么识别?","acceptedAnswer":{"@type":"Answer","text":"兼容网关可能缺少 thinking block,也可能只伪造字段但不执行签名约束。先测 AI 会做原始/篡改回放对照并结合其他协议信号;单项失败表示该强证据缺失,不单凭一个字段作绝对结论。"}},
+    {"@type":"Question","name":"先测 AI 的 Claude 检测覆盖哪些维度?","acceptedAnswer":{"@type":"Answer","text":"11 项,按权重:thinking signature (25%) > behavioral signature (15%) > structured output (12%) > consistency / knowledge / token usage (各 10%) > pdf (8%) > identity / protocol / integrity / message_id (各 5%)。standard 模式跑 9 项约 45 秒,full 模式跑全 11 项约 75 秒。"}},
+    {"@type":"Question","name":"检测会不会消耗我的 API 余额?","acceptedAnswer":{"@type":"Answer","text":"会。完整模式通常约 16-18 个请求,费用取决于模型、thinking 实际输出和中转站定价,从你的 API key 对应账户扣除。报告会展示实际请求数和 token 用量,先测 AI 自身不收费。"}},
+    {"@type":"Question","name":"先测 AI 会记录我的 API key 吗?","acceptedAnswer":{"@type":"Answer","text":"原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告仅保留脱敏形式 (sk-y7xU••••••0h),代码完全开源可审计,也可以自托管。"}},
+    {"@type":"Question","name":"支持哪些 Claude 模型?","acceptedAnswer":{"@type":"Answer","text":"Claude Opus 4.7、Sonnet 4.6、Haiku 4.5、Opus 4.6、Sonnet 4.5、Opus 4.5、Opus 4.1。检测器自动适配各模型的 thinking 模式(extended vs adaptive)和 PDF 页数上限。"}}
+  ]
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "HowTo",
+  "name": "如何检测 Claude API 中转站是不是真原生",
+  "totalTime": "PT1M",
+  "estimatedCost": {"@type": "MonetaryAmount", "currency": "USD", "value": "0.02"},
+  "step": [
+    {"@type": "HowToStep", "name": "打开检测页", "text": "访问 {{ brand.site_url }}/claude"},
+    {"@type": "HowToStep", "name": "填中转站地址", "text": "在 base_url 输入框填中转站根 URL,例如 https://api.example.com"},
+    {"@type": "HowToStep", "name": "粘贴 API key", "text": "在 API 密钥框粘贴你的 sk-... key,只用于本次检测,不会持久化"},
+    {"@type": "HowToStep", "name": "选模型 + 模式", "text": "下拉自动列出该 key 在该中转站可用的模型,选 standard 模式覆盖 9 项检测约 45 秒"},
+    {"@type": "HowToStep", "name": "开始检测", "text": "点开始检测,等 30-75 秒拿到报告"},
+    {"@type": "HowToStep", "name": "看 thinking signature", "text": "重点看 thinking_signature 的原始回放和篡改对照是否同时验证。0 分表示该强证据缺失,应结合其他检测项判断"}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+
+<section class="hero">
+  <h1>这家 Claude API 中转站,是真原生吗?</h1>
+  <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
+    <strong>先测 AI</strong> 对 Claude <strong>thinking block 做原始/篡改回放验证</strong>,再结合 10 项辅助检测,
+    <strong>1 分钟</strong>评估中转站的协议透传质量与后端替换风险。免费、API key 不持久化、代码开源。
+  </p>
+</section>
+
+<section class="card form-card">
+  <form id="detect-form" data-endpoint="/api/detect/claude" autocomplete="off">
+    <div class="field">
+      <label for="base_url">中转站接口地址</label>
+      <input type="url" id="base_url" name="base_url" required
+             placeholder="https://api.example.com" maxlength="2048"
+             autocomplete="url" autocapitalize="none" spellcheck="false" />
+      <p class="hint">中转站根 URL,先测 AI 将向其 <code>/v1/messages</code> 发送测试请求。</p>
+    </div>
+
+    <div class="field">
+      <label for="api_key">API 密钥</label>
+      <input type="password" id="api_key" name="api_key" required
+             placeholder="sk-..." minlength="8" maxlength="4096"
+             autocomplete="new-password" autocapitalize="none" spellcheck="false" />
+      <p class="hint">全程 HTTPS 传输,仅用于本次检测,不写日志、不持久化、检测完即丢弃。</p>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="model">目标模型</label>
+        <div class="combo">
+          <input type="text" id="model" name="model" required
+                 value="claude-haiku-4-5-20251001" autocomplete="off"
+                 placeholder="claude-haiku-4-5-20251001"
+                 maxlength="200" />
+          <ul class="combo-list" id="model-list" hidden>
+            {% for m in models %}
+            <li class="combo-item" data-value="{{ m.id }}">{{ m.label }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <p class="hint">点击/聚焦可见预设模型;若中转站用 <code>claude-opus-4-7-thinking</code> 等自定义名,直接输入即可。</p>
+      </div>
+      <div class="field">
+        <label for="mode">检测深度</label>
+        <select id="mode" name="mode">
+          <option value="quick">快速 (~15 秒,5 项核心)</option>
+          <option value="standard">标准 (~45 秒,9 项)</option>
+          <option value="full" selected>完整 (~75 秒,全 11 项,推荐)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-checkbox">
+      <input type="checkbox" id="include_long_context" name="include_long_context" value="true" />
+      <label for="include_long_context">
+        <strong>深度检测:长上下文真实性</strong>
+        <span class="checkbox-hint">
+          额外发 32k → 100k → 200k tokens 探针验证中转站是否真实兑现宣传的
+          context window(识别截断 / 路由到小窗口模型)。失败立即停。
+          <strong>额外成本约 $0.05–$1.00,由你的 API key 支付。</strong>
+        </span>
+      </label>
+    </div>
+
+    <div class="field-checkbox">
+      <input type="checkbox" id="include_long_context_extreme" name="include_long_context_extreme" value="true" />
+      <label for="include_long_context_extreme">
+        <strong>极限检测:模型完整 context</strong>
+        <span class="checkbox-hint">
+          按模型上限等比探测(Sonnet 4.6 / Opus 4.6 / Opus 4.7 都是 1M,会测到 950k)。
+          能 catch「宣传 1M 实际只给 200k」这类高端中转站欺诈,
+          标准档完全测不到。
+          <strong>额外成本 $0.05–$8,大模型成本可能很高,由你的 API key 支付。</strong>
+        </span>
+      </label>
+    </div>
+
+    <button type="submit" id="submit-btn" class="btn btn-primary">
+      开始检测
+    </button>
+    <p class="hint">检测报告是公开链接并包含完整 base_url;持有链接的人都能查看,请勿分享私有中转地址的报告。</p>
+    <p class="form-error" id="form-error" hidden></p>
+  </form>
+</section>
+
+<section class="features">
+  <div class="feature">
+    <h3>签名回放验证 ⭐</h3>
+    <p>不只检查 <code>signature</code> 是否存在:原始 thinking block 必须能回放,篡改单个字符的对照块必须被明确拒绝。这是高强度协议证据,但不是本地公钥验签或绝对真伪证明。</p>
+  </div>
+  <div class="feature">
+    <h3>字段级 baseline 对比</h3>
+    <p>逐字段比对 <code>input_tokens</code>、<code>tool_use</code> ID、SSE 事件序列、stream/non-stream 一致性,与官方 Anthropic 接口 1:1 对照。</p>
+  </div>
+  <div class="feature">
+    <h3>一键分享报告</h3>
+    <p>每次检测都有永久 URL 与可下载 JPG 图片,方便贴到群聊、论坛、文档,或在选购前做技术核验存档。</p>
+  </div>
+</section>
+
+<!-- ============================== FAQ ============================== -->
+<section class="faq" id="faq" data-mode="layperson">
+  <div class="faq-header">
+    <h2>常见问题(精选)</h2>
+    <div class="faq-mode-toggle" role="tablist" aria-label="选择回答风格">
+      <button type="button" role="tab" aria-selected="true"
+        class="faq-mode-btn faq-mode-active" data-mode="layperson">
+        通俗解释
+      </button>
+      <button type="button" role="tab" aria-selected="false"
+        class="faq-mode-btn" data-mode="developer">
+        开发者技术
+      </button>
+    </div>
+  </div>
+
+  <details class="faq-item" open>
+    <summary>thinking signature 是什么?先测 AI 怎么验证它?</summary>
+    <div class="faq-body">
+      <p data-mode="layperson">
+        Claude 在思考问题的时候,<strong>Anthropic 服务器会盖一个密码"指纹"</strong>
+        (就像快递包裹外面贴的 Anthropic 官方封条)。这个封条只有 Anthropic 自己的密钥能盖出来,
+        中转站想伪造也伪造不了。先测 AI 检测的就是这个封条 — 中转站给你的回复里没有封条 / 封条不对,
+        那它就<strong>不是真 Claude</strong>,可能给你换成了别的便宜模型在跑。
+      </p>
+      <p data-mode="developer">
+        thinking signature 是 Claude thinking block 中的 opaque 字段。先测 AI 会先把原始 block
+        带回下一轮请求,再把 opaque 字段篡改一个字符做负向对照。只有原始块被接受、篡改块被明确
+        以 thinking 校验错误拒绝才拿满该项;仅有字段或长度不能证明来源。
+      </p>
+    </div>
+  </details>
+
+  <details class="faq-item">
+    <summary>Claude 中转站怎么挑?哪些信号说明它靠谱?</summary>
+    <div class="faq-body">
+      <p data-mode="layperson">
+        三步傻瓜判断:① 用 先测 AI 测一次,<strong>总分 85 分以上</strong>基本能用,
+        100 分通常是 1:1 透传官方;② 看页面有没有<strong>红色"严重"标记</strong>,
+        有就说明它可能在偷换模型,直接换一家;③ 去<a href="/leaderboard">红黑榜</a>查这家中转站
+        的历史记录,看其他人测出来什么样,<strong>测过 10 次以上仍稳定高分</strong>的更可信。
+        便宜的中转站多半有水分,看分数比看价格重要。
+      </p>
+      <p data-mode="developer">
+        关键看 4 点:① 跑 先测 AI full 模式看 thinking signature 是否拿到 100 分;
+        ② 看 usage 字段有没有 <code>claude_*</code> 之外的异源痕迹
+        (e.g. <code>usage_source: anthropic</code> 出现在 OpenAI 响应里说明被中转套壳);
+        ③ 看 stream / non-stream 在同一 prompt 上的 input_tokens / output_tokens 差是否 ≤ 5%;
+        ④ 看消息 id 是否符合 <code>msg_</code> / <code>toolu_</code> / <code>srvtoolu_</code> 前缀规范,
+        UUID-like id 是中转站常见伪造手法。
+      </p>
+    </div>
+  </details>
+
+  <details class="faq-item">
+    <summary>Kiro / Amazon Q 等兼容网关怎么检测?</summary>
+    <div class="faq-body">
+      <p data-mode="layperson">
+        有些中转站后端其实用的是 Amazon 自家"包装过的 Claude"(产品名叫 Kiro 或 Amazon Q)。
+        不同兼容网关对 Claude thinking block 的保留与校验能力不同。先测 AI 既检查是否返回该块,
+        也验证原始块能否回放、篡改块是否被拒绝。该证据会与其他检测项一起形成结论,不会用一个
+        字段就武断判定模型身份。
+      </p>
+      <p data-mode="developer">
+        Kiro、Amazon Q、Bedrock 或其他兼容网关可能不返回或不校验 thinking signature。
+        先测 AI 的 thinking_signature detector 会检查 block 是否存在,并执行原始/篡改回放。
+        强证据缺失会降低该项得分,最终 verdict 仍结合其他检测项。同样适用于其他
+        Bedrock-routing 中转站。
+      </p>
+    </div>
+  </details>
+
+  <details class="faq-item">
+    <summary>先测 AI 会记录我的 API key 吗?</summary>
+    <div class="faq-body">
+      <p data-mode="layperson">
+        原始 API key 只在检测任务执行期间短暂使用,不进入报告、日志或数据库。任务结束后不再
+        保留引用,报告页面里只显示打码版(像 sk-y7xU••••••0h)。
+        代码按 AGPL-3.0 许可证公开,
+        担心的话可以自己审计或者下载到自己电脑跑。
+      </p>
+      <p data-mode="developer">
+        原始 API key 不进入 <code>Job</code> 对象,只在运行任务的局部作用域中使用;任务结束后
+        不再保留引用,不写 report JSON、不写应用日志、不持久化。报告里 key 经
+        <code>mask_api_key()</code> 脱敏(保留前 4 位 + 后 4 位)。完整代码以 AGPL-3.0
+        许可证开源并支持自托管。
+      </p>
+    </div>
+  </details>
+
+  <p class="faq-more">
+    更多 Claude 中转站问题 → <a href="/faq#claude">/faq#claude</a>
+    · 真伪识别 → <a href="/faq#authenticity">/faq#authenticity</a>
+    · 全部 <a href="/faq">常见问题</a>
+  </p>
+</section>
+
+{# app.js loaded globally by base.html #}
+{% endblock %}

@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+
+{% block title %}AI API 中转站真假检测 - 验证 Claude / GPT / Gemini 是不是真的 | 先测 AI{% endblock %}
+{% block description %}先测 AI 是免费的 AI API 中转站检测工具:评估 Claude / GPT / Gemini 的协议透传质量和后端替换风险。Claude 做 thinking block 原始/篡改回放,OpenAI / Gemini 测协议合规。无需注册、API key 不持久化、代码开源。{% endblock %}
+{% block og_title %}AI API 中转站检测 · Claude / GPT / Gemini 协议与质量评估{% endblock %}
+{% block og_description %}免费评估中转站协议透传和后端替换风险。Claude 签名回放 + 多协议覆盖 + 可分享报告。{% endblock %}
+
+{% block head_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "先测 AI",
+  "alternateName": ["先测 AI 中转站检测", "AI API 中转站检测工具", "Claude relay verifier"],
+  "applicationCategory": "DeveloperApplication",
+  "applicationSubCategory": "API Verification Tool",
+  "operatingSystem": "Web Browser",
+  "url": "{{ brand.site_url }}/",
+  "browserRequirements": "Requires JavaScript and a modern browser",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD",
+    "availability": "https://schema.org/InStock"
+  },
+  "featureList": [
+    "Claude thinking block 原始/篡改回放验证",
+    "OpenAI Chat Completions 8 项协议检测",
+    "Gemini OpenAI 兼容协议 7 项检测",
+    "三协议自动跳转(选错协议一键切换)",
+    "提交前死模型预探测",
+    "报告可分享(HTML + JPG)",
+    "API key 不持久化",
+    "代码完全开源,可自托管"
+  ],
+  "creator": {"@type": "Organization", "name": "先测 AI", "url": "{{ brand.site_url }}"},
+  "description": "先测 AI 通过 Claude thinking signature 等 10 项检测维度,验证 AI API 中转站是否真实透传 Claude 模型,识别用 Kiro / Amazon Q / 其他后端伪装的中转站。同时覆盖 OpenAI / Gemini 协议级检测。"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "AI API 中转站是什么?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "中转站(relay,又叫「镜像」「代理」)是第三方搭建的 API 转发服务,把你的请求转给 OpenAI / Anthropic / Google 官方,再把响应原样返回给你。常见出现原因:国内无法直连官方域名、便宜的批发价、统一一个接口调多家模型。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "怎么知道我用的是真 Claude / GPT / Gemini 还是假的?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "三个方向:① 协议字段(id 前缀、object、finish_reason 是否符合官方规范);② 能力指纹(Claude 思维签名是否服务端真签名、PDF 是否能识别、function calling 形状);③ 用量字段(usage 里有没有混入异源痕迹)。先测 AI 把这三类合成 7-10 项自动检测,1 分钟出结果。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "先测 AI 会偷我的 API key 吗?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告仅保留脱敏形式(sk-y7xU••••••0h),代码完全开源可审计,也可以自托管。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "检测要花钱吗?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "先测 AI 自己免费。但检测会发真实 API 请求,产生上游 token 消耗:Haiku 约 $0.012,Sonnet 约 $0.05,Opus 约 $0.20,GPT-4o-mini 约 $0.005。这部分是中转站收的钱,不经 先测 AI。"
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "中转站常见的「作假」手段有哪些?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "5 种常见:① 用 Kiro / Amazon Q / Bedrock 跑 Claude 替身;② 用 Claude 后端跑 GPT 请求;③ 把 GPT-4o 偷换成 GPT-4o-mini 省成本;④ 剥离 thinking、PDF 多模态等高级能力;⑤ 注入额外 system prompt 改写身份回答。先测 AI 对这 5 种都有针对性检测。"
+      }
+    }
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<section class="hub-hero">
+  <h1>AI API 中转站真假检测</h1>
+  <p class="answer-capsule">
+    <strong>先测 AI</strong> 是免费的 AI API 中转站检测工具:用 Claude thinking block 原始/篡改回放 + 多维行为指纹,
+    <strong>1 分钟</strong>评估 Claude / GPT / Gemini 的协议透传质量和后端替换风险。
+    无需注册、API key 不持久化、代码开源。
+  </p>
+  <p class="hub-meta">
+    已检测 <strong>3 个</strong>协议 · <strong>12 项</strong>独立维度 · <strong>30-75 秒</strong>出报告 · 报告 URL 可分享
+  </p>
+</section>
+
+<!-- ============================== Trust Strip ============================== -->
+<section class="trust-strip" aria-label="开源与信任">
+  <div class="trust-strip-head">
+    <h2>🔓 100% 开源 · 评分算法可逐行审计</h2>
+    <p>
+      先测 AI 的本质是「<strong>把 API key 交给我们检测中转站</strong>」 — 这件事的基础是<strong>信任</strong>。
+      所以我们把所有评分逻辑、key 处理代码全部公开,任何人可以审计。这是闭源工具永远做不到的承诺。
+    </p>
+  </div>
+
+  <div class="trust-cards">
+    <article class="trust-card">
+      <div class="trust-icon">📜</div>
+      <h3>评分算法公开</h3>
+      <p>
+        12 项 detector 怎么打分、贝叶斯排名公式、tokenizer 校准 — 全在 GitHub,无黑盒。
+      </p>
+      {% if brand.source_url %}<a href="{{ brand.source_url }}"
+        target="_blank" rel="noopener" class="trust-link">查看检测器源码 →</a>{% endif %}
+    </article>
+
+    <article class="trust-card">
+      <div class="trust-icon">🔐</div>
+      <h3>API key 不落盘<br><em>可代码证明</em></h3>
+      <p>
+        SECURITY.md 列出每条 key 处理承诺,每条都标了代码位置 — 你可以
+        <code>grep</code> 验证。不是"我们说不偷",是"代码不让偷"。
+      </p>
+      {% if brand.source_url %}<a href="{{ brand.source_url }}"
+        target="_blank" rel="noopener" class="trust-link">查看安全策略 →</a>{% endif %}
+    </article>
+
+    <article class="trust-card">
+      <div class="trust-icon">⚙️</div>
+      <h3>支持完全自托管</h3>
+      <p>
+        不放心 SaaS?<code>git clone</code> 到自己机器跑,原始 API key 只由你的实例发送给你配置的目标中转站。
+        AGPL-3.0 许可证保证 fork 出去的修改也必须开源。
+      </p>
+      {% if brand.source_url %}<a href="{{ brand.source_url }}"
+        target="_blank" rel="noopener" class="trust-link">自托管指南 →</a>{% endif %}
+    </article>
+  </div>
+
+  <div class="trust-cta">
+    {% if brand.source_url %}
+    <a class="btn btn-source" href="{{ brand.source_url }}" target="_blank" rel="noopener">查看源代码</a>
+    {% endif %}
+    <span class="trust-license-pill">License · AGPL-3.0</span>
+  </div>
+</section>
+
+<section class="protocol-grid">
+  <article class="protocol-card protocol-card-primary">
+    <div class="protocol-top">
+      <span class="protocol-kicker">Claude</span>
+      <span class="tier-badge tier-crypto">签名回放验证</span>
+    </div>
+    <h2>Claude API 中转站检测</h2>
+    <p>
+      12 项检测,核心是 thinking block 原始/篡改回放:原始块必须被接受,篡改单个字符的对照块
+      必须被明确拒绝;Token 用量检查会额外识别 usage 异常风险。
+    </p>
+    <a class="btn btn-primary protocol-action" href="/claude">检测 Claude 中转站 →</a>
+  </article>
+
+  <article class="protocol-card">
+    <div class="protocol-top">
+      <span class="protocol-kicker">OpenAI</span>
+      <span class="tier-badge tier-behavioral">行为/协议级</span>
+    </div>
+    <h2>OpenAI 中转站检测</h2>
+    <p>
+      8 项检测覆盖 Chat Completions 协议合规、function calling、structured output、
+      流式一致性。能识别中转站把 GPT 请求偷偷转给 Claude / Gemini 后端的「换芯」行为。
+    </p>
+    <a class="btn btn-ghost protocol-action" href="/openai">检测 OpenAI 中转站 →</a>
+  </article>
+
+  <article class="protocol-card">
+    <div class="protocol-top">
+      <span class="protocol-kicker">Gemini</span>
+      <span class="tier-badge tier-protocol">协议级</span>
+    </div>
+    <h2>Gemini 中转站检测</h2>
+    <p>
+      7 项检测覆盖 Gemini OpenAI 兼容协议、function calling、structured output、流式一致性
+      和 usage 字段。适配 Gemini 3 thinking-by-default 模型的特殊处理。
+    </p>
+    <a class="btn btn-ghost protocol-action" href="/gemini">检测 Gemini 中转站 →</a>
+  </article>
+</section>
+
+<section class="why-xiance">
+  <h2>为什么选 先测 AI</h2>
+  <div class="why-grid">
+    <div class="why-item">
+      <div class="why-num">01</div>
+      <h3>签名回放 + 负向对照</h3>
+      <p>不把“返回了一个长字符串”当证明。先测 AI 会回放原始 thinking block,再篡改单个字符验证服务端是否执行约束。这是高强度协议证据,不是绝对模型身份证明。</p>
+    </div>
+    <div class="why-item">
+      <div class="why-num">02</div>
+      <h3>三协议一站测,选错自动跳转</h3>
+      <p>Claude / OpenAI / Gemini 都覆盖。你在 Claude 页填了一个 GPT key?先测 AI 一秒识别,一键跳到 OpenAI 页继续 — 不用重新粘贴。</p>
+    </div>
+    <div class="why-item">
+      <div class="why-num">03</div>
+      <h3>提交前 0.5 秒预体检</h3>
+      <p>中转站宣称「支持 50 个模型」但其中一半实际下架?先测 AI 提交前 0.5 秒先帮你试一下,直接告诉你哪些可用 — 免得你白等半分钟拿到全 0 分报告。</p>
+    </div>
+    <div class="why-item">
+      <div class="why-num">04</div>
+      <h3>报告可分享(HTML + JPG)</h3>
+      <p>每份检测自动生成 <code>/r/{id}</code> 永久链接和 JPG 卡片,可以直接发微信群、朋友圈、知乎、V2EX。让朋友避坑只需一张图。</p>
+    </div>
+    <div class="why-item">
+      <div class="why-num">05</div>
+      <h3>完全开源 · key 处理可审计</h3>
+      <p>原始 API key 不进入 Job、报告或应用日志,只在运行任务的局部作用域中短暂使用。代码全开源,你可以审计服务端,或者直接 clone 部署到自己机器上。</p>
+    </div>
+    <div class="why-item">
+      <div class="why-num">06</div>
+      <h3>字段级证据 · 看见中转站具体动了哪里</h3>
+      <p>先测 AI 不只给一个「75 分」总分 — 每项扣分都附具体证据:usage 字段缺了哪些键、stream 漏了哪个事件、tool_use ID 是不是规范前缀、签名长度异常多少。一眼看出中转站在哪个环节动了手脚,不是黑盒一个数字。</p>
+    </div>
+  </div>
+</section>
+
+<section class="how-it-works">
+  <h2>怎么用?三步 60 秒</h2>
+  <ol class="how-steps">
+    <li>
+      <span class="how-num">1</span>
+      <div>
+        <h3>填中转站地址 + API key</h3>
+        <p>选要测的协议页(<a href="/claude">Claude</a> / <a href="/openai">OpenAI</a> / <a href="/gemini">Gemini</a>),粘贴 base_url 和 key,模型下拉自动列出该 key 在该中转站可用的模型。</p>
+      </div>
+    </li>
+    <li>
+      <span class="how-num">2</span>
+      <div>
+        <h3>点「开始检测」,等 30-70 秒</h3>
+        <p>先测 AI 并发跑 7-10 项检测,实时显示进度。期间消耗的 token 由你的 key 支付(Haiku 约 $0.012,GPT-4o-mini 约 $0.005)。</p>
+      </div>
+    </li>
+    <li>
+      <span class="how-num">3</span>
+      <div>
+        <h3>看报告,重点看红黄项</h3>
+        <p>总分 ≥85 优秀(绿) / 70-84 通过(浅绿) / 50-69 存在风险(黄) / <50 未达标(红)。Claude 重点看 thinking signature 是否 100 分;OpenAI 看 usage 字段有没有 Claude / Gemini 残留。</p>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<section class="hub-note">
+  <h2>不同协议的 100 分含义不同</h2>
+  <p>
+    Claude 的 100 分包含 thinking block 的<strong>原始/篡改回放验证</strong>;OpenAI / Gemini 因为没有同类信号,验证强度只到<strong>行为级 / 协议级</strong>。每份报告页顶部都会明确标注本次检测属于哪一级,避免把协议兼容性或回放证据误读成绝对真伪证明。完整说明见 <a href="/faq">常见问题</a>。
+  </p>
+</section>
+{% endblock %}

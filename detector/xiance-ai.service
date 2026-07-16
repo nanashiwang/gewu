@@ -1,0 +1,25 @@
+[Unit]
+Description=XianCe AI relay verification web service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/xiance-ai
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/etc/xiance-ai.env
+ExecStart=/opt/xiance-ai/venv/bin/python -m uvicorn web.server:app \
+  --host 127.0.0.1 --port 8765 \
+  --workers 1 \
+  --log-level info \
+  --proxy-headers \
+  --forwarded-allow-ips='127.0.0.1'
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+User=xiance
+Group=xiance
+
+[Install]
+WantedBy=multi-user.target

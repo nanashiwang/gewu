@@ -2,6 +2,7 @@ node_modules
 .next
 .git
 .gitignore
+detector
 docs/*
 !docs/衡术-功能说明书.md
 README.md
