@@ -299,7 +299,7 @@ event: content_block_stop
   ```json
   {
     "type": "tool_use",
-    "id": "toolu_01T1x1fJ34qAmk2tNTrN7Up6",
+    "id": "toolu_<opaque-id>",
     "name": "get_weather",
     "input": {"location": "San Francisco, CA", "unit": "fahrenheit"}
   }
@@ -1016,7 +1016,7 @@ $ relay-detector ... --no-cache
 ### A.1 响应字段（Non-streaming）
 ```json
 {
-  "id": "msg_1nZdL29xx5MUA1yADyHTEsnR8uuvGzszyY",
+  "id": "msg_<opaque-id>",
   "type": "message",
   "role": "assistant",
   "model": "claude-opus-4-7",

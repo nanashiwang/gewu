@@ -484,7 +484,9 @@ class ThrottledClient:
                         await self._trigger_backoff(delay)
                         continue
                     raise
-                except (httpx.TimeoutException, httpx.NetworkError) as e:
+                # Include protocol-level disconnects before response headers.
+                # Streaming uses a separate path and is never replayed.
+                except httpx.TransportError as e:
                     last_exc = e
                     if attempt < MAX_RETRIES:
                         await self._trigger_backoff(min(2.0 ** attempt, MAX_BACKOFF_S))

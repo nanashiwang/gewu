@@ -285,7 +285,9 @@ class ThrottledGeminiClient:
                         await self._trigger_backoff(self._retry_after_seconds(e, attempt))
                         continue
                     raise
-                except (httpx.TimeoutException, httpx.NetworkError) as e:
+                # Include protocol-level disconnects before a valid response;
+                # the streaming path remains non-retryable.
+                except httpx.TransportError as e:
                     last_exc = e
                     if attempt < MAX_RETRIES:
                         await self._trigger_backoff(min(2.0 ** attempt, MAX_BACKOFF_S))

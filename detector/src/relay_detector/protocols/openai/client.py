@@ -277,7 +277,11 @@ class ThrottledOpenAIClient:
                         await self._trigger_backoff(self._retry_after_seconds(e, attempt))
                         continue
                     raise
-                except (httpx.TimeoutException, httpx.NetworkError) as e:
+                # RemoteProtocolError (for example, "server disconnected
+                # without sending a response") is a TransportError but not a
+                # NetworkError. Non-stream requests have not produced response
+                # bytes here, so apply the same bounded pre-response retry.
+                except httpx.TransportError as e:
                     last_exc = e
                     if attempt < MAX_RETRIES:
                         await self._trigger_backoff(min(2.0 ** attempt, MAX_BACKOFF_S))

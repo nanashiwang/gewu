@@ -16,6 +16,7 @@ const SCANNED_EXTENSIONS = new Set([
   '.yaml',
 ])
 const IGNORED_FILES = new Set(['src/app/(payload)/admin/importMap.js'])
+const HIGH_ENTROPY_FIXTURE_PREFIXES = ['detector/data/baselines/']
 
 type Failure = {
   code: string
@@ -99,6 +100,7 @@ function checkNoCommittedModelKeys() {
         `${relative}:${lineNumber(source, match.index || 0)} possible committed model key ${maskSecret(match[0])}`,
       )
     }
+    if (HIGH_ENTROPY_FIXTURE_PREFIXES.some((prefix) => relative.startsWith(prefix))) continue
     for (const match of source.matchAll(highEntropyTokenPattern)) {
       fail(
         'NO_COMMITTED_HIGH_ENTROPY_TOKENS',

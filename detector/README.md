@@ -1,6 +1,6 @@
 # 先测 AI · AI API 中转站真伪检测 / Claude · OpenAI · Gemini 中转站真假鉴定工具
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/license-agpl_v3-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 > 品牌：**先测 AI / XianCe AI**　·　口号：**先测，再用。**
 
