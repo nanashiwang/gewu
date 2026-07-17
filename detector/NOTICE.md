@@ -1,6 +1,6 @@
 # 开源归属说明
 
-溯源（溯源）基于 `canarybyte/veridrop` 开源项目进行二次开发。
+格物（格物）基于 `canarybyte/veridrop` 开源项目进行二次开发。
 原项目与本项目均依据 GNU Affero General Public License v3.0 or later
 发布。原项目名称、标识和域名不构成本项目的产品品牌，也未用于本项目界面。
 

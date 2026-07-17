@@ -25,6 +25,6 @@ describe('siteSettings — 注册邮箱开关', () => {
   })
 
   it('邮箱非必填时空邮箱生成内部占位邮箱', () => {
-    expect(resolveRegistrationEmail('', false)).toMatch(/^user-[0-9a-f-]+@users\.suyuan\.invalid$/)
+    expect(resolveRegistrationEmail('', false)).toMatch(/^user-[0-9a-f-]+@users\.gewu\.invalid$/)
   })
 })

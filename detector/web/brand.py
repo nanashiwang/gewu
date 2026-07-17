@@ -1,4 +1,4 @@
-"""Single source of truth for the public 溯源 brand."""
+"""Single source of truth for the public 格物 brand."""
 
 from __future__ import annotations
 
@@ -16,10 +16,12 @@ def _normalise_site_url(value: str) -> str:
     if (
         parsed.scheme not in {"http", "https"}
         or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
         or parsed.query
         or parsed.fragment
     ):
-        raise RuntimeError("SUYUAN_SITE_URL must be an absolute http(s) URL")
+        raise RuntimeError("GEWU_SITE_URL must be an absolute http(s) URL")
     return value
 
 
@@ -32,15 +34,22 @@ def _optional_http_url(name: str) -> str:
     if not value:
         return ""
     parsed = urlparse(value)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+    ):
         raise RuntimeError(f"{name} must be an absolute http(s) URL")
     return value
 
 
 def _analytics_id() -> str:
-    value = _env("SUYUAN_ANALYTICS_ID").strip()
+    value = _env("GEWU_ANALYTICS_ID").strip()
     if value and not re.fullmatch(r"[A-Z0-9-]{3,32}", value):
-        raise RuntimeError("SUYUAN_ANALYTICS_ID has an invalid format")
+        raise RuntimeError("GEWU_ANALYTICS_ID has an invalid format")
     return value
 
 
@@ -64,13 +73,13 @@ class BrandConfig:
 
 
 brand = BrandConfig(
-    name="溯源",
-    english_name="suyuan",
-    short_name="溯源",
+    name="格物",
+    english_name="GEWU",
+    short_name="格物",
     slogan="让 AI 能力，有据可验。",
     site_url=_normalise_site_url(
-        _env("SUYUAN_SITE_URL", "http://localhost:8765")
+        _env("GEWU_SITE_URL", "http://localhost:8765")
     ),
-    source_url=_optional_http_url("SUYUAN_SOURCE_URL"),
+    source_url=_optional_http_url("GEWU_SOURCE_URL"),
     analytics_id=_analytics_id(),
 )

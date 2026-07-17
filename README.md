@@ -1,12 +1,12 @@
-# 溯源
+# 格物
 
 > AI Skill 的可信与兼容控制平面：给 Skill 上身份、版本、签名、Passport、兼容证据、失败库和企业治理。
 
-**溯源 让 AI Skill 像软件包一样拥有身份、版本、签名、兼容证据、失败记录和企业治理能力。**
+**格物 让 AI Skill 像软件包一样拥有身份、版本、签名、兼容证据、失败记录和企业治理能力。**
 
-溯源 不是 Prompt 市场、通用模型网关或靠 New API margin 打价格战的平台；它真正解决的是：用户已经有自己的模型、网关、Runner 或企业环境，溯源 负责证明某个 Skill 是否可信、能否稳定运行、失败后怎么修、换模型后能否继续复用。
+格物 不是 Prompt 市场、通用模型网关或靠 New API margin 打价格战的平台；它真正解决的是：用户已经有自己的模型、网关、Runner 或企业环境，格物 负责证明某个 Skill 是否可信、能否稳定运行、失败后怎么修、换模型后能否继续复用。
 
-> 完整产品方向、对象定义与落地路线见 **[`docs/suyuan-总纲.md`](docs/suyuan-总纲.md)**（唯一开发依据）。
+> 完整产品方向、对象定义与落地路线见 **[`docs/gewu-总纲.md`](docs/gewu-总纲.md)**（唯一开发依据）。
 
 ## 仓库项目
 
@@ -14,10 +14,10 @@
 
 | 路径 | 项目 | 用途 | 许可证 |
 |---|---|---|---|
-| 仓库根目录 | 溯源 SkillHub | Skill 身份、版本、Passport、兼容证据和企业治理 | 见根目录 `package.json` |
-| [`detector/`](detector/) | 溯源 | Claude / OpenAI / Gemini API 中转站协议与质量检测 | AGPL-3.0-or-later |
+| 仓库根目录 | 格物平台 | Skill 身份、版本、Passport、兼容证据和企业治理 | 见根目录 `package.json` |
+| [`detector/`](detector/) | 格物 | Claude / OpenAI / Gemini API 中转站协议与质量检测 | AGPL-3.0-or-later |
 
-两个项目拥有各自的依赖、启动方式和部署入口。根目录的 Node/Next.js 命令只操作 SkillHub；检测项目请进入 `detector/` 后按其 README 使用。
+两个项目拥有各自的依赖、启动方式和部署入口。根目录的 Node/Next.js 命令只操作格物 Skill 平台；检测项目请进入 `detector/` 后按其 README 使用。
 
 ## 技术栈
 
@@ -27,7 +27,7 @@
 | **Payload CMS 3**（原生嵌入 Next） | 数据建模 / 认证 / 权限 / 后台 / 钩子 |
 | **PostgreSQL 16**（Drizzle） | 主业务数据（dev 自动 push，生产应切 migration） |
 | **Redis 7** | 运行分布式限流 / 队列预留 |
-| **本地 Runner** `runner/suyuan.mjs` | 登录 / 安装 / 离线运行 / 兼容回流 |
+| **本地 Runner** `runner/gewu.mjs` | 登录 / 安装 / 离线运行 / 兼容回流 |
 | **模型网关**（OpenAI 兼容） | 在线试用与多模型对比（留空则走 mock 回退） |
 
 ## 已实现能力
@@ -106,7 +106,7 @@ curl http://127.0.0.1:8787/health
 | `npm run worker:export-evidence-anchors` | 导出证据快照外锚 JSONL + 自签 manifest（可带第三方发布/时间戳声明 env） |
 | `npm run worker:verify-evidence-anchors` | 校验证据快照外锚 JSONL + manifest 签名 + 第三方声明格式；可信发布目标可在部署设置配置，公开 API 可校验命中状态和时间戳 receiptHash |
 | `npm run worker:reverify-queue` | 消费失败库私人台账复验队列，按候选历史运行自动重跑并回写 verificationCoverage；失败按 REVERIFY_MAX_RETRIES 有限重试 |
-| `node runner/suyuan.mjs <cmd>` | 本地 Runner（login/install/run/... ） |
+| `node runner/gewu.mjs <cmd>` | 本地 Runner（login/install/run/... ） |
 
 ## 关键 API
 
@@ -172,8 +172,8 @@ src/
 
 | 文档 | 用途 |
 |---|---|
-| [`docs/suyuan-功能说明书.md`](docs/suyuan-功能说明书.md) | 面向外部用户的模块功能说明 |
-| [`docs/suyuan-总纲.md`](docs/suyuan-总纲.md) | **唯一开发依据**：定位/护城河/经济/统一落地路线 |
+| [`docs/gewu-功能说明书.md`](docs/gewu-功能说明书.md) | 面向外部用户的模块功能说明 |
+| [`docs/gewu-总纲.md`](docs/gewu-总纲.md) | **唯一开发依据**：定位/护城河/经济/统一落地路线 |
 | [`docs/ARCHITECTURE_V2.md`](docs/ARCHITECTURE_V2.md) | v2 对象与当前代码映射 |
 | [`docs/PROGRESS.md`](docs/PROGRESS.md) | 历史进度存档（已冻结；当前状态看总纲和架构映射） |
 | [`docs/体验手册.md`](docs/体验手册.md) | 完整闭环体验操作 |

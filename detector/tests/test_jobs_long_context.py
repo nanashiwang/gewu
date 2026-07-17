@@ -15,7 +15,7 @@ from web import jobs
 
 @pytest.fixture
 def isolated_jobs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """Avoid touching real /opt/suyuan-detector/web_data/jobs during tests."""
+    """Avoid touching real /opt/gewu-detector/web_data/jobs during tests."""
     fake_dir = tmp_path / "jobs"
     fake_dir.mkdir()
     monkeypatch.setattr(jobs, "JOBS_DIR", fake_dir)

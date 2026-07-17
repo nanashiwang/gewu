@@ -10,9 +10,9 @@ function signingKey(): string {
 function validEnv(overrides: Record<string, string | undefined> = {}) {
   return {
     PAYLOAD_SECRET: 'prod-secret-32-bytes-minimum-value',
-    DATABASE_URL: 'postgres://app:strong@postgres:5432/suyuan',
-    SERVER_URL: 'https://suyuan.example.com',
-    NEXT_PUBLIC_SERVER_URL: 'https://suyuan.example.com',
+    DATABASE_URL: 'postgres://app:strong@postgres:5432/gewu',
+    SERVER_URL: 'https://gewu.example.com',
+    NEXT_PUBLIC_SERVER_URL: 'https://gewu.example.com',
     REDIS_URL: 'redis://redis:6379',
     MODEL_GATEWAY_BASE_URL: 'https://gateway.example.com',
     MODEL_GATEWAY_KEY: 'platform-model-key',
@@ -26,12 +26,12 @@ function validEnv(overrides: Record<string, string | undefined> = {}) {
     NEWAPI_MARGIN_RATE: '0.3',
     NEWAPI_MODEL_MARGIN_RATES: 'deepseek-chat=0.25,qwen-plus=0.18,glm-4=0.22',
     NEWAPI_USAGE_SOURCE: 'newapi',
-    SUYUAN_SIGNING_KEY: signingKey(),
+    GEWU_SIGNING_KEY: signingKey(),
     TRUSTED_PROXY_COUNT: '1',
     BACKUP_ENCRYPTION_CONFIRMED: '1',
     BACKUP_OFFSITE_CONFIRMED: '1',
     BACKUP_RESTORE_DRILL_AT: new Date().toISOString().slice(0, 10),
-    ANCHOR_TRUSTED_PUBLISHERS: 'github-release|https://github.com/acme/suyuan/releases/',
+    ANCHOR_TRUSTED_PUBLISHERS: 'github-release|https://github.com/acme/gewu/releases/',
     ...overrides,
   }
 }
@@ -88,14 +88,14 @@ describe('productionPreflight — 生产上线配置门禁', () => {
   it('启动预检只要求基础依赖，不阻断后台后置配置', () => {
     const issues = checkStartupEnv({
       PAYLOAD_SECRET: 'prod-secret-32-bytes-minimum-value',
-      DATABASE_URL: 'postgres://app:strong@postgres:5432/suyuan',
+      DATABASE_URL: 'postgres://app:strong@postgres:5432/gewu',
       SERVER_URL: 'http://nas.local:8787',
       NEXT_PUBLIC_SERVER_URL: 'http://nas.local:8787',
       REDIS_URL: 'redis://redis:6379',
     })
     expect(countBlockers(issues)).toBe(0)
     expect(issues.map((i) => i.code)).not.toContain('MODEL_GATEWAY_BASE_URL_MISSING')
-    expect(issues.map((i) => i.code)).not.toContain('SUYUAN_SIGNING_KEY_INVALID')
+    expect(issues.map((i) => i.code)).not.toContain('GEWU_SIGNING_KEY_INVALID')
   })
   it('完整生产配置无阻断项', () => {
     const issues = checkProductionEnv(validEnv())
@@ -110,7 +110,7 @@ describe('productionPreflight — 生产上线配置门禁', () => {
         NEXT_PUBLIC_SERVER_URL: 'http://localhost:3000',
         REDIS_URL: '',
         MODEL_GATEWAY_BASE_URL: '',
-        SUYUAN_SIGNING_KEY: '',
+        GEWU_SIGNING_KEY: '',
       }),
     )
     const codes = issues.filter((i) => i.level === 'blocker').map((i) => i.code)
@@ -118,7 +118,7 @@ describe('productionPreflight — 生产上线配置门禁', () => {
     expect(codes).toContain('SITE_URL_NOT_HTTPS')
     expect(codes).toContain('REDIS_URL_MISSING')
     expect(codes).toContain('MODEL_GATEWAY_BASE_URL_MISSING')
-    expect(codes).toContain('SUYUAN_SIGNING_KEY_INVALID')
+    expect(codes).toContain('GEWU_SIGNING_KEY_INVALID')
   })
 
   it('生产缺 SERVER_URL 或 NEXT_PUBLIC_SERVER_URL 直接阻断', () => {
@@ -134,8 +134,8 @@ describe('productionPreflight — 生产上线配置门禁', () => {
   it('阻断 SERVER_URL 与 NEXT_PUBLIC_SERVER_URL 不同源，避免 CSRF/CORS 放宽', () => {
     const issues = checkProductionEnv(
       validEnv({
-        SERVER_URL: 'https://api.suyuan.example.com',
-        NEXT_PUBLIC_SERVER_URL: 'https://suyuan.example.com',
+        SERVER_URL: 'https://api.gewu.example.com',
+        NEXT_PUBLIC_SERVER_URL: 'https://gewu.example.com',
       }),
     )
     expect(issues.map((i) => i.code)).toContain('SITE_URL_ORIGIN_MISMATCH')

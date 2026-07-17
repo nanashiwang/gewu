@@ -2,7 +2,19 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 const ROOT = process.cwd()
-const IGNORED_DIRS = new Set(['.git', '.next', 'node_modules', 'dist', 'build', 'coverage'])
+const IGNORED_DIRS = new Set([
+  '.git',
+  '.next',
+  '.pytest_cache',
+  '.venv',
+  '__pycache__',
+  'build',
+  'coverage',
+  'dist',
+  'node_modules',
+  'test-venv',
+  'venv',
+])
 const SCANNED_EXTENSIONS = new Set([
   '.ts',
   '.tsx',
@@ -14,6 +26,19 @@ const SCANNED_EXTENSIONS = new Set([
   '.md',
   '.yml',
   '.yaml',
+])
+const BRAND_SCANNED_EXTENSIONS = new Set([
+  ...SCANNED_EXTENSIONS,
+  '.css',
+  '.example',
+  '.html',
+  '.py',
+  '.service',
+  '.sh',
+  '.svg',
+  '.timer',
+  '.toml',
+  '.txt',
 ])
 const IGNORED_FILES = new Set(['src/app/(payload)/admin/importMap.js'])
 const HIGH_ENTROPY_FIXTURE_PREFIXES = ['detector/data/baselines/']
@@ -37,17 +62,17 @@ function read(relativePath: string): string {
   return readFileSync(path.join(ROOT, relativePath), 'utf8')
 }
 
-function walk(dir: string): string[] {
+function walk(dir: string, extensions = SCANNED_EXTENSIONS): string[] {
   const out: string[] = []
   for (const entry of readdirSync(dir)) {
-    if (IGNORED_DIRS.has(entry)) continue
+    if (IGNORED_DIRS.has(entry) || entry.endsWith('.egg-info')) continue
     const full = path.join(dir, entry)
     const stat = statSync(full)
     if (stat.isDirectory()) {
-      out.push(...walk(full))
+      out.push(...walk(full, extensions))
       continue
     }
-    if (stat.isFile() && SCANNED_EXTENSIONS.has(path.extname(entry))) out.push(full)
+    if (stat.isFile() && extensions.has(path.extname(entry))) out.push(full)
   }
   return out
 }
@@ -107,6 +132,73 @@ function checkNoCommittedModelKeys() {
         `${relative}:${lineNumber(source, match.index || 0)} possible committed high-entropy token ${maskSecret(match[0])}`,
       )
     }
+  }
+}
+
+function checkRetiredBrandIdentifiers() {
+  const retiredAscii = [
+    ['su', 'yuan'].join(''),
+    ['yuan', 'heng'].join(''),
+    ['skill', 'hub'].join(''),
+    ['x', '-', 'yh', '-'].join(''),
+  ]
+  const retiredHan = [
+    String.fromCodePoint(0x6eaf, 0x6e90),
+    String.fromCodePoint(0x5143, 0x8861),
+  ]
+
+  for (const file of walk(ROOT, BRAND_SCANNED_EXTENSIONS)) {
+    const relative = rel(file)
+    const source = readFileSync(file, 'utf8')
+    const normalizedSource = source.toLowerCase()
+    const offsets = [
+      ...retiredAscii.map((identifier) => normalizedSource.indexOf(identifier)),
+      ...retiredHan.map((identifier) => source.indexOf(identifier)),
+    ].filter((offset) => offset >= 0)
+    const offset = offsets.length > 0 ? Math.min(...offsets) : -1
+    if (offset >= 0) {
+      fail(
+        'RETIRED_BRAND_IDENTIFIER',
+        `${relative}:${lineNumber(source, offset)} retired brand identifier must not return`,
+      )
+    }
+
+    const normalizedPath = relative.toLowerCase()
+    if (
+      retiredAscii.some((identifier) => normalizedPath.includes(identifier)) ||
+      retiredHan.some((identifier) => relative.includes(identifier))
+    ) {
+      fail('RETIRED_BRAND_PATH', `${relative}: retired brand identifier must not appear in paths`)
+    }
+  }
+
+  const retiredSubtokenPrefix = ['h', 's_'].join('')
+  for (const relative of [
+    'src/lib/newapiAdmin.ts',
+    'src/lib/newapiProbe.ts',
+    'src/worker/calibrate-newapi.ts',
+    'src/worker/reconcile-newapi.ts',
+  ]) {
+    assertNotIncludes(
+      relative,
+      retiredSubtokenPrefix,
+      'RETIRED_SUBTOKEN_PREFIX',
+      'retired subtoken prefix must not return to New API contracts',
+    )
+  }
+
+  const retiredCachePrefix = ['h', 's:'].join('')
+  for (const relative of [
+    'src/lib/benchmarkQueue.ts',
+    'src/lib/rateLimit.ts',
+    'src/lib/reverifyQueue.ts',
+  ]) {
+    assertNotIncludes(
+      relative,
+      retiredCachePrefix,
+      'RETIRED_CACHE_PREFIX',
+      'retired cache prefix must not return to queue or rate-limit keys',
+    )
   }
 }
 
@@ -465,7 +557,7 @@ function checkMoneyGuardrails() {
   )
   assertIncludes(
     'src/lib/newapiProbe.ts',
-    'hs_preflight_impossible',
+    'gw_preflight_impossible',
     'NEWAPI_USAGE_LOG_FILTER_PROBE',
     'New API production preflight must probe token_name filtering instead of only checking /api/log reachability',
   )
@@ -726,6 +818,7 @@ function checkCiWiresLint() {
 }
 
 checkNoCommittedModelKeys()
+checkRetiredBrandIdentifiers()
 checkNeutralModelRank()
 checkMoneyGuardrails()
 checkRuntimeGuardrails()

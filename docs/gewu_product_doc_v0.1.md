@@ -1,7 +1,7 @@
-# 元衡 SkillHub 产品文档 v0.1
+# 格物平台 产品文档 v0.1
 
 > 内部产品规划文档  
-> 项目代号：Yuanheng SkillHub / 元衡能力库  
+> 项目代号：GEWU 格物平台 / 格物能力库
 > 当前版本：v0.1  
 > 文档目标：定义一个基于 New API 的 AI Skill 市场，并引入类 PT 站的贡献、等级、邀请、悬赏、资源健康度与社区治理机制。
 
@@ -9,16 +9,16 @@
 
 ## 1. 产品一句话定位
 
-**元衡 SkillHub 是一个经过评测的 AI Skill 市场，让用户发现、运行、安装、评测和复用高质量 AI 技能，并通过贡献值机制获得更高权限和资源。**
+**格物平台 是一个经过评测的 AI Skill 市场，让用户发现、运行、安装、评测和复用高质量 AI 技能，并通过贡献值机制获得更高权限和资源。**
 
 更准确的定位：
 
-> New API 负责「模型怎么接、怎么扣费、怎么稳定调用」；SkillHub 负责「任务怎么封装、怎么评测、怎么分发、怎么形成社区贡献」。
+> New API 负责「模型怎么接、怎么扣费、怎么稳定调用」；格物平台 负责「任务怎么封装、怎么评测、怎么分发、怎么形成社区贡献」。
 
 外部表达不建议使用「AI PT 站」「种子站」「做种」等词，内部可以借鉴其运营机制。对外更适合表达为：
 
 - AI Skill 市场
-- 元衡能力库
+- 格物能力库
 - Verified Skill Marketplace
 - AI 能力分发网络
 - 经过评测的 Prompt / Workflow / Model Routing 市场
@@ -35,7 +35,7 @@
 4. **缺少任务级经验**：用户真正关心的是“这个任务应该用哪个模型最省、最准、最稳”，而不只是“有哪些模型”。
 5. **Prompt 市场价值偏轻**：单纯卖 Prompt 容易被复制，缺少评测、运行、版本、计费、路由和社区治理。
 
-SkillHub 的机会在于：
+格物平台 的机会在于：
 
 > 把 New API 的模型网关能力、调用数据、计费能力，与 AI Skill 的封装、评测、分发和社区贡献体系结合起来。
 
@@ -43,7 +43,7 @@ SkillHub 的机会在于：
 
 ## 3. 核心破局点
 
-SkillHub 不应只是另一个 Dify / Open WebUI / Langflow，也不应只是 Prompt 模板站。
+格物平台 不应只是另一个 Dify / Open WebUI / Langflow，也不应只是 Prompt 模板站。
 
 核心差异化应是：
 
@@ -73,7 +73,7 @@ SkillHub 不应只是另一个 Dify / Open WebUI / Langflow，也不应只是 Pr
 
 ### 3.2 Skill + Eval + Router 三合一
 
-SkillHub 的产品核心应由三部分组成：
+格物平台 的产品核心应由三部分组成：
 
 | 模块 | 作用 |
 |---|---|
@@ -99,8 +99,8 @@ POST /v1/skills/{skill_slug}/run
 
 | 使用方式 | 说明 | 适合用户 |
 |---|---|---|
-| 云端运行 | SkillHub 调 New API 执行 Skill | 普通用户、开发者、企业在线场景 |
-| API 调用 | 用户业务系统调用 SkillHub Skill endpoint | 开发者、SaaS、企业系统 |
+| 云端运行 | 格物平台 调 New API 执行 Skill | 普通用户、开发者、企业在线场景 |
+| API 调用 | 用户业务系统调用 格物平台 Skill endpoint | 开发者、SaaS、企业系统 |
 | 本地安装 | 用户把 Skill 安装到本地 Runner，用 Ollama / LM Studio / vLLM / 私有模型运行 | 本地模型用户、隐私敏感团队、企业内网 |
 
 第一阶段优先云端运行，第二阶段再做本地 Runner。
@@ -115,7 +115,7 @@ POST /v1/skills/{skill_slug}/run
 
 1. 用户能浏览 Skill。
 2. 用户能在线运行 Skill。
-3. SkillHub 通过 New API 调用模型。
+3. 格物平台 通过 New API 调用模型。
 4. 平台能记录成本、耗时、成功率。
 5. 平台能形成 SkillRank。
 6. 用户能收藏、评论、贡献反馈。
@@ -231,12 +231,12 @@ POST /v1/skills/{skill_slug}/run
 
 ## 6. 产品形态
 
-### 6.1 云端 SkillHub
+### 6.1 云端 格物平台
 
 域名建议：
 
 ```text
-skill.yuanheng.ai
+skill.gewu.ai
 ```
 
 主要页面：
@@ -258,7 +258,7 @@ skill.yuanheng.ai
 域名建议：
 
 ```text
-api.yuanheng.ai
+api.gewu.ai
 ```
 
 职责：
@@ -276,7 +276,7 @@ api.yuanheng.ai
 后期推出：
 
 ```text
-Yuanheng Skill Runner
+GEWU Skill Runner
 ```
 
 形态可包括：
@@ -302,7 +302,7 @@ Yuanheng Skill Runner
 
 内部借鉴 PT 站机制，但对外换成合规、正向的产品表达。
 
-| PT 站概念 | SkillHub 对应设计 | 外部推荐叫法 |
+| PT 站概念 | 格物平台 对应设计 | 外部推荐叫法 |
 |---|---|---|
 | 种子 | Skill / 能力包 | Skill、能力、模板、工作流 |
 | 下载 | 调用 Skill / 安装 Skill / Fork Skill | 调用、安装、复用 |
@@ -528,7 +528,7 @@ SkillRank 用于让用户快速判断：
 
 | 维度 | 权重建议 | 数据来源 |
 |---|---:|---|
-| 评测通过率 | 35% | SkillHub Eval |
+| 评测通过率 | 35% | 格物平台 Eval |
 | 稳定性 | 15% | New API 调用结果 + SkillRun |
 | 成本优势 | 15% | New API token / 价格 |
 | 延迟表现 | 10% | SkillRun latency |
@@ -576,30 +576,30 @@ Skill 详情页应展示：
 | 模块 | 职责 |
 |---|---|
 | New API | 模型网关、渠道、余额、Key、token 计费、调用日志、渠道级 fallback |
-| SkillHub | Skill 市场、Prompt 拼装、输入输出校验、任务级路由、SkillRank、贡献值、悬赏、社区 |
+| 格物平台 | Skill 市场、Prompt 拼装、输入输出校验、任务级路由、SkillRank、贡献值、悬赏、社区 |
 
 原则：
 
-> New API 不理解 Skill 业务；SkillHub 不直接绕过 New API 调模型。
+> New API 不理解 Skill 业务；格物平台 不直接绕过 New API 调模型。
 
 ### 12.2 云端运行流程
 
 ```text
 用户填写 Skill 表单
         ↓
-SkillHub 校验输入字段
+格物平台 校验输入字段
         ↓
-SkillHub 渲染 Prompt
+格物平台 渲染 Prompt
         ↓
-SkillHub 选择模型 / 路由策略
+格物平台 选择模型 / 路由策略
         ↓
-SkillHub 调用 New API /v1/chat/completions
+格物平台 调用 New API /v1/chat/completions
         ↓
 New API 调模型供应商
         ↓
 返回结果、token、耗时、错误信息
         ↓
-SkillHub 校验输出格式
+格物平台 校验输出格式
         ↓
 记录 SkillRun
         ↓
@@ -610,10 +610,10 @@ SkillHub 校验输出格式
 
 MVP 可采用轻联动：
 
-- 用户在 SkillHub 绑定 New API Key。
-- SkillHub 调用 New API OpenAI-compatible 接口。
-- SkillHub 自己记录 SkillRun。
-- 模型价格先由 SkillHub 定期同步或手动配置。
+- 用户在 格物平台 绑定 New API Key。
+- 格物平台 调用 New API OpenAI-compatible 接口。
+- 格物平台 自己记录 SkillRun。
+- 模型价格先由 格物平台 定期同步或手动配置。
 
 优点：
 
@@ -635,10 +635,10 @@ GET /internal/logs?external_run_id={run_id}
 调用时透传 metadata：
 
 ```http
-X-YH-Source: skillhub
-X-YH-Run-ID: run_xxx
-X-YH-Skill-ID: skill_xxx
-X-YH-Skill-Version: 1.0.0
+X-GEWU-Source: gewu
+X-GEWU-Run-ID: run_xxx
+X-GEWU-Skill-ID: skill_xxx
+X-GEWU-Skill-Version: 1.0.0
 ```
 
 New API 日志中记录：
@@ -657,13 +657,13 @@ New API 日志中记录：
 
 | 路由类型 | 归属 | 说明 |
 |---|---|---|
-| 任务级路由 | SkillHub | 某个任务适合哪个模型 |
+| 任务级路由 | 格物平台 | 某个任务适合哪个模型 |
 | 渠道级路由 | New API | 某个模型走哪个渠道最稳 |
 
 示例：
 
 ```text
-SkillHub 判断：合同摘要 Skill 适合 Claude / GPT。
+格物平台 判断：合同摘要 Skill 适合 Claude / GPT。
 New API 判断：Claude 当前走哪个渠道更稳定。
 ```
 
@@ -929,7 +929,7 @@ Next.js + Payload CMS + PostgreSQL + Redis + Worker + New API
 ```text
 用户浏览器
    ↓
-Next.js SkillHub 前台
+Next.js 格物平台 前台
    ↓
 Payload / Custom API
    ↓                     ↓
@@ -969,7 +969,7 @@ Payload 适合作为基座，因为它能节省：
 
 ### 16.1 Payload CMS
 
-推荐作为 SkillHub 的用户、权限、后台和内容数据基座。
+推荐作为 格物平台 的用户、权限、后台和内容数据基座。
 
 适合借鉴/使用：
 
@@ -1009,7 +1009,7 @@ Payload 适合作为基座，因为它能节省：
 - 后台审核
 - 社区治理
 
-不建议作为 SkillHub 主基座，主要参考运营逻辑。
+不建议作为 格物平台 主基座，主要参考运营逻辑。
 
 ### 16.4 NexusPHP
 
@@ -1021,7 +1021,7 @@ Payload 适合作为基座，因为它能节省：
 - 等级体系
 - 魔力值系统
 
-不建议直接二开做现代 SkillHub。
+不建议直接二开做现代 格物平台。
 
 ---
 
@@ -1280,7 +1280,7 @@ Skill 详情页是核心页面，应兼顾 PT 站资源页和 AI 技能页。
 ### 21.3 本地运行流程
 
 ```text
-用户从 SkillHub 安装 Skill
+用户从 格物平台 安装 Skill
         ↓
 Runner 读取 manifest
         ↓
@@ -1313,7 +1313,7 @@ Runner 渲染 Prompt
 
 - New API 调用消耗
 - 高级模型调用
-- SkillHub 会员
+- 格物平台 会员
 - 高级 Skill 使用权限
 
 ### 22.2 创作者经济
@@ -1337,7 +1337,7 @@ Runner 渲染 Prompt
 ### 22.4 本地与混合部署
 
 - 本地 Runner 企业版
-- 内网私有 SkillHub
+- 内网私有 格物平台
 - 本地模型评测服务
 - 云端 fallback 套餐
 
@@ -1395,7 +1395,7 @@ Runner 渲染 Prompt
 
 ### 23.5 New API 稳定性风险
 
-风险：SkillHub 运行依赖 New API，New API 不稳定会影响 SkillHub 体验。
+风险：格物平台 运行依赖 New API，New API 不稳定会影响 格物平台 体验。
 
 应对：
 
@@ -1423,7 +1423,7 @@ Runner 渲染 Prompt
 
 ### 阶段 1：MVP
 
-目标：完成可公开内测的 SkillHub。
+目标：完成可公开内测的 格物平台。
 
 交付：
 
@@ -1574,7 +1574,7 @@ Runner 渲染 Prompt
 
 ### 商业指标
 
-- SkillHub 带来的 New API 消耗
+- 格物平台 带来的 New API 消耗
 - 付费用户比例
 - 高级 Skill 使用次数
 - 企业空间试用数
@@ -1630,7 +1630,7 @@ Payload CMS + Next.js
 
 ## 28. 下一步建议
 
-1. 确认项目命名：SkillHub / 元衡能力库 / 元衡 SkillHub。
+1. 确认项目命名：格物平台 / 格物能力库 / 格物平台。
 2. 确认技术栈：Payload + Next.js + PostgreSQL + Redis。
 3. 建立 Git 仓库。
 4. 初始化 Payload 项目。

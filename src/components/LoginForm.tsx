@@ -58,7 +58,7 @@ export function LoginForm({ initialError }: { initialError?: string }) {
 
   return (
     <div className="mx-auto max-w-sm py-8">
-      <h1 className="mb-1 text-xl font-semibold">登录 溯源</h1>
+      <h1 className="mb-1 text-xl font-semibold">登录 格物</h1>
       <p className="mb-6 text-sm text-[var(--muted)]">
         还没有账号？
         <Link href="/register" className="ml-1 text-[var(--accent)]">

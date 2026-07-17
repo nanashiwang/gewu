@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}常见问题 · AI API 中转站检测 | 溯源{% endblock %}
-{% block description %}溯源 关于 AI API 中转站检测的 {{ total_count }} 个常见问题:Claude 签名回放验证、OpenAI 后端伪装识别、Gemini 中转站协议合规和数据安全。{% endblock %}
-{% block og_title %}AI API 中转站检测常见问题 · 溯源{% endblock %}
+{% block title %}常见问题 · AI API 中转站检测 | 格物{% endblock %}
+{% block description %}格物 关于 AI API 中转站检测的 {{ total_count }} 个常见问题:Claude 签名回放验证、OpenAI 后端伪装识别、Gemini 中转站协议合规和数据安全。{% endblock %}
+{% block og_title %}AI API 中转站检测常见问题 · 格物{% endblock %}
 {% block og_description %}{{ total_count }} 个 Q&A 覆盖 Claude / OpenAI / Gemini 中转站真伪检测、协议合规、隐私安全。{% endblock %}
 {% block canonical %}{{ brand.site_url }}/faq{% endblock %}
 {% block og_url %}{{ brand.site_url }}/faq{% endblock %}
@@ -18,7 +18,7 @@
 <section class="faq-hero">
   <h1>常见问题</h1>
   <p class="faq-hero-sub">
-    溯源 是 AI API 中转站检测工具,通过 Claude thinking block 原始/篡改回放 + 协议字段
+    格物 是 AI API 中转站检测工具,通过 Claude thinking block 原始/篡改回放 + 协议字段
     + 用量指纹,识别中转站是否真实透传 Claude / OpenAI / Gemini 模型。本页汇总 <strong>{{ total_count }} 个</strong>
     关于中转站、真伪检测、工具使用、数据安全的常见问题。
   </p>
@@ -63,7 +63,7 @@
       <p>
         {% if brand.source_url %}欢迎在
         <a href="{{ brand.source_url }}" target="_blank" rel="noopener">源码仓库</a>
-        提 issue,或者{% endif %}直接<a href="/claude">跑一次检测</a>看实际结果 — 溯源
+        提 issue,或者{% endif %}直接<a href="/claude">跑一次检测</a>看实际结果 — 格物
         的报告 details 里包含具体的扣分原因,通常自带答案。
       </p>
     </section>

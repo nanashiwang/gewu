@@ -44,7 +44,7 @@ export OPENAI_API_KEY='sk-...'
 采集低成本完整样本：
 
 ```bash
-venv/bin/suyuan openai baseline \
+venv/bin/gewu openai baseline \
   --model gpt-4o-mini \
   --wire-api both \
   --probe-set full \
@@ -54,7 +54,7 @@ venv/bin/suyuan openai baseline \
 只做连通性/基础协议冒烟：
 
 ```bash
-venv/bin/suyuan openai baseline \
+venv/bin/gewu openai baseline \
   --model gpt-4o-mini \
   --wire-api both \
   --probe-set smoke
@@ -462,13 +462,13 @@ src/relay_detector/
 CLI 增加：
 
 ```bash
-suyuan openai \
+gewu openai \
   --base-url https://api.openai.com \
   --api-key sk-... \
   --model <model-from-v1-models> \
   --protocol responses
 
-suyuan openai \
+gewu openai \
   --base-url https://some-relay.example.com \
   --api-key sk-... \
   --model <model-from-v1-models> \

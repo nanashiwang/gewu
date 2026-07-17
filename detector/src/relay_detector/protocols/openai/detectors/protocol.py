@@ -32,7 +32,7 @@ class ProtocolDetector(PassiveDetector):
             response,
             request_model=str(request.get("model") or ""),
         )
-        transport = response.get("_suyuan_transport")
+        transport = response.get("_gewu_transport")
         if isinstance(transport, dict) and transport.get("fallback_reason"):
             validation.issues.append(
                 ProtocolIssue(

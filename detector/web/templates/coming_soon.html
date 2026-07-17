@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}{{ name }} 中转站检测 · 即将上线 | 溯源{% endblock %}
+{% block title %}{{ name }} 中转站检测 · 即将上线 | 格物{% endblock %}
 {% block description %}{{ name }} 中转站检测正在准备中。留下邮箱,上线后第一时间通知你。{% endblock %}
-{% block og_title %}{{ name }} 中转站检测 · 溯源{% endblock %}
+{% block og_title %}{{ name }} 中转站检测 · 格物{% endblock %}
 {% block og_description %}{{ tier }} · {{ body }}{% endblock %}
 
 {% block content %}
@@ -42,9 +42,23 @@
 (function () {
   const form = document.getElementById('wishlist-form');
   const btn = document.getElementById('wishlist-btn');
+  const email = document.getElementById('email');
   const err = document.getElementById('wishlist-error');
   const ok = document.getElementById('wishlist-success');
   if (!form) return;
+
+  const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
+  if (location.protocol !== 'https:' && !localHosts.has(location.hostname)) {
+    email.disabled = true;
+    btn.disabled = true;
+    const warning = document.createElement('div');
+    warning.className = 'transport-warning';
+    warning.setAttribute('role', 'alert');
+    warning.textContent = '当前是 HTTP 预发布入口。为保护邮箱，通知登记将在 HTTPS 上线后开放。';
+    form.prepend(warning);
+    return;
+  }
+
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     err.hidden = true;

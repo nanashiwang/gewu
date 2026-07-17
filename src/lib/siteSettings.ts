@@ -12,7 +12,7 @@ export function normalizeRegistrationEmail(email: unknown): string {
 }
 
 export function generatedRegistrationEmail(): string {
-  return `user-${randomUUID()}@users.suyuan.invalid`
+  return `user-${randomUUID()}@users.gewu.invalid`
 }
 
 export function resolveRegistrationEmail(email: unknown, required: boolean): string {

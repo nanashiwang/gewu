@@ -18,7 +18,7 @@ import {
 
 const envWithKey = () => {
   const { privateKey } = generateKeyPairSync('ed25519')
-  return { SUYUAN_SIGNING_KEY: (privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer).toString('base64') }
+  return { GEWU_SIGNING_KEY: (privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer).toString('base64') }
 }
 
 describe('anchorVerify — 公开外锚 bundle 校验', () => {
@@ -87,13 +87,13 @@ describe('anchorVerify — 公开外锚 bundle 校验', () => {
   })
 
   it('识别可信发布目标，形成可信网络声明', () => {
-    const trusted = parseTrustedAnchorPublishers('github-release|https://github.com/acme/suyuan/releases/, https://mirror.example.com/anchors/')
+    const trusted = parseTrustedAnchorPublishers('github-release|https://github.com/acme/gewu/releases/, https://mirror.example.com/anchors/')
     expect(trusted).toEqual([
-      { target: 'github-release', urlPrefix: 'https://github.com/acme/suyuan/releases/' },
+      { target: 'github-release', urlPrefix: 'https://github.com/acme/gewu/releases/' },
       { urlPrefix: 'https://mirror.example.com/anchors/' },
     ])
     const manifest = {
-      publishedTo: [{ target: 'github-release', url: 'https://github.com/acme/suyuan/releases/download/v1/evidence.manifest.json' }],
+      publishedTo: [{ target: 'github-release', url: 'https://github.com/acme/gewu/releases/download/v1/evidence.manifest.json' }],
     }
     expect(evaluateTrustedAnchorPublication(manifest, trusted)).toMatchObject({ status: 'trusted' })
     expect(evaluateTrustedAnchorPublication({ publishedTo: [{ target: 'paste', url: 'https://evil.example/a' }] }, trusted)).toMatchObject({
@@ -116,7 +116,7 @@ describe('anchorVerify — 公开外锚 bundle 校验', () => {
     }, null)
     const line = canonicalString(entry)
     const manifest = signEvidenceAnchorManifest(buildEvidenceAnchorManifest([line], '2026-07-08T00:00:00.000Z', {
-      publishedTo: [{ target: 'github-release', url: 'https://github.com/acme/suyuan/releases/download/v1/evidence.manifest.json' }],
+      publishedTo: [{ target: 'github-release', url: 'https://github.com/acme/gewu/releases/download/v1/evidence.manifest.json' }],
       externalTimestamp: { provider: 'ots', receiptHash },
     }), env)
 
@@ -132,7 +132,7 @@ describe('anchorVerify — 公开外锚 bundle 校验', () => {
       jsonl: [line],
       manifest,
       publicKeyInfo: getPublicKeyInfo(env),
-      trustedPublishers: [{ target: 'github-release', urlPrefix: 'https://github.com/acme/suyuan/releases/' }],
+      trustedPublishers: [{ target: 'github-release', urlPrefix: 'https://github.com/acme/gewu/releases/' }],
     }).assurance).toMatchObject({ level: 'trusted_published', passed: true })
 
     expect(verifyAnchorManifestBundle({
@@ -140,7 +140,7 @@ describe('anchorVerify — 公开外锚 bundle 校验', () => {
       jsonl: [line],
       manifest,
       publicKeyInfo: getPublicKeyInfo(env),
-      trustedPublishers: [{ target: 'github-release', urlPrefix: 'https://github.com/acme/suyuan/releases/' }],
+      trustedPublishers: [{ target: 'github-release', urlPrefix: 'https://github.com/acme/gewu/releases/' }],
       externalTimestampReceipt: receipt,
     })).toMatchObject({
       assurance: { level: 'external_timestamped', passed: true },

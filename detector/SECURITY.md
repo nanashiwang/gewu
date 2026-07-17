@@ -1,6 +1,6 @@
 # 安全策略
 
-溯源 的产品本质是「用户把 API key 交给我们检测中转站真伪」。
+格物 的产品本质是「用户把 API key 交给我们检测中转站真伪」。
 **所以安全不是我们勾的某个选项,而是产品本身**。
 
 ## 我们怎么处理 API key
@@ -13,7 +13,8 @@
 | key **不写入**报告 JSON | [`web/jobs.py:_run`](web/jobs.py) 只持久化 `mask_api_key()` 结果,并在落盘前递归脱敏反射内容 |
 | key **不写入**应用日志或持久错误 | [`web/jobs.py:_run`](web/jobs.py) 和 [`web/probe.py`](web/probe.py) 会对上游反射的 key 再脱敏 |
 | 跨协议跳转不把 key 放进 URL 或 `sessionStorage` | [`web/static/app.js`](web/static/app.js) 只暂存 `base_url` 和来源协议 |
-| 在线版拒绝访问本机、内网、链路本地、云元数据和保留地址 | [`web/security.py`](web/security.py);自托管内网检测需显式开启 `SUYUAN_ALLOW_PRIVATE_TARGETS=1` |
+| 在线版拒绝访问本机、内网、链路本地、云元数据和保留地址 | [`web/security.py`](web/security.py);自托管内网检测需显式开启 `GEWU_ALLOW_PRIVATE_TARGETS=1` |
+| 公网 HTTP 不接收 API key | [`web/server.py`](web/server.py) 在解析表单前返回 426；[`web/static/app.js`](web/static/app.js) 同时禁用密钥输入。本地开发才可显式开启 `GEWU_ALLOW_INSECURE_API=1` |
 | Web 出站请求不继承服务器的 `HTTP_PROXY` / `HTTPS_PROXY` | [`web/jobs.py`](web/jobs.py) 和 [`web/probe.py`](web/probe.py) 显式使用 `trust_env=False`;CLI 仍保留默认代理行为 |
 | key **永不**写数据库 | 我们根本没有数据库 — 只有 JSON 文件,且都已脱敏 |
 | 报告里的 key 显示为脱敏形式 `sk-y7xU••••••0h` | [`mask_api_key`](src/relay_detector/models.py) 函数 |
@@ -56,10 +57,10 @@
 
 ## 范围外(Out of Scope)
 
-- **上游中转站漏洞**:`some-relay.com` 自己有 bug 是它们的责任,溯源
+- **上游中转站漏洞**:`some-relay.com` 自己有 bug 是它们的责任,格物
   只负责检测它们
 - **DoS / 限流**:我们就一台 VPS,被 DDoS 是常态运维问题不算漏洞
-- **钓鱼网站**:网上可能有人开近似 `溯源` 的仿站偷 key,
+- **钓鱼网站**:网上可能有人开近似 `格物` 的仿站偷 key,
   我们知道。**只信 `your-domain.example` 这一个域名**
 - **自托管错配**:你启 verbose 日志 / 暴露 `web_data/` 是你自己的事,不是
   我们的漏洞
@@ -81,7 +82,7 @@
 - 公开 credit
 - commit co-author 署名(如你愿意)
 
-AGPL 意味着 溯源 是社区项目,不是 VC 公司,抱歉没现金。
+AGPL 意味着 格物 是社区项目,不是 VC 公司,抱歉没现金。
 
-谢谢你读完。溯源 只在它真的可信的时候才有价值,而它持续可信的唯一办法
+谢谢你读完。格物 只在它真的可信的时候才有价值,而它持续可信的唯一办法
 是有像你这样的人来不断检验它。

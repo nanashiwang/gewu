@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}溯源 · AI API 中转站检测工具{% endblock %}</title>
+  <title>{% block title %}格物 · AI API 中转站检测工具{% endblock %}</title>
   <meta name="description" content="{% block description %}免费在线检测 AI API 中转站质量。Claude 支持 thinking signature 原始/篡改双向回放验证,OpenAI 支持 Chat Completions 行为/协议级检测。{% endblock %}" />
   <meta name="keywords" content="AI API 中转站检测, Claude API 中转站, OpenAI 中转站检测, Gemini 中转站检测, API 中转站真伪, Claude thinking signature, API relay verification" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="{% block og_title %}溯源 · AI API 中转站检测{% endblock %}" />
+  <meta property="og:title" content="{% block og_title %}格物 · AI API 中转站检测{% endblock %}" />
   <meta property="og:description" content="{% block og_description %}Claude 签名回放验证与 OpenAI Chat Completions 检测已上线。{% endblock %}" />
   <meta property="og:url" content="{% block og_url %}{{ brand.url('/') }}{% endblock %}" />
   <meta property="og:locale" content="zh_CN" />
@@ -31,7 +31,13 @@
   <header class="site-header">
     <div class="site-header-inner">
       <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true">先</span>
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" focusable="false">
+            <path d="M4 4h10v4H8v6H4V4Zm14 0h10v10h-4V8h-6V4ZM4 18h4v6h6v4H4V18Zm20 0h4v10H18v-4h6v-6Z"/>
+            <circle class="brand-mark-cutout" cx="16" cy="16" r="6"/>
+            <circle class="brand-mark-aperture" cx="16" cy="16" r="6"/>
+          </svg>
+        </span>
         <span>{{ brand.name }}</span>
       </a>
       <button

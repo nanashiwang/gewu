@@ -175,7 +175,7 @@ async function buildPackageFromParts(args: {
     : null
 
   const core = {
-    schemaVersion: 'suyuan.evidence.package/v1',
+    schemaVersion: 'gewu.evidence.package/v1',
     generatedAt: new Date().toISOString(),
     scope: args.scope,
     subject: {
@@ -232,7 +232,7 @@ export async function buildPublicSkillEvidencePackage(
   if (!passport) return { ok: false, status: 404, reason: 'Passport 尚未生成' }
   const version = await resolveCurrentSkillVersionForPublicEvidence(payload, skill)
   const pack = await buildPackageFromParts({ payload, scope: 'public_skill', skill, passport, version })
-  return { ok: true, filename: safeEvidenceFilename('suyuan-evidence', skill.slug || skill.id), package: pack }
+  return { ok: true, filename: safeEvidenceFilename('gewu-evidence', skill.slug || skill.id), package: pack }
 }
 
 export async function buildEnterpriseRegistryEvidencePackage(
@@ -267,5 +267,5 @@ export async function buildEnterpriseRegistryEvidencePackage(
     registry,
     organizationId: result.organizationId,
   })
-  return { ok: true, filename: safeEvidenceFilename('suyuan-enterprise-evidence', registry.id), package: pack }
+  return { ok: true, filename: safeEvidenceFilename('gewu-enterprise-evidence', registry.id), package: pack }
 }

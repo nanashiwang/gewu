@@ -117,7 +117,7 @@ describe('evidenceAnchor — 证据快照外锚哈希链', () => {
   it('manifest 可用站点 ed25519 私钥自签并验签', () => {
     const { privateKey } = generateKeyPairSync('ed25519')
     const env = {
-      SUYUAN_SIGNING_KEY: (privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer).toString('base64'),
+      GEWU_SIGNING_KEY: (privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer).toString('base64'),
     }
     const first = buildEvidenceAnchorEntry(base(), null)
     const line = canonicalString(first)

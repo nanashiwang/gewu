@@ -31,7 +31,7 @@ from .runner import Runner
 from .scorer import compute_total, effective_verdict, fatal_run_error, summary_text
 
 app = typer.Typer(
-    name="suyuan",
+    name="gewu",
     help="Detect quality and authenticity of Claude API relay stations.",
     no_args_is_help=True,
 )
@@ -47,7 +47,7 @@ console = Console()
 @app.command()
 def version() -> None:
     """Print the version and exit."""
-    console.print(f"suyuan {__version__}")
+    console.print(f"gewu {__version__}")
 
 
 def _load_dotenv(path: Path) -> None:
@@ -290,63 +290,63 @@ def monitor_once(
     target_id: str = typer.Option(
         ...,
         "--target-id",
-        envvar="SUYUAN_MONITOR_TARGET_ID",
+        envvar="GEWU_MONITOR_TARGET_ID",
         help="Stable ASCII monitor id used only in the report filename.",
     ),
     base_url: str = typer.Option(
         ...,
         "--base-url",
-        envvar="SUYUAN_MONITOR_BASE_URL",
+        envvar="GEWU_MONITOR_BASE_URL",
         help="Relay base URL.",
     ),
     model: str = typer.Option(
         ...,
         "--model",
-        envvar="SUYUAN_MONITOR_MODEL",
+        envvar="GEWU_MONITOR_MODEL",
         help="Model id to monitor.",
     ),
     protocol: Optional[str] = typer.Option(
         None,
         "--protocol",
-        envvar="SUYUAN_MONITOR_PROTOCOL",
+        envvar="GEWU_MONITOR_PROTOCOL",
         help="anthropic / openai / gemini; inferred from model when omitted.",
     ),
     mode: Mode = typer.Option(
         Mode.QUICK,
         "--mode",
-        envvar="SUYUAN_MONITOR_MODE",
+        envvar="GEWU_MONITOR_MODE",
         case_sensitive=False,
         help="quick / standard / full",
     ),
     api_key_env: Optional[str] = typer.Option(
         None,
         "--api-key-env",
-        envvar="SUYUAN_MONITOR_API_KEY_ENV",
+        envvar="GEWU_MONITOR_API_KEY_ENV",
         help=(
             "Environment variable name containing the API key. systemd "
             "LoadCredential=api_key takes precedence. The raw key is never a CLI option."
         ),
     ),
     output_root: Path = typer.Option(
-        Path("/opt/suyuan-detector/web_data/jobs"),
+        Path("/opt/gewu-detector/web_data/jobs"),
         "--output-root",
-        envvar="SUYUAN_JOBS_DIR",
+        envvar="GEWU_JOBS_DIR",
         help="Root jobs directory; reports are written under <protocol>/.",
     ),
     max_concurrent: int = typer.Option(
         2,
         "--max-concurrent",
-        envvar="SUYUAN_MONITOR_MAX_CONCURRENT",
+        envvar="GEWU_MONITOR_MAX_CONCURRENT",
     ),
     timeout: Optional[float] = typer.Option(
         None,
         "--timeout",
-        envvar="SUYUAN_MONITOR_TIMEOUT",
+        envvar="GEWU_MONITOR_TIMEOUT",
     ),
     include_long_context: bool = typer.Option(
         False,
         "--long-context/--no-long-context",
-        envvar="SUYUAN_MONITOR_LONG_CONTEXT",
+        envvar="GEWU_MONITOR_LONG_CONTEXT",
         help="Opt in explicitly; routine monitors keep this costly probe off.",
     ),
 ) -> None:
@@ -382,7 +382,7 @@ _DEFAULT_BASE_URLS = {
     Protocol.OPENAI: "https://api.openai.com/v1",
     Protocol.GEMINI: "https://generativelanguage.googleapis.com/v1beta/openai",
     # Anthropic intentionally has no default — the official endpoint requires
-    # an Anthropic key, which most suyuan users won't have. Forcing
+    # an Anthropic key, which most gewu users won't have. Forcing
     # an explicit --base-url avoids accidentally probing api.anthropic.com
     # when the user meant a relay.
 }
@@ -564,7 +564,7 @@ _SEVERITY_LABEL = {
 @app.command(name="compare")
 def compare_cmd(
     relay_report: Path = typer.Argument(
-        ..., help="suyuan detect 输出的 JSON 报告"
+        ..., help="gewu detect 输出的 JSON 报告"
     ),
     baseline: Optional[Path] = typer.Option(
         None,

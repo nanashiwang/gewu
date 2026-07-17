@@ -124,7 +124,7 @@ async function main() {
 
     if (usageError) {
       payload.logger.error(
-        `NewAPI /api/log 不可用，无法回填真实毛利；禁止据此开启 exchangeEnabled。原因：${usageError.replace(/hs_[A-Za-z0-9-]+/g, 'hs_<user>')}`,
+        `NewAPI /api/log 不可用，无法回填真实毛利；禁止据此开启 exchangeEnabled。原因：${usageError.replace(/gw_[A-Za-z0-9-]+/g, 'gw_<user>')}`,
       )
       process.exit(2)
     }

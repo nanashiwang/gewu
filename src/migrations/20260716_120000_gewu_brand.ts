@@ -3,11 +3,11 @@ import { MigrateDownArgs, MigrateUpArgs, sql } from '@payloadcms/db-postgres'
 export async function up({ db }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
     ALTER TABLE "site_settings"
-      ALTER COLUMN "site_name" SET DEFAULT '溯源';
+      ALTER COLUMN "site_name" SET DEFAULT '格物';
 
     UPDATE "site_settings"
-    SET "site_name" = '溯源'
-    WHERE "site_name" <> '溯源';
+    SET "site_name" = '格物'
+    WHERE "site_name" <> '格物';
   `)
 }
 
@@ -16,6 +16,6 @@ export async function down({ db }: MigrateDownArgs): Promise<void> {
   // application code back must not resurrect a retired public identity.
   await db.execute(sql`
     ALTER TABLE "site_settings"
-      ALTER COLUMN "site_name" SET DEFAULT '溯源';
+      ALTER COLUMN "site_name" SET DEFAULT '格物';
   `)
 }

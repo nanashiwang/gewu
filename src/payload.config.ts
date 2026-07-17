@@ -49,7 +49,7 @@ const payloadSecret = (() => {
   const secret = process.env.PAYLOAD_SECRET || ''
   if (secret.length >= 16) return secret
   if (process.env.NODE_ENV === 'production') throw new Error('PAYLOAD_SECRET 必须在生产环境配置为强随机值')
-  return 'suyuan-dev-secret'
+  return 'gewu-dev-secret'
 })()
 
 export default buildConfig({
@@ -57,7 +57,7 @@ export default buildConfig({
     user: Users.slug,
     importMap: { baseDir: path.resolve(dirname) },
     meta: {
-      titleSuffix: '· 溯源',
+      titleSuffix: '· 格物',
     },
   },
   collections: [

@@ -10,7 +10,7 @@ async function seed() {
   payload.logger.info('开始注入种子数据…')
 
   // ── 管理员（官方 Skill 作者）──
-  // 只复用真实首管；没有管理员时不再创建默认 admin@yuanheng.ai，避免抢占“首个注册账号即管理员”规则。
+  // 只复用真实首管；没有管理员时不再创建默认 admin@gewu.example，避免抢占“首个注册账号即管理员”规则。
   const admin = (
     await payload.find({
       collection: 'users',

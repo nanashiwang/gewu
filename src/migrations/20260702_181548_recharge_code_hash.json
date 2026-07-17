@@ -6274,7 +6274,7 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": false,
-          "default": "'溯源'"
+          "default": "'格物'"
         },
         "slogan": {
           "name": "slogan",

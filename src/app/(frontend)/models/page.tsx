@@ -9,7 +9,7 @@ import { buildModelProfileWhere } from '@/lib/modelProfilePublic'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: '模型中立榜 · 溯源',
+  title: '模型中立榜 · 格物',
   description:
     '基于真实运行数据的中立模型评测：成功率、延迟、官方报价与成本效率。排名不含平台收益因素。',
 }

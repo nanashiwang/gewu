@@ -446,7 +446,7 @@ prompt：`What's the weather in Tokyo? Use celsius.`
 ```
 ┌──────────────────────────────────────────────────┐
 │                   CLI 入口                        │
-│   suyuan --base-url ... --api-key ...            │
+│   gewu --base-url ... --api-key ...            │
 └────────────────────┬─────────────────────────────┘
                      ▼
 ┌──────────────────────────────────────────────────┐
@@ -795,7 +795,7 @@ prefixed by question number (e.g. "1. <answer>"). If you don't know, reply
 
 - **缓存 key**：`hash(base_url + masked_api_key + model + mode)`
 - **TTL**：5 分钟
-- **存储**：默认内存（单次 CLI 运行内）；`--persist-cache` 时落到 `~/.cache/suyuan/`
+- **存储**：默认内存（单次 CLI 运行内）；`--persist-cache` 时落到 `~/.cache/gewu/`
 - **强制刷新**：`--no-cache`
 
 主要场景：
@@ -832,7 +832,7 @@ prefixed by question number (e.g. "1. <answer>"). If you don't know, reply
 ## 7. 项目结构
 
 ```
-suyuan/detector/
+gewu/detector/
 ├── DESIGN.md                        # 本文档
 ├── README.md
 ├── pyproject.toml
@@ -893,13 +893,13 @@ suyuan/detector/
 
 ```bash
 # 默认 quick 模式（5 项核心，~15s, ~$0.05）
-$ suyuan \
+$ gewu \
     --base-url https://router.8864k.com \
     --api-key sk-xxx \
     --model claude-opus-4-7
 
 # 完整模式 + 输出 JSON 报告
-$ suyuan \
+$ gewu \
     --base-url https://router.8864k.com \
     --api-key sk-xxx \
     --model claude-opus-4-7 \
@@ -907,10 +907,10 @@ $ suyuan \
     --output report.json
 
 # 自定义并发数（默认 3）
-$ suyuan ... --max-concurrent 5
+$ gewu ... --max-concurrent 5
 
 # 强制刷新缓存
-$ suyuan ... --no-cache
+$ gewu ... --no-cache
 ```
 
 **主要 flag**：
@@ -920,7 +920,7 @@ $ suyuan ... --no-cache
 | `--mode` | `quick` | `quick` / `standard` / `full`，见 §6.1 |
 | `--max-concurrent` | `3` | 并发请求数上限 |
 | `--no-cache` | off | 跳过短期结果缓存 |
-| `--persist-cache` | off | 缓存落盘 `~/.cache/suyuan/` |
+| `--persist-cache` | off | 缓存落盘 `~/.cache/gewu/` |
 | `--output` | stdout | JSON 报告输出路径 |
 | `--timeout` | mode-defaults | 整体超时（quick 60s / standard 120s / full 180s） |
 
@@ -951,7 +951,7 @@ $ suyuan ... --no-cache
 - `detectors/base.py`：`BaseDetector` / `ActiveDetector` / `PassiveDetector` 三个基类
 - `cli.py`：`ping` 子命令，调一次 `/v1/messages` 返回 model 字段
 
-**验证**：`suyuan ping --base-url ... --api-key ...` 能拿到官方 API 响应；触发 429 时退避机制工作。
+**验证**：`gewu ping --base-url ... --api-key ...` 能拿到官方 API 响应；触发 429 时退避机制工作。
 
 ### M2 — C 组协议合规（验证 Passive 机制 + 框架）
 - `ProtocolDetector` / `MessageIDDetector`（PassiveDetector 实现）

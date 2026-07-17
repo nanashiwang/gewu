@@ -69,10 +69,10 @@ async def test_private_target_requires_explicit_self_hosted_opt_in():
     ) == "http://192.168.1.9:3000/v1"
 
 
-def test_suyuan_private_target_setting_is_explicit(monkeypatch):
-    monkeypatch.setenv("SUYUAN_ALLOW_PRIVATE_TARGETS", "0")
+def test_gewu_private_target_setting_is_explicit(monkeypatch):
+    monkeypatch.setenv("GEWU_ALLOW_PRIVATE_TARGETS", "0")
     assert security.private_targets_allowed() is False
-    monkeypatch.setenv("SUYUAN_ALLOW_PRIVATE_TARGETS", "1")
+    monkeypatch.setenv("GEWU_ALLOW_PRIVATE_TARGETS", "1")
     assert security.private_targets_allowed() is True
 
 
@@ -112,7 +112,15 @@ def test_handoff_script_never_persists_api_key():
     )
     assert "api_key: apiKeyInput" not in script
     assert "data.api_key" not in script
-    assert "sessionStorage.setItem('suyuan:handoff'" in script
+    assert "sessionStorage.setItem('gewu:handoff'" in script
+    assert "apiKeyInput.disabled = true" in script
+    assert "location.protocol === 'https:'" in script
+
+    wishlist_template = (
+        Path(__file__).parents[1] / "web" / "templates" / "coming_soon.html"
+    ).read_text(encoding="utf-8")
+    assert "email.disabled = true" in wishlist_template
+    assert "location.protocol !== 'https:'" in wishlist_template
 
 
 def test_security_headers_and_private_target_http_rejection():
@@ -139,6 +147,35 @@ def test_security_headers_and_private_target_http_rejection():
     assert response.status_code == 400
     assert "元数据" in response.json()["detail"] or "在线版" in response.json()["detail"]
     assert response.headers["cache-control"] == "no-store"
+
+
+def test_public_plain_http_rejects_sensitive_forms_before_parsing(monkeypatch):
+    from web.server import app
+
+    with monkeypatch.context() as env:
+        env.delenv("GEWU_ALLOW_INSECURE_API", raising=False)
+        client = TestClient(app)
+        response = client.post(
+            "/api/detect/openai",
+            data={
+                "base_url": "https://relay.example/v1",
+                "api_key": "sk-must-never-be-parsed",
+                "model": "gpt-test",
+                "mode": "quick",
+            },
+        )
+        wishlist = client.post(
+            "/api/wishlist",
+            data={"email": "private@example.com", "protocol": "openai"},
+        )
+
+    assert response.status_code == 426
+    assert response.headers["cache-control"] == "no-store"
+    assert "HTTPS" in response.json()["detail"]
+    assert "sk-must-never-be-parsed" not in response.text
+    assert wishlist.status_code == 426
+    assert wishlist.headers["cache-control"] == "no-store"
+    assert "private@example.com" not in wishlist.text
 
 
 def test_health_and_readiness_cover_process_and_report_storage(tmp_path, monkeypatch):

@@ -123,7 +123,7 @@ export default async function HomePage() {
       >
         <div className="max-w-2xl">
           <div className="mb-2 text-sm font-semibold tracking-wide text-[var(--accent)]">
-            溯源
+            格物
           </div>
           <h1 className="text-3xl font-bold tracking-tight">
             AI Skill 的可信与兼容控制平面
@@ -134,7 +134,7 @@ export default async function HomePage() {
           <p className="mt-3 text-[var(--muted)]">
             让 AI Skill
             像软件包一样拥有身份、版本、签名、兼容证据和失败记录。你已经有模型了，
-            溯源 负责证明这个 Skill 是否可信、是否适配你的模型、网关、本地 Runner
+            格物 负责证明这个 Skill 是否可信、是否适配你的模型、网关、本地 Runner
             和企业环境。
           </p>
           <div className="mt-6 flex flex-wrap gap-3">

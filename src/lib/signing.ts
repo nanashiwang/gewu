@@ -17,9 +17,9 @@ function parsePrivKey(value?: string): KeyObject | null {
 }
 
 function privKey(env: Env = process.env): KeyObject | null {
-  if (env !== process.env) return parsePrivKey(env.SUYUAN_SIGNING_KEY)
+  if (env !== process.env) return parsePrivKey(env.GEWU_SIGNING_KEY)
   if (_priv !== undefined) return _priv
-  _priv = parsePrivKey(process.env.SUYUAN_SIGNING_KEY)
+  _priv = parsePrivKey(process.env.GEWU_SIGNING_KEY)
   return _priv
 }
 

@@ -17,7 +17,7 @@ export default async function DevicePage({
       <div>
         <h1 className="text-xl font-semibold">授权 Runner 设备</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          在终端运行 <code className="surface px-1.5 py-0.5 text-xs">suyuan login</code> 后，
+          在终端运行 <code className="surface px-1.5 py-0.5 text-xs">gewu login</code> 后，
           把显示的设备码输入这里完成授权。
         </p>
       </div>

@@ -34,3 +34,4 @@ yarn-error.log*
 
 # typescript / payload generated（保留在版本库中，按需取舍）
 # src/payload-types.ts
+*.tsbuildinfo

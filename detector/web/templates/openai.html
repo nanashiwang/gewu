@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}OpenAI API 中转站检测 · 协议透传与适配层风险 | 溯源{% endblock %}
+{% block title %}OpenAI API 中转站检测 · 协议透传与适配层风险 | 格物{% endblock %}
 {% block description %}免费检测 OpenAI / GPT 中转站的协议透传质量 — 通过 8 项 Chat Completions 检测和 usage 异源字段识别,评估能力完整度与适配层风险。{% endblock %}
 {% block og_title %}OpenAI 中转站检测 · 协议合规与后端适配风险{% endblock %}
 {% block og_description %}8 项检测 + usage 字段指纹识别 GPT 替身。免费、不留 key、可分享报告。{% endblock %}
@@ -12,7 +12,7 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "溯源 OpenAI 中转站检测",
+  "name": "格物 OpenAI 中转站检测",
   "alternateName": ["OpenAI API 中转站检测", "GPT relay verifier", "ChatGPT 中转站检测"],
   "applicationCategory": "DeveloperApplication",
   "applicationSubCategory": "API Verification Tool",
@@ -29,7 +29,7 @@
     "Token 用量异常检测",
     "可分享 JPG / HTML 报告"
   ],
-  "description": "溯源 通过 8 项 OpenAI Chat Completions 协议检测(含长上下文能力),评估 OpenAI / GPT 中转站的协议透传质量、能力完整度与异源适配层风险。"
+  "description": "格物 通过 8 项 OpenAI Chat Completions 协议检测(含长上下文能力),评估 OpenAI / GPT 中转站的协议透传质量、能力完整度与异源适配层风险。"
 }
 </script>
 <script type="application/ld+json">
@@ -37,10 +37,10 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    {"@type":"Question","name":"我花钱买的是 GPT,怎么知道中转站没偷偷换成更便宜的模型?","acceptedAnswer":{"@type":"Answer","text":"看响应里有没有「穿帮」的字段。OpenAI 官方回包只会出现三个 token 计数字段;如果中转站偷偷把请求转给 Claude 后端、再包装成 OpenAI 格式发回来,Anthropic 那边的字段经常会跟着漏出来。溯源 抓到这种本不该出现的字段就会标记成严重问题,把整体评级降到黄色。简单说:正版 GPT 会按 OpenAI 自家说明书回话,冒牌包装层经常露出对面厂家的痕迹。"}},
-    {"@type":"Question","name":"我得了 75 分,为什么圆圈还是黄色而不是绿色?","acceptedAnswer":{"@type":"Answer","text":"分数只是其中一个维度。溯源 还会看有没有严重问题 — 哪怕分数到了通过线,只要存在 1 条严重问题(比如字段穿帮),整体结论就会降到黄色「小心使用」。这种情况通常意味着接口能用、能返回结果,但跑的可能不是你以为的那个模型。日常聊天可能没大问题,但跑代码或严肃任务建议换一家。"}},
-    {"@type":"Question","name":"测完显示「0 个 GPT 模型可用」,是中转站挂了吗?","acceptedAnswer":{"@type":"Answer","text":"大概率不是中转站坏了,而是这把 key 没开通 GPT 模型权限。很多综合中转站把模型按厂家分组卖,有的客户买的是 Claude 卡、有的是 Gemini 卡,没买就调不出对应模型。溯源 检测前会先快速看一眼你这把 key 能用哪些模型 — 如果当前是 OpenAI 页但 0 个 GPT,系统会自动提示你这把 key 实际能用 X 个 Claude 模型,直接点过去就行。"}},
-    {"@type":"Question","name":"为什么 OpenAI 和 Claude 的检测强度不同?","acceptedAnswer":{"@type":"Answer","text":"Claude 协议提供可回放的 thinking block:溯源 会验证原始块被接受、篡改块被明确拒绝。OpenAI 没有同类信号,主要从行为、字段格式和能力完整度等间接线索判断。两者都不是本地公钥验签或 100% 模型身份证明。"}}
+    {"@type":"Question","name":"我花钱买的是 GPT,怎么知道中转站没偷偷换成更便宜的模型?","acceptedAnswer":{"@type":"Answer","text":"看响应里有没有「穿帮」的字段。OpenAI 官方回包只会出现三个 token 计数字段;如果中转站偷偷把请求转给 Claude 后端、再包装成 OpenAI 格式发回来,Anthropic 那边的字段经常会跟着漏出来。格物 抓到这种本不该出现的字段就会标记成严重问题,把整体评级降到黄色。简单说:正版 GPT 会按 OpenAI 自家说明书回话,冒牌包装层经常露出对面厂家的痕迹。"}},
+    {"@type":"Question","name":"我得了 75 分,为什么圆圈还是黄色而不是绿色?","acceptedAnswer":{"@type":"Answer","text":"分数只是其中一个维度。格物 还会看有没有严重问题 — 哪怕分数到了通过线,只要存在 1 条严重问题(比如字段穿帮),整体结论就会降到黄色「小心使用」。这种情况通常意味着接口能用、能返回结果,但跑的可能不是你以为的那个模型。日常聊天可能没大问题,但跑代码或严肃任务建议换一家。"}},
+    {"@type":"Question","name":"测完显示「0 个 GPT 模型可用」,是中转站挂了吗?","acceptedAnswer":{"@type":"Answer","text":"大概率不是中转站坏了,而是这把 key 没开通 GPT 模型权限。很多综合中转站把模型按厂家分组卖,有的客户买的是 Claude 卡、有的是 Gemini 卡,没买就调不出对应模型。格物 检测前会先快速看一眼你这把 key 能用哪些模型 — 如果当前是 OpenAI 页但 0 个 GPT,系统会自动提示你这把 key 实际能用 X 个 Claude 模型,直接点过去就行。"}},
+    {"@type":"Question","name":"为什么 OpenAI 和 Claude 的检测强度不同?","acceptedAnswer":{"@type":"Answer","text":"Claude 协议提供可回放的 thinking block:格物 会验证原始块被接受、篡改块被明确拒绝。OpenAI 没有同类信号,主要从行为、字段格式和能力完整度等间接线索判断。两者都不是本地公钥验签或 100% 模型身份证明。"}}
   ]
 }
 </script>
@@ -68,7 +68,7 @@
 <section class="hero">
   <h1>OpenAI / GPT 中转站检测</h1>
   <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
-    <strong>溯源</strong> 通过 8 项 Chat Completions 协议检测 + <strong>usage 字段后端指纹识别</strong>,
+    <strong>格物</strong> 通过 8 项 Chat Completions 协议检测 + <strong>usage 字段后端指纹识别</strong>,
     <strong>1 分钟</strong>评估中转站的 OpenAI 协议透传质量和后端适配层风险。免费、API key 不持久化、代码开源。
   </p>
 </section>
@@ -178,7 +178,7 @@
     <div class="faq-body">
       <p>看响应里有没有「穿帮」的字段。OpenAI 官方回包里只会出现三个 token 计数字段;
         但如果中转站偷偷把你的请求转给了 Claude 后端、再包装成 OpenAI 格式发回来,
-        Anthropic 那边的字段经常会跟着漏出来。溯源 一旦在响应里抓到这种本不该出现的字段,
+        Anthropic 那边的字段经常会跟着漏出来。格物 一旦在响应里抓到这种本不该出现的字段,
         就会把它标记成「严重问题」,整体评级降到黄色。</p>
       <p class="muted small">简单说:正版 GPT 会按 OpenAI 自家说明书回话,
         冒牌的偷懒包装层经常露出对面厂家的痕迹。</p>
@@ -188,7 +188,7 @@
   <details class="faq-item">
     <summary>我得了 75 分,为什么圆圈还是黄色而不是绿色?</summary>
     <div class="faq-body">
-      <p>分数只是其中一个维度。溯源 还会看「有没有严重问题」 — 哪怕分数到了通过线,
+      <p>分数只是其中一个维度。格物 还会看「有没有严重问题」 — 哪怕分数到了通过线,
         只要存在 1 条严重问题(比如上面说的字段穿帮),整体结论就会降到黄色「小心使用」。</p>
       <p>遇到这种情况通常意味着:接口能用、能返回结果,但跑的可能不是你以为的那个模型。
         如果你只是聊天、写写日常文本可能没大问题;但如果用来跑代码、做严肃任务,建议换一家。</p>
@@ -201,7 +201,7 @@
       <p>大概率不是中转站坏了,而是<strong>这把 key 没开通 GPT 模型权限</strong>。
         很多综合中转站把模型按厂家分组卖,有的客户买的是 Claude 卡、有的是 Gemini 卡,
         没买就调不出对应模型。</p>
-      <p>溯源 检测前会先快速看一眼你这把 key 能用哪些模型 — 如果当前是 OpenAI 页但 0 个 GPT,
+      <p>格物 检测前会先快速看一眼你这把 key 能用哪些模型 — 如果当前是 OpenAI 页但 0 个 GPT,
         系统会自动提示你「这把 key 实际能用 X 个 Claude 模型,要去那边测吗?」直接点过去就行。</p>
     </div>
   </details>
@@ -209,7 +209,7 @@
   <details class="faq-item">
     <summary>为什么 OpenAI 和 Claude 的检测强度不同?</summary>
     <div class="faq-body">
-      <p>Claude 协议提供可回放的 <strong>thinking block</strong>:溯源 会验证原始块被接受、
+      <p>Claude 协议提供可回放的 <strong>thinking block</strong>:格物 会验证原始块被接受、
         篡改单个字符的块被明确拒绝。OpenAI 没有同类协议约束信号。</p>
       <p>OpenAI 这边只能从「行为像不像 GPT、字段格式对不对、能力完不完整」这些间接线索判断,
         所以我们的口径是「<strong>行为/协议级</strong>」检测 — 能告诉你「看起来正常」或者

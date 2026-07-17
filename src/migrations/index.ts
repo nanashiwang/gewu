@@ -8,7 +8,7 @@ import * as migration_20260703_063000_skill_submission_key from './20260703_0630
 import * as migration_20260703_064500_audit_logs from './20260703_064500_audit_logs';
 import * as migration_20260706_003000_registration_email_required from './20260706_003000_registration_email_required';
 import * as migration_20260706_020000_deployment_settings from './20260706_020000_deployment_settings';
-import * as migration_20260716_120000_suyuan_brand from './20260716_120000_suyuan_brand';
+import * as migration_20260716_120000_gewu_brand from './20260716_120000_gewu_brand';
 
 export const migrations = [
   {
@@ -62,8 +62,8 @@ export const migrations = [
     name: '20260706_020000_deployment_settings',
   },
   {
-    up: migration_20260716_120000_suyuan_brand.up,
-    down: migration_20260716_120000_suyuan_brand.down,
-    name: '20260716_120000_suyuan_brand',
+    up: migration_20260716_120000_gewu_brand.up,
+    down: migration_20260716_120000_gewu_brand.down,
+    name: '20260716_120000_gewu_brand',
   },
 ];

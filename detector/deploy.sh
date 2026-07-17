@@ -15,12 +15,12 @@
 #
 # Override target:
 #   ./deploy.sh --host user@host --path /opt/foo
-#   SUYUAN_HOST=user@host ./deploy.sh
+#   GEWU_HOST=user@host ./deploy.sh
 
 set -euo pipefail
 
-REMOTE_HOST="${SUYUAN_HOST:-}"
-REMOTE_PATH="${SUYUAN_PATH:-/opt/suyuan-detector}"
+REMOTE_HOST="${GEWU_HOST:-}"
+REMOTE_PATH="${GEWU_PATH:-/opt/gewu-detector}"
 
 REINSTALL=false
 RUN_TESTS=false
@@ -36,21 +36,21 @@ Sync this project to a remote server, build its venv on first run,
 optionally reinstall deps and run tests.
 
 Options:
-  --host HOST      ssh destination (required unless SUYUAN_HOST is set)
+  --host HOST      ssh destination (required unless GEWU_HOST is set)
   --path PATH      remote install path (default: $REMOTE_PATH)
   --reinstall      re-run the constrained production dependency install
                    (use when pyproject.toml changed)
   --test           run pytest on remote after sync
   --dry-run        rsync -n; show what would change, copy nothing
   --install-systemd
-                   install/refresh suyuan.service and monitor unit templates,
+                   install/refresh gewu.service and monitor unit templates,
                    create the service user/data directory, then enable and start
                    the web service (root deployment, default path only)
   --restart-service
-                   restart an already-installed suyuan.service after tests pass
+                   restart an already-installed gewu.service after tests pass
   -h, --help       show this help and exit
 
-Environment overrides: SUYUAN_HOST, SUYUAN_PATH
+Environment overrides: GEWU_HOST, GEWU_PATH
 
 Prerequisite (one-time, on fresh Ubuntu 24.04):
   ssh root@server 'apt-get update && apt-get install -y python3-venv rsync curl'
@@ -72,7 +72,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$REMOTE_HOST" ]]; then
-  echo "missing deployment host: pass --host or set SUYUAN_HOST" >&2
+  echo "missing deployment host: pass --host or set GEWU_HOST" >&2
   exit 2
 fi
 
@@ -94,8 +94,8 @@ if [[ ! "$REMOTE_PATH" =~ ^/[A-Za-z0-9._/-]+$ ]] \
   exit 2
 fi
 
-if $INSTALL_SYSTEMD && [[ "$REMOTE_PATH" != "/opt/suyuan-detector" ]]; then
-  echo "--install-systemd currently requires --path /opt/suyuan-detector" >&2
+if $INSTALL_SYSTEMD && [[ "$REMOTE_PATH" != "/opt/gewu-detector" ]]; then
+  echo "--install-systemd currently requires --path /opt/gewu-detector" >&2
   echo "the checked-in units intentionally use that fixed production path" >&2
   exit 2
 fi
@@ -149,9 +149,9 @@ fi
 # Always lock down .env on remote — we just rsynced it.
 ssh "$REMOTE_HOST" "test -f $REMOTE_PATH/.env && chmod 600 $REMOTE_PATH/.env || true"
 
-# venv-bin/suyuan existing means a working install is already there.
+# venv-bin/gewu existing means a working install is already there.
 NEED_VENV=$(ssh "$REMOTE_HOST" \
-  "test -x $REMOTE_PATH/venv/bin/suyuan && echo no || echo yes")
+  "test -x $REMOTE_PATH/venv/bin/gewu && echo no || echo yes")
 
 if [[ "$NEED_VENV" == "yes" ]]; then
   echo "→ first-time venv build on remote"
@@ -178,42 +178,42 @@ if $RUN_TESTS; then
 fi
 
 if $INSTALL_SYSTEMD; then
-  echo "→ installing systemd units and starting suyuan.service"
+  echo "→ installing systemd units and starting gewu.service"
   ssh "$REMOTE_HOST" "set -e; \
     test \"\$(id -u)\" = 0; \
-    getent group suyuan >/dev/null || groupadd --system suyuan; \
-    id -u suyuan >/dev/null 2>&1 || useradd --system --gid suyuan --home-dir $REMOTE_PATH --shell /usr/sbin/nologin suyuan; \
-    install -d -o suyuan -g suyuan -m 0750 $REMOTE_PATH/web_data $REMOTE_PATH/web_data/jobs; \
-    install -d -o root -g root -m 0700 /etc/suyuan-monitor; \
-    install -m 0644 $REMOTE_PATH/suyuan.service /etc/systemd/system/suyuan.service; \
-    install -m 0644 $REMOTE_PATH/suyuan-monitor@.service /etc/systemd/system/suyuan-monitor@.service; \
-    install -m 0644 $REMOTE_PATH/suyuan-monitor@.timer /etc/systemd/system/suyuan-monitor@.timer; \
+    getent group gewu >/dev/null || groupadd --system gewu; \
+    id -u gewu >/dev/null 2>&1 || useradd --system --gid gewu --home-dir $REMOTE_PATH --shell /usr/sbin/nologin gewu; \
+    install -d -o gewu -g gewu -m 0750 $REMOTE_PATH/web_data $REMOTE_PATH/web_data/jobs; \
+    install -d -o root -g root -m 0700 /etc/gewu-monitor; \
+    install -m 0644 $REMOTE_PATH/gewu.service /etc/systemd/system/gewu.service; \
+    install -m 0644 $REMOTE_PATH/gewu-monitor@.service /etc/systemd/system/gewu-monitor@.service; \
+    install -m 0644 $REMOTE_PATH/gewu-monitor@.timer /etc/systemd/system/gewu-monitor@.timer; \
     systemd-analyze verify \
-      /etc/systemd/system/suyuan.service \
-      /etc/systemd/system/suyuan-monitor@.service \
-      /etc/systemd/system/suyuan-monitor@.timer; \
+      /etc/systemd/system/gewu.service \
+      /etc/systemd/system/gewu-monitor@.service \
+      /etc/systemd/system/gewu-monitor@.timer; \
     systemctl daemon-reload; \
-    systemctl enable suyuan.service; \
-    systemctl restart suyuan.service; \
-    systemctl is-active --quiet suyuan.service; \
+    systemctl enable gewu.service; \
+    systemctl restart gewu.service; \
+    systemctl is-active --quiet gewu.service; \
     for i in \$(seq 1 20); do \
       curl --fail --silent --show-error --max-time 2 http://127.0.0.1:8765/readyz >/dev/null && exit 0; \
       sleep 1; \
     done; \
-    journalctl --unit suyuan.service --lines 50 --no-pager >&2; \
+    journalctl --unit gewu.service --lines 50 --no-pager >&2; \
     exit 1"
 elif $RESTART_SERVICE; then
-  echo "→ restarting suyuan.service"
+  echo "→ restarting gewu.service"
   ssh "$REMOTE_HOST" "set -e; \
-    systemctl restart suyuan.service; \
-    systemctl is-active --quiet suyuan.service; \
+    systemctl restart gewu.service; \
+    systemctl is-active --quiet gewu.service; \
     for i in \$(seq 1 20); do \
       curl --fail --silent --show-error --max-time 2 http://127.0.0.1:8765/readyz >/dev/null && exit 0; \
       sleep 1; \
     done; \
-    journalctl --unit suyuan.service --lines 50 --no-pager >&2; \
+    journalctl --unit gewu.service --lines 50 --no-pager >&2; \
     exit 1"
 fi
 
 echo "✓ deployed to $REMOTE_HOST:$REMOTE_PATH"
-echo "  try:  ssh $REMOTE_HOST 'cd $REMOTE_PATH && ./venv/bin/suyuan detect --mode quick'"
+echo "  try:  ssh $REMOTE_HOST 'cd $REMOTE_PATH && ./venv/bin/gewu detect --mode quick'"

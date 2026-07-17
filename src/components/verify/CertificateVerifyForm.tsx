@@ -195,7 +195,7 @@ export function CertificateVerifyForm({
           <textarea
             value={certificate}
             onChange={(event) => setCertificate(event.target.value)}
-            placeholder='{"certificate":{"schemaVersion":"suyuan.skill.certificate/v1","certificateHash":"..."},"certificateSignature":{...}}'
+            placeholder='{"certificate":{"schemaVersion":"gewu.skill.certificate/v1","certificateHash":"..."},"certificateSignature":{...}}'
             className="h-44 w-full rounded-xl border border-[var(--border)] bg-[var(--bg)] p-3 font-mono text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
           />
         </label>

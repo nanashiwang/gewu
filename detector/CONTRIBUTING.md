@@ -1,6 +1,6 @@
-# 贡献 溯源
+# 贡献 格物
 
-感谢考虑参与贡献!溯源 是 AGPL-3.0 开源项目 —— 你的修复和新增能帮到
+感谢考虑参与贡献!格物 是 AGPL-3.0 开源项目 —— 你的修复和新增能帮到
 整个 AI API 中转站生态。
 
 ## 快速链接
@@ -13,8 +13,8 @@
 ## 本地开发环境
 
 ```bash
-git clone YOUR_REPOSITORY_URL suyuan
-cd suyuan/detector
+git clone YOUR_REPOSITORY_URL gewu
+cd gewu/detector
 
 python3 -m venv venv
 ./venv/bin/pip install -e ".[dev,web]"
@@ -23,7 +23,7 @@ python3 -m venv venv
 ./venv/bin/pytest tests/ -v
 
 # 启本地 Web 服务(http://localhost:8000)
-SUYUAN_JOBS_DIR=/tmp/suyuan-dev ./venv/bin/uvicorn web.server:app --reload
+GEWU_JOBS_DIR=/tmp/gewu-dev ./venv/bin/uvicorn web.server:app --reload
 ```
 
 ## 欢迎哪些 PR
@@ -39,7 +39,7 @@ SUYUAN_JOBS_DIR=/tmp/suyuan-dev ./venv/bin/uvicorn web.server:app --reload
 
 ## 不在范围内的内容
 
-- **反向破解中转站工具**:溯源 是用来**验证**中转站真伪,不是帮人绕过
+- **反向破解中转站工具**:格物 是用来**验证**中转站真伪,不是帮人绕过
   限速 / 封号。这类 PR 会被拒绝。
 - **闭源企业扩展**:AGPL-3.0 要求作为服务运行的修改版必须也开源,试图加
   闭源 hook 的 PR 会被拒。

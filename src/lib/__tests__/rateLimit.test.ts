@@ -14,7 +14,7 @@ describe('rateLimit — 运行频控', () => {
 
   it('Redis key 使用哈希 userId，不把原始 id 拼进 key', () => {
     const key = runRateLimitKey("u1'); DROP TABLE users; --")
-    expect(key).toMatch(/^hs:rl:run:60:[0-9a-f]{32}$/)
+    expect(key).toMatch(/^gw:rl:run:60:[0-9a-f]{32}$/)
     expect(key).not.toContain('DROP TABLE')
   })
 
@@ -46,7 +46,7 @@ describe('rateLimit — 运行频控', () => {
 
   it('通用严格限流 key 也哈希 subject，并清洗 scope', async () => {
     const key = fixedRateLimitKey("recharge');DROP", 'user-1', 600)
-    expect(key).toMatch(/^hs:rl:recharge___DROP:600:[0-9a-f]{32}$/)
+    expect(key).toMatch(/^gw:rl:recharge___DROP:600:[0-9a-f]{32}$/)
     expect(key).not.toContain('user-1')
 
     const evalFn = vi.fn(async () => [1, 1, 600])

@@ -3,7 +3,7 @@ import { isAdmin } from '@/access'
 import { maskRechargeCode, normalizeRechargeCode, rechargeCodeDigest, resolveRechargeCreditAmount } from '@/lib/rechargeCodes'
 import { rowActionsField } from './fields/rowActions'
 
-// credit 充值码：溯源 不碰现金，运营侧/外部 New API 兑换后在后台发放一次性 credit 码。
+// credit 充值码：格物 不碰现金，运营侧/外部 New API 兑换后在后台发放一次性 credit 码。
 export const RechargeCodes: CollectionConfig = {
   slug: 'recharge-codes',
   labels: { singular: '充值码', plural: '充值码' },

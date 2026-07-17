@@ -49,16 +49,16 @@ jobs:
         env:
           POSTGRES_USER: payload
           POSTGRES_PASSWORD: payload
-          POSTGRES_DB: skillhub
+          POSTGRES_DB: gewu
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U payload -d skillhub"
+          --health-cmd "pg_isready -U payload -d gewu"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgres://payload:payload@localhost:5432/skillhub
+      DATABASE_URL: postgres://payload:payload@localhost:5432/gewu
       PAYLOAD_SECRET: ci-secret-32-bytes-long-enough
       NEXT_PUBLIC_SERVER_URL: http://localhost:3000
     steps:

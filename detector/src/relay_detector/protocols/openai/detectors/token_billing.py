@@ -61,8 +61,8 @@ class TokenBillingDetector(ActiveDetector):
                 temperature=0,
                 messages=[{"role": "user", "content": LONG_PROMPT}],
             )
-            short_transport = short_resp.get("_suyuan_transport")
-            long_transport = long_resp.get("_suyuan_transport")
+            short_transport = short_resp.get("_gewu_transport")
+            long_transport = long_resp.get("_gewu_transport")
             stream_only = any(
                 isinstance(item, dict) and item.get("effective_stream") is True
                 for item in (short_transport, long_transport)
@@ -513,7 +513,7 @@ def _range(values) -> dict[str, Any]:
 
 
 def _reference_path() -> Path:
-    configured = os.environ.get("SUYUAN_OPENAI_TOKEN_REFERENCE_PATH")
+    configured = os.environ.get("GEWU_OPENAI_TOKEN_REFERENCE_PATH")
     if configured:
         return Path(configured)
     return Path("web_data/openai_token_reference.json")
@@ -548,7 +548,7 @@ def _openai_api_key() -> str | None:
     key = os.environ.get("OPENAI_API_KEY")
     if key:
         return key
-    for path in (Path.cwd() / ".env", Path("/opt/suyuan-detector/.env")):
+    for path in (Path.cwd() / ".env", Path("/opt/gewu-detector/.env")):
         try:
             for line in path.read_text(encoding="utf-8").splitlines():
                 line = line.strip()

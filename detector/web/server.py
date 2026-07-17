@@ -1,4 +1,4 @@
-"""溯源 FastAPI app — POST /api/detect, GET /r/{id}, GET /r/{id}.jpg."""
+"""格物 FastAPI app — POST /api/detect, GET /r/{id}, GET /r/{id}.jpg."""
 
 from __future__ import annotations
 
@@ -29,6 +29,7 @@ from .security import (
     MAX_API_KEY_LENGTH,
     MAX_MODEL_LENGTH,
     TargetValidationError,
+    insecure_api_allowed,
     validate_target_url,
 )
 
@@ -37,7 +38,7 @@ HERE = Path(__file__).resolve().parent
 TEMPLATE_DIR = HERE / "templates"
 STATIC_DIR = HERE / "static"
 
-logger = logging.getLogger("suyuan")
+logger = logging.getLogger("gewu")
 logger.setLevel(logging.INFO)
 
 _MAX_API_REQUEST_BODY_BYTES = 16 * 1024
@@ -48,19 +49,41 @@ class _RequestBodyTooLarge(Exception):
 
 
 class RequestBodyLimitMiddleware:
-    """Reject oversized API form bodies before Starlette buffers them."""
+    """Enforce transport and size limits before Starlette buffers API forms."""
 
     def __init__(self, app: ASGIApp, max_bytes: int) -> None:
         self.app = app
         self.max_bytes = max_bytes
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        path = str(scope.get("path", ""))
         if (
             scope["type"] != "http"
             or scope.get("method") != "POST"
-            or not str(scope.get("path", "")).startswith("/api/")
+            or not path.startswith("/api/")
         ):
             await self.app(scope, receive, send)
+            return
+
+        sensitive_endpoint = (
+            path == "/api/probe"
+            or path == "/api/wishlist"
+            or path.startswith("/api/detect")
+        )
+        if (
+            sensitive_endpoint
+            and scope.get("scheme") != "https"
+            and not insecure_api_allowed()
+        ):
+            await JSONResponse(
+                {
+                    "detail": (
+                        "当前入口未启用 HTTPS，为保护敏感信息已拒绝提交请求"
+                    )
+                },
+                status_code=426,
+                headers={"Cache-Control": "no-store"},
+            )(scope, receive, send)
             return
 
         headers = {key.lower(): value for key, value in scope.get("headers", [])}
@@ -168,8 +191,8 @@ _VALID_MODES = {"quick", "standard", "full"}
 _VALID_WISHLIST_PROTOCOLS = {"openai", "gemini"}
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 WISHLIST_PATH = Path(
-    os.environ.get("SUYUAN_WISHLIST_PATH")
-    or "/opt/suyuan-detector/web_data/wishlist.txt"
+    os.environ.get("GEWU_WISHLIST_PATH")
+    or "/opt/gewu-detector/web_data/wishlist.txt"
 )
 
 
@@ -751,7 +774,7 @@ async def result_jpg(job_id: str) -> Response:
         content=cache_path.read_bytes(),
         media_type="image/jpeg",
         headers={
-            "Content-Disposition": f'inline; filename="suyuan-{job_id}.jpg"',
+            "Content-Disposition": f'inline; filename="gewu-{job_id}.jpg"',
             "Cache-Control": "public, max-age=86400",
         },
     )
@@ -790,13 +813,13 @@ def _seo_meta_for_report(report: dict) -> dict[str, str]:
     total = len(results)
 
     title = (
-        f"{domain} {proto_label} 中转站检测:{score:.0f}/100 {verdict_zh} | 溯源"
+        f"{domain} {proto_label} 中转站检测:{score:.0f}/100 {verdict_zh} | 格物"
     )
     description = (
         f"对 {domain} 进行 {proto_label} 中转站检测的完整报告:"
         f"模型 {model},总分 {score:.0f}/100,判定为「{verdict_zh}」。"
         f"{total} 项检测中 {pass_count} 项通过、{fail_count} 项未通过。"
-        f"溯源 字段级穿透,识别中转站真伪与质量。"
+        f"格物 字段级穿透,识别中转站真伪与质量。"
     )
     og_description = (
         f"{domain} 检测报告:{score:.0f}/100 {verdict_zh}({pass_count}/{total} 项通过)"

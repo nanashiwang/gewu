@@ -36,6 +36,33 @@
 })();
 
 
+// Refuse to collect API keys on a public plain-HTTP page. The server repeats
+// this check before form parsing; this browser guard prevents the secret from
+// leaving the user's device in the first place.
+(function () {
+  if (location.protocol === 'https:') return;
+  const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
+  if (localHosts.has(location.hostname)) return;
+
+  const form = document.getElementById('detect-form');
+  const apiKeyInput = document.getElementById('api_key');
+  if (!form || !apiKeyInput) return;
+
+  apiKeyInput.disabled = true;
+  const submit = document.getElementById('submit-btn');
+  if (submit) {
+    submit.disabled = true;
+    submit.title = '请使用 HTTPS 正式入口';
+  }
+
+  const warning = document.createElement('div');
+  warning.className = 'transport-warning';
+  warning.setAttribute('role', 'alert');
+  warning.textContent = '当前是 HTTP 预发布入口。为保护 API key，检测功能已锁定；HTTPS 上线后自动开放。';
+  form.prepend(warning);
+})();
+
+
 // Custom model-name combobox: type-to-filter + tap-to-select.
 // Replaces native <datalist> because iOS Safari / WeChat browser don't show
 // it reliably on mobile.
@@ -77,7 +104,7 @@
   // Exposed so the probe layer can replace the suggestions with whatever
   // the relay actually advertises. Falls back to the static template list
   // if probe fails / relay doesn't expose /v1/models.
-  window.suyuanSetModelChoices = function (values) {
+  window.gewuSetModelChoices = function (values) {
     list.innerHTML = '';
     values.forEach((v) => {
       const li = document.createElement('li');
@@ -226,15 +253,15 @@
     );
 
     // Replace the dropdown with what the relay actually carries.
-    if (window.suyuanSetModelChoices) {
-      window.suyuanSetModelChoices(myModels);
+    if (window.gewuSetModelChoices) {
+      window.gewuSetModelChoices(myModels);
     }
     setSubmitEnabled(true);
 
     // Stash best_by_protocol globally — the submit handler reads it when
     // preflight 422s so it can offer a one-click swap to the recommended
     // model.
-    window.suyuanBestByProtocol = data.best_by_protocol || {};
+    window.gewuBestByProtocol = data.best_by_protocol || {};
 
     // If the user-typed model isn't in the list, auto-correct to the
     // protocol-preferred default rather than whatever sorts first
@@ -271,7 +298,7 @@
       btn.addEventListener('click', () => {
         const target = btn.getAttribute('data-handoff');
         try {
-          sessionStorage.setItem('suyuan:handoff', JSON.stringify({
+          sessionStorage.setItem('gewu:handoff', JSON.stringify({
             base_url: baseUrlInput.value.trim(),
             from: protocol,
           }));
@@ -299,9 +326,9 @@
   // browser storage; the user deliberately re-enters the key on the target
   // page. Single-shot — clear the URL handoff after reading it.
   try {
-    const raw = sessionStorage.getItem('suyuan:handoff');
+    const raw = sessionStorage.getItem('gewu:handoff');
     if (raw) {
-      sessionStorage.removeItem('suyuan:handoff');
+      sessionStorage.removeItem('gewu:handoff');
       const data = JSON.parse(raw);
       if (data && data.base_url) {
         baseUrlInput.value = data.base_url;
@@ -340,7 +367,7 @@
   function renderModelDeadError(detail) {
     // Backend returns: {code, message, model, protocol, upstream_error}
     const proto = currentProtocol();
-    const recommended = (window.suyuanBestByProtocol || {})[proto];
+    const recommended = (window.gewuBestByProtocol || {})[proto];
     const dead = detail.model || '该模型';
     const reason = detail.upstream_error || '上游拒绝';
 
@@ -451,7 +478,7 @@
 // section's data-mode. Choice persists in localStorage so the user
 // doesn't have to re-toggle every visit.
 (() => {
-  const STORAGE_KEY = 'suyuan_faq_mode';
+  const STORAGE_KEY = 'gewu_faq_mode';
   const sections = document.querySelectorAll('.faq[data-mode]');
   if (!sections.length) return;
 

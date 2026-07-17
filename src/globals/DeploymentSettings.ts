@@ -24,7 +24,7 @@ export const DeploymentSettings: GlobalConfig = {
               name: 'serverUrl',
               type: 'text',
               label: '服务端公网地址',
-              admin: { description: '例如 https://suyuan.example.com；NAS 内网试跑可用 http://NAS_IP:8787。' },
+              admin: { description: '例如 https://gewu.example.com；NAS 内网试跑可用 http://NAS_IP:8787。' },
             },
             {
               name: 'publicServerUrl',

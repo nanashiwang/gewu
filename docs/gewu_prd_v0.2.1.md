@@ -1,8 +1,8 @@
-# 溯源 PRD v0.2.1（收敛修订版）
+# 格物 PRD v0.2.1（收敛修订版）
 
 > 本文不是重写 v0.2，而是基于多视角评审对 v0.2 的**修订与收敛**，作为实际执行依据。
 > v0.2 中未被本文改动的细节（页面字段、求术字段、隐私字段清单等）继续有效。
-> 文档版本：v0.2.1 · 更新：2026-06-27 · 配套：`suyuan_prd_v0.2.md`、`PROGRESS.md`
+> 文档版本：v0.2.1 · 更新：2026-06-27 · 配套：`gewu_prd_v0.2.md`、`PROGRESS.md`
 
 ---
 
@@ -50,11 +50,11 @@
 ## 3. v0.2 范围收敛（聚焦唯一假设）
 
 **v0.2 要验证的唯一核心假设：**
-> 「**有本地模型、会用 CLI 的窄用户，愿意为兼容数据 + 安装管理回到 溯源。**」
+> 「**有本地模型、会用 CLI 的窄用户，愿意为兼容数据 + 安装管理回到 格物。**」
 
 **保留（v0.2 做）：**
-- 溯源 Skill Spec v1（契约）
-- Runner v0.2：login / install / list / run / update / remove / doctor + `~/.suyuan`
+- 格物 Skill Spec v1（契约）
+- Runner v0.2：login / install / list / run / update / remove / doctor + `~/.gewu`
 - CompatReports 上报 + 详情页兼容表（初版 LocalScore）
 - 我的术台（作为 Installs/Runs/Reports 的**读视图**）
 - 贡献 2.0 的**规则引擎重构**（ContributionRules）
@@ -73,7 +73,7 @@ S1 Spec v1 冻结 + 三处对齐 + 旧数据迁移        [契约根，必须先
    ↓
 S2 SkillArtifacts + checksum（发布时规范化落库，不再即时生成）
    ↓
-S3 Runner login + RunnerClients（OAuth Device Code，token 落 ~/.suyuan）
+S3 Runner login + RunnerClients（OAuth Device Code，token 落 ~/.gewu）
    ↓
 S4 Runner install/list/run/update/remove/doctor（run 写回 SkillInstalls/SkillRuns）
    ↓
@@ -87,9 +87,9 @@ S7 求术最小版（复用扩展 Bounties，并行/收尾）
 每个 Sprint 的**最小可验收切片**（避免无数据假绿灯）：
 - **S1**：12 个官方 Skill 全部能导出新 Spec 包；Runner 能解析；旧数据迁移脚本跑通且无丢失。
 - **S2**：发布动作生成不可变冻结快照，同一版本两次下载**字节一致**、checksum 稳定。
-- **S3**：`suyuan login` 走通设备码登录，写端点接受 Bearer；产生一条 RunnerClients。
-- **S4**：不打开网页也能 `suyuan run` 已安装 Skill；doctor 能报 endpoint/模型不可用。
-- **S5**：`suyuan run --report` 后中央查得到一条 CompatReport，且**字段不含输入输出**。
+- **S3**：`gewu login` 走通设备码登录，写端点接受 Bearer；产生一条 RunnerClients。
+- **S4**：不打开网页也能 `gewu run` 已安装 Skill；doctor 能报 endpoint/模型不可用。
+- **S5**：`gewu run --report` 后中央查得到一条 CompatReport，且**字段不含输入输出**。
 - **S6**：术台展示真实安装/运行/兼容数据；旧积分行为经规则引擎回归测试不变。
 
 ---
@@ -120,12 +120,12 @@ S7 求术最小版（复用扩展 Bounties，并行/收尾）
 
 ---
 
-## 6. 溯源 Skill Spec v1（冻结 + 破坏性变更迁移）
+## 6. 格物 Skill Spec v1（冻结 + 破坏性变更迁移）
 
 **采用 v0.2 §8 的字段结构**，并明确这是**破坏性变更**，S1 必须一次性对齐三处：
 
 ```yaml
-schema_version: suyuan.skill/v1     # 字符串（非现状的数字 spec_version:1）
+schema_version: gewu.skill/v1     # 字符串（非现状的数字 spec_version:1）
 id / name / version / author / license / category
 runtime: { type: prompt, min_runner_version: 0.2.0, permissions: {...} }
 input_schema / output_schema
@@ -137,7 +137,7 @@ integrity: { checksum: sha256:... }   # 发布时算，signature 留 v0.3
 
 **三处对齐（S1 同步交付）：**
 1. `src/lib/manifest.ts`：`buildManifest` 重写字段，**去掉 `exported_at`**（时间戳使每次字节不同、checksum 无法稳定）。
-2. `runner/suyuan.mjs`：解析改读 `prompt.system + user_template`、`models.local_recommended`。
+2. `runner/gewu.mjs`：解析改读 `prompt.system + user_template`、`models.local_recommended`。
 3. `src/collections/SkillVersions.ts`：**新增 `systemPrompt`、`runtime`、`permissions`、`minRunnerVersion` 字段**；对全量旧 Skill 做 prompt 拆分迁移（把现有 `promptTemplate` 拆成 system/user）；`renderTemplate` 调用改为 `messages:[{role:system},{role:user}]`。
 
 > 做**一次性 rename + 迁移**，不长期维护新旧双字段。
@@ -177,7 +177,7 @@ integrity: { checksum: sha256:... }   # 发布时算，signature 留 v0.3
 
 ## 9. Runner 登录与信任根（PRD 只各一行，这里补实现）
 
-- **登录**：OAuth **Device Code** 流程（CLI 无浏览器），token 落 `~/.suyuan/config.json`（chmod 600）；写端点（install/report）同时接受 **Bearer**（现状仅 cookie session，CLI 拿不到）。列为 Runner **第 0 步**。
+- **登录**：OAuth **Device Code** 流程（CLI 无浏览器），token 落 `~/.gewu/config.json`（chmod 600）；写端点（install/report）同时接受 **Bearer**（现状仅 cookie session，CLI 拿不到）。列为 Runner **第 0 步**。
 - **checksum**：发布时把 manifest **规范化**（去 `exported_at` + JCS key 排序）冻结进 `SkillArtifacts` 并算一次 checksum 持久化，下载发**存量字节**。v0.2 只做 checksum，signature 标注 v0.3。
 
 ---
@@ -207,7 +207,7 @@ integrity: { checksum: sha256:... }   # 发布时算，signature 留 v0.3
 | 改动 | 文件 |
 |---|---|
 | Spec 字段 / 去 exported_at | `src/lib/manifest.ts` |
-| Runner 解析对齐 + login/install 等命令 | `runner/`（升级为可发布包，`bin: suyuan`） |
+| Runner 解析对齐 + login/install 等命令 | `runner/`（升级为可发布包，`bin: gewu`） |
 | SkillVersions 加 systemPrompt/runtime 等 + 迁移 | `src/collections/SkillVersions.ts` |
 | 新 4 表 | `src/collections/{SkillArtifacts,SkillInstalls,RunnerClients,CompatReports}.ts` |
 | 反作弊前置校验 | `src/lib/contribution.ts`（`awardContribution`） |

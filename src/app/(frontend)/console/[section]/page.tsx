@@ -145,7 +145,7 @@ export default async function ConsoleSection({
         <Empty>
           还没装。用{' '}
           <code className="surface px-1 text-[11px]">
-            suyuan install &lt;slug&gt;
+            gewu install &lt;slug&gt;
           </code>{' '}
           安装到本地。
         </Empty>
@@ -202,7 +202,7 @@ export default async function ConsoleSection({
       runners.docs.length === 0 ? (
         <Empty>
           还没绑定设备。终端{' '}
-          <code className="surface px-1 text-[11px]">suyuan login</code> 登录。
+          <code className="surface px-1 text-[11px]">gewu login</code> 登录。
         </Empty>
       ) : (
         <ul className="divide-y divide-[var(--border)] text-sm">

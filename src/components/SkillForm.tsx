@@ -224,7 +224,7 @@ export function SkillForm({ categories }: { categories: Category[] }) {
             上传 .zip / .tar.gz / .tgz；建议包含 README，便于 AI 理解用途。
           </li>
           <li>
-            <code>suyuan.skill.yaml</code> 是推荐标准
+            <code>gewu.skill.yaml</code> 是推荐标准
             manifest；提供后可生成更明确的 Skill
             Contract、在线运行表单和本地安装体验。
           </li>
@@ -315,8 +315,8 @@ export function SkillForm({ categories }: { categories: Category[] }) {
       <div>
         <label className={labelCls}>Skill 压缩包 *</label>
         <p className={hintCls}>
-          推荐提供 manifest；标准入口命名为 suyuan.skill.yaml /
-          suyuan.skill.yml，可提升 Contract/Passport 质量。
+          推荐提供 manifest；标准入口命名为 gewu.skill.yaml /
+          gewu.skill.yml，可提升 Contract/Passport 质量。
         </p>
         <input
           type="file"

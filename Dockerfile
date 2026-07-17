@@ -1,4 +1,4 @@
-# 元衡 SkillHub —— Next.js(standalone) + Payload 多阶段镜像
+# 格物 —— Next.js(standalone) + Payload 多阶段镜像
 
 # ---- 依赖 ----
 FROM node:22-bookworm-slim AS deps
@@ -14,7 +14,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 # 构建期占位（页面均 force-dynamic，构建不连库；运行时由 compose 注入真实 env）
 ENV PAYLOAD_SECRET=build-time-placeholder
-ENV DATABASE_URL=postgres://payload:payload@localhost:5432/skillhub
+ENV DATABASE_URL=postgres://payload:payload@localhost:5432/gewu
 RUN npm run build
 
 # ---- 运行 ----

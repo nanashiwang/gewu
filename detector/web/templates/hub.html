@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}AI API 中转站真假检测 - 验证 Claude / GPT / Gemini 是不是真的 | 溯源{% endblock %}
-{% block description %}溯源 是免费的 AI API 中转站检测工具:评估 Claude / GPT / Gemini 的协议透传质量和后端替换风险。Claude 做 thinking block 原始/篡改回放,OpenAI / Gemini 测协议合规。无需注册、API key 不持久化、代码开源。{% endblock %}
+{% block title %}AI API 中转站真假检测 - 验证 Claude / GPT / Gemini 是不是真的 | 格物{% endblock %}
+{% block description %}格物 是免费的 AI API 中转站检测工具:评估 Claude / GPT / Gemini 的协议透传质量和后端替换风险。Claude 做 thinking block 原始/篡改回放,OpenAI / Gemini 测协议合规。无需注册、API key 不持久化、代码开源。{% endblock %}
 {% block og_title %}AI API 中转站检测 · Claude / GPT / Gemini 协议与质量评估{% endblock %}
 {% block og_description %}免费评估中转站协议透传和后端替换风险。Claude 签名回放 + 多协议覆盖 + 可分享报告。{% endblock %}
 
@@ -10,8 +10,8 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "溯源",
-  "alternateName": ["溯源 中转站检测", "AI API 中转站检测工具", "Claude relay verifier"],
+  "name": "格物",
+  "alternateName": ["格物 中转站检测", "AI API 中转站检测工具", "Claude relay verifier"],
   "applicationCategory": "DeveloperApplication",
   "applicationSubCategory": "API Verification Tool",
   "operatingSystem": "Web Browser",
@@ -33,8 +33,8 @@
     "API key 不持久化",
     "代码完全开源,可自托管"
   ],
-  "creator": {"@type": "Organization", "name": "溯源", "url": "{{ brand.site_url }}"},
-  "description": "溯源 通过 Claude thinking signature 等 10 项检测维度,验证 AI API 中转站是否真实透传 Claude 模型,识别用 Kiro / Amazon Q / 其他后端伪装的中转站。同时覆盖 OpenAI / Gemini 协议级检测。"
+  "creator": {"@type": "Organization", "name": "格物", "url": "{{ brand.site_url }}"},
+  "description": "格物 通过 Claude thinking signature 等 10 项检测维度,验证 AI API 中转站是否真实透传 Claude 模型,识别用 Kiro / Amazon Q / 其他后端伪装的中转站。同时覆盖 OpenAI / Gemini 协议级检测。"
 }
 </script>
 <script type="application/ld+json">
@@ -55,12 +55,12 @@
       "name": "怎么知道我用的是真 Claude / GPT / Gemini 还是假的?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "三个方向:① 协议字段(id 前缀、object、finish_reason 是否符合官方规范);② 能力指纹(Claude 思维签名是否服务端真签名、PDF 是否能识别、function calling 形状);③ 用量字段(usage 里有没有混入异源痕迹)。溯源 把这三类合成 7-10 项自动检测,1 分钟出结果。"
+        "text": "三个方向:① 协议字段(id 前缀、object、finish_reason 是否符合官方规范);② 能力指纹(Claude 思维签名是否服务端真签名、PDF 是否能识别、function calling 形状);③ 用量字段(usage 里有没有混入异源痕迹)。格物 把这三类合成 7-10 项自动检测,1 分钟出结果。"
       }
     },
     {
       "@type": "Question",
-      "name": "溯源 会偷我的 API key 吗?",
+      "name": "格物 会偷我的 API key 吗?",
       "acceptedAnswer": {
         "@type": "Answer",
         "text": "原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告仅保留脱敏形式(sk-y7xU••••••0h),代码完全开源可审计,也可以自托管。"
@@ -71,7 +71,7 @@
       "name": "检测要花钱吗?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "溯源 自己免费。但检测会发真实 API 请求,产生上游 token 消耗:Haiku 约 $0.012,Sonnet 约 $0.05,Opus 约 $0.20,GPT-4o-mini 约 $0.005。这部分是中转站收的钱,不经 溯源。"
+        "text": "格物 自己免费。但检测会发真实 API 请求,产生上游 token 消耗:Haiku 约 $0.012,Sonnet 约 $0.05,Opus 约 $0.20,GPT-4o-mini 约 $0.005。这部分是中转站收的钱,不经 格物。"
       }
     },
     {
@@ -79,7 +79,7 @@
       "name": "中转站常见的「作假」手段有哪些?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "5 种常见:① 用 Kiro / Amazon Q / Bedrock 跑 Claude 替身;② 用 Claude 后端跑 GPT 请求;③ 把 GPT-4o 偷换成 GPT-4o-mini 省成本;④ 剥离 thinking、PDF 多模态等高级能力;⑤ 注入额外 system prompt 改写身份回答。溯源 对这 5 种都有针对性检测。"
+        "text": "5 种常见:① 用 Kiro / Amazon Q / Bedrock 跑 Claude 替身;② 用 Claude 后端跑 GPT 请求;③ 把 GPT-4o 偷换成 GPT-4o-mini 省成本;④ 剥离 thinking、PDF 多模态等高级能力;⑤ 注入额外 system prompt 改写身份回答。格物 对这 5 种都有针对性检测。"
       }
     }
   ]
@@ -91,7 +91,7 @@
 <section class="hub-hero">
   <h1>AI API 中转站真假检测</h1>
   <p class="answer-capsule">
-    <strong>溯源</strong> 是免费的 AI API 中转站检测工具:用 Claude thinking block 原始/篡改回放 + 多维行为指纹,
+    <strong>格物</strong> 是免费的 AI API 中转站检测工具:用 Claude thinking block 原始/篡改回放 + 多维行为指纹,
     <strong>1 分钟</strong>评估 Claude / GPT / Gemini 的协议透传质量和后端替换风险。
     无需注册、API key 不持久化、代码开源。
   </p>
@@ -105,7 +105,7 @@
   <div class="trust-strip-head">
     <h2>🔓 100% 开源 · 评分算法可逐行审计</h2>
     <p>
-      溯源 的本质是「<strong>把 API key 交给我们检测中转站</strong>」 — 这件事的基础是<strong>信任</strong>。
+      格物 的本质是「<strong>把 API key 交给我们检测中转站</strong>」 — 这件事的基础是<strong>信任</strong>。
       所以我们把所有评分逻辑、key 处理代码全部公开,任何人可以审计。这是闭源工具永远做不到的承诺。
     </p>
   </div>
@@ -193,23 +193,23 @@
   </article>
 </section>
 
-<section class="why-suyuan">
-  <h2>为什么选 溯源</h2>
+<section class="why-gewu">
+  <h2>为什么选 格物</h2>
   <div class="why-grid">
     <div class="why-item">
       <div class="why-num">01</div>
       <h3>签名回放 + 负向对照</h3>
-      <p>不把“返回了一个长字符串”当证明。溯源 会回放原始 thinking block,再篡改单个字符验证服务端是否执行约束。这是高强度协议证据,不是绝对模型身份证明。</p>
+      <p>不把“返回了一个长字符串”当证明。格物 会回放原始 thinking block,再篡改单个字符验证服务端是否执行约束。这是高强度协议证据,不是绝对模型身份证明。</p>
     </div>
     <div class="why-item">
       <div class="why-num">02</div>
       <h3>三协议一站测,选错自动跳转</h3>
-      <p>Claude / OpenAI / Gemini 都覆盖。你在 Claude 页填了一个 GPT key?溯源 一秒识别,一键跳到 OpenAI 页继续 — 不用重新粘贴。</p>
+      <p>Claude / OpenAI / Gemini 都覆盖。你在 Claude 页填了一个 GPT key?格物 一秒识别,一键跳到 OpenAI 页继续 — 不用重新粘贴。</p>
     </div>
     <div class="why-item">
       <div class="why-num">03</div>
       <h3>提交前 0.5 秒预体检</h3>
-      <p>中转站宣称「支持 50 个模型」但其中一半实际下架?溯源 提交前 0.5 秒先帮你试一下,直接告诉你哪些可用 — 免得你白等半分钟拿到全 0 分报告。</p>
+      <p>中转站宣称「支持 50 个模型」但其中一半实际下架?格物 提交前 0.5 秒先帮你试一下,直接告诉你哪些可用 — 免得你白等半分钟拿到全 0 分报告。</p>
     </div>
     <div class="why-item">
       <div class="why-num">04</div>
@@ -224,7 +224,7 @@
     <div class="why-item">
       <div class="why-num">06</div>
       <h3>字段级证据 · 看见中转站具体动了哪里</h3>
-      <p>溯源 不只给一个「75 分」总分 — 每项扣分都附具体证据:usage 字段缺了哪些键、stream 漏了哪个事件、tool_use ID 是不是规范前缀、签名长度异常多少。一眼看出中转站在哪个环节动了手脚,不是黑盒一个数字。</p>
+      <p>格物 不只给一个「75 分」总分 — 每项扣分都附具体证据:usage 字段缺了哪些键、stream 漏了哪个事件、tool_use ID 是不是规范前缀、签名长度异常多少。一眼看出中转站在哪个环节动了手脚,不是黑盒一个数字。</p>
     </div>
   </div>
 </section>
@@ -243,7 +243,7 @@
       <span class="how-num">2</span>
       <div>
         <h3>点「开始检测」,等 30-70 秒</h3>
-        <p>溯源 并发跑 7-10 项检测,实时显示进度。期间消耗的 token 由你的 key 支付(Haiku 约 $0.012,GPT-4o-mini 约 $0.005)。</p>
+        <p>格物 并发跑 7-10 项检测,实时显示进度。期间消耗的 token 由你的 key 支付(Haiku 约 $0.012,GPT-4o-mini 约 $0.005)。</p>
       </div>
     </li>
     <li>

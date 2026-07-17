@@ -75,8 +75,8 @@ def test_monitor_key_rejects_invalid_environment_reference(monkeypatch):
 
 
 def test_monitor_systemd_unit_keeps_key_out_of_command_line():
-    service = (DETECTOR_ROOT / "suyuan-monitor@.service").read_text(encoding="utf-8")
-    assert "LoadCredential=api_key:/etc/suyuan-monitor/%i.key" in service
+    service = (DETECTOR_ROOT / "gewu-monitor@.service").read_text(encoding="utf-8")
+    assert "LoadCredential=api_key:/etc/gewu-monitor/%i.key" in service
     assert "monitor-once --target-id %i" in service
     assert "--api-key" not in service
     assert "UMask=0077" in service
@@ -84,7 +84,7 @@ def test_monitor_systemd_unit_keeps_key_out_of_command_line():
 
 
 def test_monitor_timer_is_hourly_with_jitter_and_persistence():
-    timer = (DETECTOR_ROOT / "suyuan-monitor@.timer").read_text(encoding="utf-8")
+    timer = (DETECTOR_ROOT / "gewu-monitor@.timer").read_text(encoding="utf-8")
     assert "OnUnitActiveSec=1h" in timer
     assert "RandomizedDelaySec=10min" in timer
     assert "Persistent=true" in timer

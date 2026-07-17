@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Claude API 中转站检测 · thinking 签名回放验证 | 溯源{% endblock %}
+{% block title %}Claude API 中转站检测 · thinking 签名回放验证 | 格物{% endblock %}
 {% block description %}免费检测 Claude API 中转站的协议透传质量 — 对 thinking block 做原始回放和篡改对照,再结合 10 项辅助检测与 Token 用量检查。无需注册,API key 不持久化,代码开源。{% endblock %}
 {% block og_title %}Claude API 中转站检测 · thinking block 回放与协议评估{% endblock %}
 {% block og_description %}thinking block 原始/篡改回放验证 + 10 项辅助检测 + Token 用量风险识别。免费、不持久化 key、可分享 JPG 报告。{% endblock %}
@@ -12,7 +12,7 @@
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "溯源 Claude 中转站检测",
+  "name": "格物 Claude 中转站检测",
   "alternateName": ["Claude API 中转站检测", "Claude relay verifier"],
   "applicationCategory": "DeveloperApplication",
   "applicationSubCategory": "API Verification Tool",
@@ -29,7 +29,7 @@
     "Kiro / Amazon Q / Bedrock 替身识别",
     "可分享 JPG / HTML 报告"
   ],
-  "description": "溯源 通过 Claude thinking signature 等 12 项检测维度,1 分钟内验证 AI API 中转站是否真实透传 Claude 模型,识别用 Kiro / Amazon Q / Bedrock 等后端伪装的中转站,并检查 Token 用量是否虚报、长上下文窗口是否真实兑现。"
+  "description": "格物 通过 Claude thinking signature 等 12 项检测维度,1 分钟内验证 AI API 中转站是否真实透传 Claude 模型,识别用 Kiro / Amazon Q / Bedrock 等后端伪装的中转站,并检查 Token 用量是否虚报、长上下文窗口是否真实兑现。"
 }
 </script>
 <script type="application/ld+json">
@@ -37,11 +37,11 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    {"@type":"Question","name":"Claude API 中转站怎么验证?","acceptedAnswer":{"@type":"Answer","text":"溯源 先获取 thinking block,再分别回放原始块和篡改单个字符的对照块。只有原始块被接受、篡改块被明确以 thinking 校验错误拒绝才通过;再结合协议、工具调用、流式和用量等信号综合评分。"}},
-    {"@type":"Question","name":"Kiro / Amazon Q / Bedrock 等兼容网关怎么识别?","acceptedAnswer":{"@type":"Answer","text":"兼容网关可能缺少 thinking block,也可能只伪造字段但不执行签名约束。溯源 会做原始/篡改回放对照并结合其他协议信号;单项失败表示该强证据缺失,不单凭一个字段作绝对结论。"}},
-    {"@type":"Question","name":"溯源 的 Claude 检测覆盖哪些维度?","acceptedAnswer":{"@type":"Answer","text":"11 项,按权重:thinking signature (25%) > behavioral signature (15%) > structured output (12%) > consistency / knowledge / token usage (各 10%) > pdf (8%) > identity / protocol / integrity / message_id (各 5%)。standard 模式跑 9 项约 45 秒,full 模式跑全 11 项约 75 秒。"}},
-    {"@type":"Question","name":"检测会不会消耗我的 API 余额?","acceptedAnswer":{"@type":"Answer","text":"会。完整模式通常约 16-18 个请求,费用取决于模型、thinking 实际输出和中转站定价,从你的 API key 对应账户扣除。报告会展示实际请求数和 token 用量,溯源 自身不收费。"}},
-    {"@type":"Question","name":"溯源 会记录我的 API key 吗?","acceptedAnswer":{"@type":"Answer","text":"原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告仅保留脱敏形式 (sk-y7xU••••••0h),代码完全开源可审计,也可以自托管。"}},
+    {"@type":"Question","name":"Claude API 中转站怎么验证?","acceptedAnswer":{"@type":"Answer","text":"格物 先获取 thinking block,再分别回放原始块和篡改单个字符的对照块。只有原始块被接受、篡改块被明确以 thinking 校验错误拒绝才通过;再结合协议、工具调用、流式和用量等信号综合评分。"}},
+    {"@type":"Question","name":"Kiro / Amazon Q / Bedrock 等兼容网关怎么识别?","acceptedAnswer":{"@type":"Answer","text":"兼容网关可能缺少 thinking block,也可能只伪造字段但不执行签名约束。格物 会做原始/篡改回放对照并结合其他协议信号;单项失败表示该强证据缺失,不单凭一个字段作绝对结论。"}},
+    {"@type":"Question","name":"格物 的 Claude 检测覆盖哪些维度?","acceptedAnswer":{"@type":"Answer","text":"11 项,按权重:thinking signature (25%) > behavioral signature (15%) > structured output (12%) > consistency / knowledge / token usage (各 10%) > pdf (8%) > identity / protocol / integrity / message_id (各 5%)。standard 模式跑 9 项约 45 秒,full 模式跑全 11 项约 75 秒。"}},
+    {"@type":"Question","name":"检测会不会消耗我的 API 余额?","acceptedAnswer":{"@type":"Answer","text":"会。完整模式通常约 16-18 个请求,费用取决于模型、thinking 实际输出和中转站定价,从你的 API key 对应账户扣除。报告会展示实际请求数和 token 用量,格物 自身不收费。"}},
+    {"@type":"Question","name":"格物 会记录我的 API key 吗?","acceptedAnswer":{"@type":"Answer","text":"原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告仅保留脱敏形式 (sk-y7xU••••••0h),代码完全开源可审计,也可以自托管。"}},
     {"@type":"Question","name":"支持哪些 Claude 模型?","acceptedAnswer":{"@type":"Answer","text":"Claude Opus 4.7、Sonnet 4.6、Haiku 4.5、Opus 4.6、Sonnet 4.5、Opus 4.5、Opus 4.1。检测器自动适配各模型的 thinking 模式(extended vs adaptive)和 PDF 页数上限。"}}
   ]
 }
@@ -70,7 +70,7 @@
 <section class="hero">
   <h1>这家 Claude API 中转站,是真原生吗?</h1>
   <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
-    <strong>溯源</strong> 对 Claude <strong>thinking block 做原始/篡改回放验证</strong>,再结合 10 项辅助检测,
+    <strong>格物</strong> 对 Claude <strong>thinking block 做原始/篡改回放验证</strong>,再结合 10 项辅助检测,
     <strong>1 分钟</strong>评估中转站的协议透传质量与后端替换风险。免费、API key 不持久化、代码开源。
   </p>
 </section>
@@ -82,7 +82,7 @@
       <input type="url" id="base_url" name="base_url" required
              placeholder="https://api.example.com" maxlength="2048"
              autocomplete="url" autocapitalize="none" spellcheck="false" />
-      <p class="hint">中转站根 URL,溯源 将向其 <code>/v1/messages</code> 发送测试请求。</p>
+      <p class="hint">中转站根 URL,格物 将向其 <code>/v1/messages</code> 发送测试请求。</p>
     </div>
 
     <div class="field">
@@ -184,16 +184,16 @@
   </div>
 
   <details class="faq-item" open>
-    <summary>thinking signature 是什么?溯源 怎么验证它?</summary>
+    <summary>thinking signature 是什么?格物 怎么验证它?</summary>
     <div class="faq-body">
       <p data-mode="layperson">
         Claude 在思考问题的时候,<strong>Anthropic 服务器会盖一个密码"指纹"</strong>
         (就像快递包裹外面贴的 Anthropic 官方封条)。这个封条只有 Anthropic 自己的密钥能盖出来,
-        中转站想伪造也伪造不了。溯源 检测的就是这个封条 — 中转站给你的回复里没有封条 / 封条不对,
+        中转站想伪造也伪造不了。格物 检测的就是这个封条 — 中转站给你的回复里没有封条 / 封条不对,
         那它就<strong>不是真 Claude</strong>,可能给你换成了别的便宜模型在跑。
       </p>
       <p data-mode="developer">
-        thinking signature 是 Claude thinking block 中的 opaque 字段。溯源 会先把原始 block
+        thinking signature 是 Claude thinking block 中的 opaque 字段。格物 会先把原始 block
         带回下一轮请求,再把 opaque 字段篡改一个字符做负向对照。只有原始块被接受、篡改块被明确
         以 thinking 校验错误拒绝才拿满该项;仅有字段或长度不能证明来源。
       </p>
@@ -204,14 +204,14 @@
     <summary>Claude 中转站怎么挑?哪些信号说明它靠谱?</summary>
     <div class="faq-body">
       <p data-mode="layperson">
-        三步傻瓜判断:① 用 溯源 测一次,<strong>总分 85 分以上</strong>基本能用,
+        三步傻瓜判断:① 用 格物 测一次,<strong>总分 85 分以上</strong>基本能用,
         100 分通常是 1:1 透传官方;② 看页面有没有<strong>红色"严重"标记</strong>,
         有就说明它可能在偷换模型,直接换一家;③ 去<a href="/leaderboard">红黑榜</a>查这家中转站
         的历史记录,看其他人测出来什么样,<strong>测过 10 次以上仍稳定高分</strong>的更可信。
         便宜的中转站多半有水分,看分数比看价格重要。
       </p>
       <p data-mode="developer">
-        关键看 4 点:① 跑 溯源 full 模式看 thinking signature 是否拿到 100 分;
+        关键看 4 点:① 跑 格物 full 模式看 thinking signature 是否拿到 100 分;
         ② 看 usage 字段有没有 <code>claude_*</code> 之外的异源痕迹
         (e.g. <code>usage_source: anthropic</code> 出现在 OpenAI 响应里说明被中转套壳);
         ③ 看 stream / non-stream 在同一 prompt 上的 input_tokens / output_tokens 差是否 ≤ 5%;
@@ -226,13 +226,13 @@
     <div class="faq-body">
       <p data-mode="layperson">
         有些中转站后端其实用的是 Amazon 自家"包装过的 Claude"(产品名叫 Kiro 或 Amazon Q)。
-        不同兼容网关对 Claude thinking block 的保留与校验能力不同。溯源 既检查是否返回该块,
+        不同兼容网关对 Claude thinking block 的保留与校验能力不同。格物 既检查是否返回该块,
         也验证原始块能否回放、篡改块是否被拒绝。该证据会与其他检测项一起形成结论,不会用一个
         字段就武断判定模型身份。
       </p>
       <p data-mode="developer">
         Kiro、Amazon Q、Bedrock 或其他兼容网关可能不返回或不校验 thinking signature。
-        溯源 的 thinking_signature detector 会检查 block 是否存在,并执行原始/篡改回放。
+        格物 的 thinking_signature detector 会检查 block 是否存在,并执行原始/篡改回放。
         强证据缺失会降低该项得分,最终 verdict 仍结合其他检测项。同样适用于其他
         Bedrock-routing 中转站。
       </p>
@@ -240,7 +240,7 @@
   </details>
 
   <details class="faq-item">
-    <summary>溯源 会记录我的 API key 吗?</summary>
+    <summary>格物 会记录我的 API key 吗?</summary>
     <div class="faq-body">
       <p data-mode="layperson">
         原始 API key 只在检测任务执行期间短暂使用,不进入报告、日志或数据库。任务结束后不再

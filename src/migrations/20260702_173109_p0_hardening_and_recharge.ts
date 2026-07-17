@@ -479,7 +479,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
 
   CREATE TABLE "site_settings" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"site_name" varchar DEFAULT '溯源',
+	"site_name" varchar DEFAULT '格物',
 	"slogan" varchar DEFAULT 'Verified AI Skills, Powered by Contribution.',
 	"announcement" varchar,
 	"updated_at" timestamp(3) with time zone,

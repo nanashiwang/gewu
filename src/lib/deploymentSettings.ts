@@ -77,7 +77,7 @@ export function deploymentSettingsToEnv(doc: any, base: RuntimeEnv = process.env
   putNumber(out, 'NEWAPI_USD_EXCHANGE_RATE_CNY', doc.newapiUsdExchangeRateCny)
   putBoolFlag(out, 'ALLOW_LOCAL_MARGIN_EXCHANGE', doc.allowLocalMarginExchange)
 
-  putSecret(out, 'SUYUAN_SIGNING_KEY', doc.signingKeyEncrypted)
+  putSecret(out, 'GEWU_SIGNING_KEY', doc.signingKeyEncrypted)
   putBoolFlag(out, 'BACKUP_ENCRYPTION_CONFIRMED', doc.backupEncryptionConfirmed)
   putBoolFlag(out, 'BACKUP_OFFSITE_CONFIRMED', doc.backupOffsiteConfirmed)
   put(out, 'BACKUP_RESTORE_DRILL_AT', doc.backupRestoreDrillAt)

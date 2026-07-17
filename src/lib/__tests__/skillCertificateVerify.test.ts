@@ -11,7 +11,7 @@ import {
 
 function envWithKey() {
   const { privateKey } = generateKeyPairSync('ed25519')
-  return { SUYUAN_SIGNING_KEY: (privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer).toString('base64') }
+  return { GEWU_SIGNING_KEY: (privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer).toString('base64') }
 }
 
 const baseInput = {
@@ -138,7 +138,7 @@ describe('skillCertificateVerify — 证书公开验签', () => {
   it('拒绝超大证书验签请求，避免公开接口被大 payload 压垮', () => {
     const oversized = normalizeSkillCertificateVerifyRequest({
       certificate: {
-        schemaVersion: 'suyuan.skill.certificate/v1',
+        schemaVersion: 'gewu.skill.certificate/v1',
         subject: { title: 'x'.repeat(MAX_CERTIFICATE_VERIFY_BYTES) },
       },
     })

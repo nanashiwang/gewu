@@ -6,7 +6,7 @@ import { buildManifest, manifestToJson, manifestToYaml } from '@/lib/manifest'
 function signingEnv() {
   const { privateKey } = generateKeyPairSync('ed25519')
   const der = privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer
-  return { SUYUAN_SIGNING_KEY: der.toString('base64') }
+  return { GEWU_SIGNING_KEY: der.toString('base64') }
 }
 
 const skill = {
@@ -33,8 +33,8 @@ const version = {
 describe('manifest — 确定性 checksum 与 ed25519 签名', () => {
   it('同一 SkillVersion 多次生成 checksum/签名稳定，且不含导出时间戳', () => {
     const env = signingEnv()
-    const first = buildManifest(skill, version, { siteUrl: 'https://suyuan.example', env })
-    const second = buildManifest(skill, version, { siteUrl: 'https://suyuan.example', env })
+    const first = buildManifest(skill, version, { siteUrl: 'https://gewu.example', env })
+    const second = buildManifest(skill, version, { siteUrl: 'https://gewu.example', env })
 
     expect(first.integrity).toEqual(second.integrity)
     expect(first.integrity.checksum).toMatch(/^sha256:[a-f0-9]{64}$/)

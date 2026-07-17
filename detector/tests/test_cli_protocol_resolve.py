@@ -48,7 +48,7 @@ def test_auto_detect_gemini_models():
 
 def test_auto_detect_unknown_falls_back_to_anthropic():
     """Unknown / legacy aliases don't crash; fall back to anthropic which
-    is the default for suyuan."""
+    is the default for gewu."""
     assert _resolve_protocol(None, "mystery-model-9000") == Protocol.ANTHROPIC
     assert _resolve_protocol(None, "") == Protocol.ANTHROPIC
 

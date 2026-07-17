@@ -1,10 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="溯源">
-  <defs>
-    <linearGradient id="brand" x1="4" y1="3" x2="28" y2="29" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#4338CA"/>
-      <stop offset="1" stop-color="#7C3AED"/>
-    </linearGradient>
-  </defs>
-  <rect x="2" y="2" width="28" height="28" rx="8" fill="url(#brand)"/>
-  <text x="16" y="22" text-anchor="middle" font-family="sans-serif" font-size="17" font-weight="800" fill="#FFFFFF">鉴</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="格物">
+  <rect width="32" height="32" rx="7" fill="#F7F2E8"/>
+  <path fill="#171512" d="M4 4h10v4H8v6H4V4Zm14 0h10v10h-4V8h-6V4ZM4 18h4v6h6v4H4V18Zm20 0h4v10H18v-4h6v-6Z"/>
+  <circle cx="16" cy="16" r="6" fill="none" stroke="#F7F2E8" stroke-width="5"/>
+  <circle cx="16" cy="16" r="6" fill="none" stroke="#B6402C" stroke-width="3"/>
 </svg>

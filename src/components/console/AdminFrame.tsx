@@ -64,10 +64,10 @@ export function AdminFrame({ src }: { src: string }) {
       const mode = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'
       // 让 iframe 内 Payload 自身明暗跟随控制台
       doc.documentElement.setAttribute('data-theme', mode)
-      let style = doc.getElementById('suyuan-admin-embed') as HTMLStyleElement | null
+      let style = doc.getElementById('gewu-admin-embed') as HTMLStyleElement | null
       if (!style) {
         style = doc.createElement('style')
-        style.id = 'suyuan-admin-embed'
+        style.id = 'gewu-admin-embed'
         doc.head.appendChild(style)
       }
       style.textContent = HIDE_CSS + themeCss(mode)

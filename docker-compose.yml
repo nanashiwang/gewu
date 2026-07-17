@@ -1,28 +1,28 @@
-# 元衡 SkillHub 本地基础设施：PostgreSQL + Redis
+# 格物本地基础设施：PostgreSQL + Redis
 # 启动：docker compose up -d
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: skillhub-postgres
+    container_name: gewu-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: payload
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-payload}
-      POSTGRES_DB: skillhub
+      POSTGRES_DB: gewu
     ports:
       # 主机 5433 → 容器 5432（避开本机已占用的 5432）
       - '${POSTGRES_BIND:-127.0.0.1}:${POSTGRES_PORT:-5433}:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U payload -d skillhub']
+      test: ['CMD-SHELL', 'pg_isready -U payload -d gewu']
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: skillhub-redis
+    container_name: gewu-redis
     restart: unless-stopped
     ports:
       # 主机 6380 → 容器 6379（避开本机已占用的 6379）
@@ -38,7 +38,7 @@ services:
   # 应用（Next.js + Payload）。构建：docker compose build app；启动：docker compose up -d app
   app:
     build: .
-    container_name: skillhub-app
+    container_name: gewu-app
     restart: unless-stopped
     depends_on:
       postgres:
@@ -48,7 +48,7 @@ services:
     environment:
       # 只注入最小启动项；模型网关/New API/签名等部署后在后台配置
       PAYLOAD_SECRET: ${PAYLOAD_SECRET}
-      DATABASE_URL: postgres://payload:${POSTGRES_PASSWORD:-payload}@postgres:5432/skillhub
+      DATABASE_URL: postgres://payload:${POSTGRES_PASSWORD:-payload}@postgres:5432/gewu
       REDIS_URL: redis://redis:6379
       SERVER_URL: ${SERVER_URL}
       NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL}

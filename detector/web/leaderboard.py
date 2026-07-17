@@ -22,8 +22,8 @@ from urllib.parse import urlparse
 
 
 _JOBS_DIR = Path(
-    os.environ.get("SUYUAN_JOBS_DIR")
-    or "/opt/suyuan-detector/web_data/jobs"
+    os.environ.get("GEWU_JOBS_DIR")
+    or "/opt/gewu-detector/web_data/jobs"
 )
 REPORT_DIRS = [
     _JOBS_DIR / "anthropic",

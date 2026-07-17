@@ -44,13 +44,13 @@ function redisUrl(): string {
 
 export function runRateLimitKey(userId: string, windowSeconds = DEFAULT_WINDOW_SECONDS): string {
   const digest = createHash('sha256').update(String(userId)).digest('hex').slice(0, 32)
-  return `hs:rl:run:${windowSeconds}:${digest}`
+  return `gw:rl:run:${windowSeconds}:${digest}`
 }
 
 export function fixedRateLimitKey(scope: string, subject: string, windowSeconds = DEFAULT_WINDOW_SECONDS): string {
   const safeScope = String(scope || 'generic').replace(/[^a-z0-9:_-]/gi, '_').slice(0, 48)
   const digest = createHash('sha256').update(String(subject)).digest('hex').slice(0, 32)
-  return `hs:rl:${safeScope}:${windowSeconds}:${digest}`
+  return `gw:rl:${safeScope}:${windowSeconds}:${digest}`
 }
 
 async function getRedisClient(url: string): Promise<RedisClientLike> {

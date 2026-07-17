@@ -111,7 +111,7 @@ function isPrivateOrLocalHost(hostname: string): boolean {
 export function checkPrivateDeployEnv(env: Env = process.env): PreflightIssue[] {
   const issues: PreflightIssue[] = []
   const secret = env.PAYLOAD_SECRET || ''
-  if (!secret || secret.length < 32 || /change_me|dev_secret|suyuan-dev-secret/i.test(secret)) {
+  if (!secret || secret.length < 32 || /change_me|dev_secret|gewu-dev-secret/i.test(secret)) {
     add(issues, 'blocker', 'PAYLOAD_SECRET_WEAK', 'PAYLOAD_SECRET 必须是 32 字符以上强随机值')
   }
   const pgPassword = env.POSTGRES_PASSWORD || ''
@@ -158,7 +158,7 @@ export function checkStartupEnv(env: Env = process.env): PreflightIssue[] {
   const issues: PreflightIssue[] = []
 
   const secret = env.PAYLOAD_SECRET || ''
-  if (!secret || secret.length < 32 || /change_me|dev_secret|suyuan-dev-secret/i.test(secret)) {
+  if (!secret || secret.length < 32 || /change_me|dev_secret|gewu-dev-secret/i.test(secret)) {
     add(issues, 'blocker', 'PAYLOAD_SECRET_WEAK', 'PAYLOAD_SECRET 必须是 32 字符以上强随机值')
   }
 
@@ -182,7 +182,7 @@ export function checkProductionEnv(env: Env = process.env): PreflightIssue[] {
   const issues: PreflightIssue[] = []
 
   const secret = env.PAYLOAD_SECRET || ''
-  if (!secret || secret.length < 32 || /change_me|dev_secret|suyuan-dev-secret/i.test(secret)) {
+  if (!secret || secret.length < 32 || /change_me|dev_secret|gewu-dev-secret/i.test(secret)) {
     add(issues, 'blocker', 'PAYLOAD_SECRET_WEAK', 'PAYLOAD_SECRET 必须是 32 字符以上强随机值')
   }
 
@@ -354,8 +354,8 @@ export function checkProductionEnv(env: Env = process.env): PreflightIssue[] {
     )
   }
 
-  if (!signingKeyValid(env.SUYUAN_SIGNING_KEY)) {
-    add(issues, 'blocker', 'SUYUAN_SIGNING_KEY_INVALID', 'SUYUAN_SIGNING_KEY 缺失或不是有效 ed25519 PKCS8 base64 私钥')
+  if (!signingKeyValid(env.GEWU_SIGNING_KEY)) {
+    add(issues, 'blocker', 'GEWU_SIGNING_KEY_INVALID', 'GEWU_SIGNING_KEY 缺失或不是有效 ed25519 PKCS8 base64 私钥')
   }
   if (!present(env, 'ANCHOR_TRUSTED_PUBLISHERS')) {
     add(issues, 'warning', 'ANCHOR_TRUSTED_PUBLISHERS_MISSING', '未配置外锚可信发布目标；/v1/anchors/verify 只能验签，无法判断 publishedTo 是否命中可信网络')

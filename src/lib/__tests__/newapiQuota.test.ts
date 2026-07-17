@@ -21,7 +21,7 @@ describe('newapiQuota — 子令牌绝对 quota 目标', () => {
       mode: 'real' as const,
       provisionSubToken: async (userId: string) => {
         calls.push(`provision:${userId}`)
-        return { tokenName: `hs_${userId}`, key: 'sk-sub', simulated: false }
+        return { tokenName: `gw_${userId}`, key: 'sk-sub', simulated: false }
       },
       setQuotaToCredits: async (userId: string, credits: number) => {
         calls.push(`quota:${userId}:${credits}`)

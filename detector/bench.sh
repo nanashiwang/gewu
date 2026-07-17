@@ -11,12 +11,12 @@
 # All options also accept env vars: OUT / MODE / MODELS / OFFICIAL_BASE.
 #
 # After running, fetch results back to the project tree:
-#   scp -r <host>:<OUT>/*.json suyuan/detector/data/baselines/
+#   scp -r <host>:<OUT>/*.json gewu/detector/data/baselines/
 
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-DETECT="$HERE/venv/bin/suyuan"
+DETECT="$HERE/venv/bin/gewu"
 PY="$HERE/venv/bin/python"
 
 OUT="${OUT:-/tmp/baselines}"
@@ -121,4 +121,4 @@ echo "✓ done — $(ls "$OUT"/*.json 2>/dev/null | wc -l | tr -d ' ') file(s) i
 ls -lh "$OUT"/*.json 2>/dev/null || true
 echo
 echo "Next: from your local machine,"
-echo "  scp -r <host>:$OUT/*.json suyuan/detector/data/baselines/"
+echo "  scp -r <host>:$OUT/*.json gewu/detector/data/baselines/"

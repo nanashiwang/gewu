@@ -1,4 +1,4 @@
-# 溯源 v2 架构映射
+# 格物 v2 架构映射
 
 > 目的：把当前代码基座映射到「AI Skill 的可信与兼容控制平面」对象，避免继续按旧的“省钱路由 + 中转履约”叙事开发。
 > 更新时间：2026-07-08
@@ -10,7 +10,7 @@
 | Skill | `src/collections/Skills.ts`、`src/globals/SiteSettings.ts`、`src/lib/essentialStarterPack.ts` | Skill 市场、状态、可见性、作者、指标；`isEssential` + `essentialReason` 作为必备 Skill 回退；后台 `essentialStarterPack` 可配置 Starter Pack 排序、推荐理由和公开默认示例。 |
 | SkillVersion / Skill Contract | `src/collections/SkillVersions.ts`、`src/lib/skillContract.ts`、`src/lib/skillContractPublic.ts` | 已有 prompt、input/output schema、permissions、examples、recommended models、routePolicy；自动生成 `contractHash`，并标记初始/兼容/破坏性变更；公开 Contract 只输出 hash/schema/权限摘要、可选基线 diff 和客户复核 playbook，Skill 详情页可视化并筛选破坏性/兼容字段变化，prompt/examples/changelog 原文按字段权限隐藏。 |
 | Manifest 快照 | `src/collections/SkillArtifacts.ts` | 发布时冻结 manifest/checksum/signature；原始集合仅后台可读，公开下载走 `/v1/skills/[slug]/manifest`；无 manifest 走人工审核。 |
-| Runner | `runner/suyuan.mjs`、`src/lib/runnerInstallPlaybook.ts`、`src/lib/runnerUpdatePlaybook.ts`、`src/app/v1/runner/install/route.ts` | 支持安装、本地运行、验签和兼容报告回流；安装/检查更新响应返回“验签 → 本地运行 → 脱敏回流 → 更新/复验”的客户指引，避免把 Runner 只做成下载器。 |
+| Runner | `runner/gewu.mjs`、`src/lib/runnerInstallPlaybook.ts`、`src/lib/runnerUpdatePlaybook.ts`、`src/app/v1/runner/install/route.ts` | 支持安装、本地运行、验签和兼容报告回流；安装/检查更新响应返回“验签 → 本地运行 → 脱敏回流 → 更新/复验”的客户指引，避免把 Runner 只做成下载器。 |
 | SkillRuns 私人台账 | `src/collections/SkillRuns.ts`、`src/app/v1/runs/route.ts`、`src/app/v1/runs/[id]/rerun/route.ts`、`src/app/v1/runs/rerun/route.ts`、`src/lib/privateRunRerun.ts` | 输入/输出加密；记录模型、成本、延迟、错误；支持多维筛选导出、单条/批量换模型重跑、`rerunOf` 血缘，并为失败运行输出模型画像/失败库排障入口；批量重跑响应只回脱敏摘要，不回显输入/输出。 |
 | CompatReports 活体数据 | `src/collections/CompatReports.ts`、`src/lib/compat.ts` | 脱敏兼容报告；时间衰减 + 来源权重聚合；优先按 `modelProfile`/版本分组；前台展示有效样本与来源权重摘要。 |
 | SkillPassport | `src/collections/SkillPassports.ts`、`src/lib/passport.ts`、`src/lib/passportRefresh.ts`、`src/lib/passportPublic.ts` | 随 Runner/online/benchmark 回流自动刷新；写入 evidenceHash 和证据快照；原始集合仅后台可读，公开读取走脱敏 Passport API，并返回“看当前性/可信分 → 验签证据/证书 → 查 Contract → 用自己模型试跑”的客户复核 playbook。 |
@@ -25,7 +25,7 @@
 | 企业私有评测 | `src/lib/enterpriseBenchmark.ts`、`src/app/v1/enterprise/registry/[id]/benchmark/route.ts` | 企业管理员/审批员用组织内私有样例评测 Registry Skill；执行模型白名单和策略校验，只写 SkillRuns + 企业审计，不写公开 CompatReports，不更新公开榜/公开 Passport，响应不回显输入输出。 |
 | 企业运行审计 / 失败知识 | `src/collections/EnterpriseAuditLogs.ts`、`src/app/v1/enterprise/audit/export/route.ts`、`src/app/v1/enterprise/failures/route.ts` | 成功/失败/策略拒绝均可审计；CSV 导出；可按组织聚合脱敏失败知识和模型版本分布；不含输入输出原文。 |
 | 上传审核 | `src/lib/skillComplianceReview.ts`、`src/app/v1/skills/route.ts` | 规则 + AI 审核 + 人工兜底；低风险 Prompt Skill 才能自动上架。 |
-| Import Adapters | `src/lib/skillPackage.ts`、`src/lib/skillSourceImport.ts`、`src/worker/import-skill-sources.ts` | 无 溯源 manifest 的 GitHub README / Claude Skill `SKILL.md` / GPTs 配置可转成 Imported Skill 的初始 Prompt Contract，默认仍走人工审核；支持来源清单批量导入、内容 hash、手动同步和变更差分。 |
+| Import Adapters | `src/lib/skillPackage.ts`、`src/lib/skillSourceImport.ts`、`src/worker/import-skill-sources.ts` | 无 格物 manifest 的 GitHub README / Claude Skill `SKILL.md` / GPTs 配置可转成 Imported Skill 的初始 Prompt Contract，默认仍走人工审核；支持来源清单批量导入、内容 hash、手动同步和变更差分。 |
 
 ## 当前关键数据闭环
 
@@ -92,7 +92,7 @@
 | `/console/failures/triage` | 审核员前台失败归因看板；集中查看待归因 FailureCase、模型/版本/输入档、影响范围和复验覆盖，可写入根因分类与脱敏归因备注。 |
 | `/v1/failures/[id]/adapter` | 从失败案例生成 Adapter 待评审草稿；只有审核员通过 `/console/adapters/review` 或后台批准后才能启用 active。 |
 | `/console/adapters/review` + `/v1/adapters/review` | 审核员前台 Adapter 评审看板；集中查看待评审草稿、来源 FailureCase、模型/版本、lift 摘要和私人台账复验入口，可单条或批量批准启用、要求修改或拒绝；批准启用后会按来源 FailureCase 查找同类私人失败运行并写入 reverify 队列。 |
-| `/v1/skills` 包上传 | 支持 溯源 Skill 包；也可导入 GitHub README、Claude Skill `SKILL.md`、GPTs 配置为待审 Imported Skill。 |
+| `/v1/skills` 包上传 | 支持 格物 Skill 包；也可导入 GitHub README、Claude Skill `SKILL.md`、GPTs 配置为待审 Imported Skill。 |
 | `worker:import-skill-sources` / `worker:sync-skill-sources` | 从 JSON 来源清单批量导入 GitHub README / Claude Skill / GPTs / Skill 包；用稳定来源键幂等创建，另存内容 hash；`--sync`/同步 worker 命中内容变化时生成新版本并记录差分，可直接挂 cron。 |
 
 ## 半落地 / 下一步

@@ -1,9 +1,9 @@
-# 溯源 — 项目进度与规划
+# 格物 — 项目进度与规划
 
-> ⚠️ **本文档已冻结（2026-07-02）**：仅作 S1-S7 时期的进度存档。当前唯一开发依据是 **`docs/suyuan-总纲.md`**——进度、差距、路线均以总纲为准，本文不再更新。
+> ⚠️ **本文档已冻结（2026-07-02）**：仅作 S1-S7 时期的进度存档。当前唯一开发依据是 **`docs/gewu-总纲.md`**——进度、差距、路线均以总纲为准，本文不再更新。
 > Verified AI Skills, Powered by Contribution.
-> 更新：2026-06-27 · 阶段：v0.2.1 路线图 S1–S7 全部完成 · 项目：溯源
-> 规划依据见 `suyuan_prd_v0.2.1.md`（收敛修订版）；体验见 `体验手册.md`。
+> 更新：2026-06-27 · 阶段：v0.2.1 路线图 S1–S7 全部完成 · 项目：格物
+> 规划依据见 `gewu_prd_v0.2.1.md`（收敛修订版）；体验见 `体验手册.md`。
 
 ---
 
@@ -34,7 +34,7 @@ v0.2.1 修订路线图 **S1–S7 全部完成**：
 | 基座 | **Payload CMS 3.85.1** | 数据建模 / 认证 / 权限 / 后台 / 钩子 / Local API |
 | 数据库 | **PostgreSQL 16**（Drizzle） | dev 自动 push（生产应切 migration） |
 | 缓存/队列 | **Redis 7** | 预留（限流/队列） |
-| 本地 Runner | `runner/suyuan.mjs`（Node CLI） | 登录/安装/离线运行/兼容回流 |
+| 本地 Runner | `runner/gewu.mjs`（Node CLI） | 登录/安装/离线运行/兼容回流 |
 | 模型网关 | OpenAI 兼容（`MODEL_GATEWAY_*`） | 在线试用与多模型对比 |
 | 部署 | Docker 多阶段 + compose | dev `:3000` / 容器 `:8787` |
 
@@ -63,11 +63,11 @@ v0.2.1 修订路线图 **S1–S7 全部完成**：
 
 ---
 
-## 5. Runner CLI（`node runner/suyuan.mjs <cmd>`）
+## 5. Runner CLI（`node runner/gewu.mjs <cmd>`）
 
 `login`（设备码） · `whoami` · `install <slug>` · `list` · `run <slug\|file> [--report] [--anon]` · `outdated` · `update [<slug>]` · `remove <slug>` · `doctor`
 
-登录令牌存 `~/.suyuan/config.json`（chmod 600）；已装 Skill 在 `~/.suyuan/skills/<slug>/`。
+登录令牌存 `~/.gewu/config.json`（chmod 600）；已装 Skill 在 `~/.gewu/skills/<slug>/`。
 **安装时**重算 checksum + 验 ed25519 签名（公钥取自 `/v1/keys`），无效则拒装。
 
 ---
@@ -101,14 +101,14 @@ npm run seed:rules                   # 术值规则（幂等，含 compat_report
 npm run keygen                       # 生成 ed25519 签名密钥（打印到 stdout，需手动粘贴进 .env；首启自动生成见部署文档 P0-3）
 npm run artifacts:backfill           # 冻结现有版本制品（幂等）；配了签名密钥则带签名
 docker compose up -d app             # 容器版 http://localhost:8787
-node runner/suyuan.mjs <cmd>        # 本地 Runner
+node runner/gewu.mjs <cmd>        # 本地 Runner
 ```
 
 ---
 
 ## 8. 已知限制 / 后续（v0.3+，修订版 §8 阶段3-4）
 
-- **信任模型**：✅ manifest **ed25519 签名 + Runner 验签** 已落地（`SUYUAN_SIGNING_KEY` / `/v1/keys`）；✅ **verified Runner 兼容报告计术值**（社区仅展示）。剩余：raw/aggregated 拆层、跨报告离群检测、verified Runner 的真实远程证明（当前为**管理员核验** trustedLevel）
+- **信任模型**：✅ manifest **ed25519 签名 + Runner 验签** 已落地（`GEWU_SIGNING_KEY` / `/v1/keys`）；✅ **verified Runner 兼容报告计术值**（社区仅展示）。剩余：raw/aggregated 拆层、跨报告离群检测、verified Runner 的真实远程证明（当前为**管理员核验** trustedLevel）
 - 反作弊深化：raw/aggregated 拆层、离群检测、跨报告去伪
 - 工程：生产 migration（替代 dev push）、Runner Key 加密、邮件适配器、Redis 限流、自动化测试
 - **推迟到 v0.3+**：发布组、Skill 包、术榜多榜单、创作者中心重指标、争议仲裁、私有术库/企业版
@@ -125,8 +125,8 @@ node runner/suyuan.mjs <cmd>        # 本地 Runner
 | `src/collections/*` | 18 个集合 + 钩子 |
 | `src/lib/{skillRunner,newapi,manifest,artifacts,installs,compat,contribution,runnerAuth,skillrank}.ts` | 核心库 |
 | `src/app/v1/**` | 对外 API |
-| `runner/suyuan.mjs` | 本地 Runner CLI |
+| `runner/gewu.mjs` | 本地 Runner CLI |
 | `src/seed/*` | 种子/迁移/回填脚本 |
-| `docs/suyuan-总纲.md` | **唯一开发依据**：定位/护城河5层/三币经济/统一落地路线(阶段0-4)/待拍板决策/代码锚点（已整合原 4 份规划稿） |
-| `docs/suyuan_prd_v0.2.1.md` | 收敛修订版 PRD（历史参考） |
+| `docs/gewu-总纲.md` | **唯一开发依据**：定位/护城河5层/三币经济/统一落地路线(阶段0-4)/待拍板决策/代码锚点（已整合原 4 份规划稿） |
+| `docs/gewu_prd_v0.2.1.md` | 收敛修订版 PRD（历史参考） |
 | `docs/体验手册.md` | 完整闭环体验操作手册（历史参考） |

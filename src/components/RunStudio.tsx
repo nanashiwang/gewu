@@ -37,7 +37,7 @@ const DEMO_INPUT_BY_KEY: Record<string, string> = {
   question: '普通人如何提高长期执行力？',
   request: '帮我把这段材料整理成结构化摘要。',
   review: '用了三天右耳就没声音了，客服还一直让我重启。',
-  role: '产品经理 / 溯源 控制台',
+  role: '产品经理 / 格物 控制台',
   stance: '反对只靠鸡血',
   style: '专业',
   topic: '秋季护肤',

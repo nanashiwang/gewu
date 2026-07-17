@@ -1,8 +1,8 @@
 import type { Payload } from 'payload'
 import { createClient } from 'redis'
 
-const QUEUE_KEY = 'hs:benchmark:queue'
-const DEDUPE_PREFIX = 'hs:benchmark:dedupe:'
+const QUEUE_KEY = 'gw:benchmark:queue'
+const DEDUPE_PREFIX = 'gw:benchmark:dedupe:'
 const DEFAULT_DEDUPE_SECONDS = 24 * 60 * 60
 
 export interface BenchmarkJob {

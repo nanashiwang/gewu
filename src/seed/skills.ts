@@ -1,4 +1,4 @@
-// 第一批官方 Skill 种子数据（溯源 Skill Spec v1：system + user 双段）
+// 第一批官方 Skill 种子数据（格物 Skill Spec v1：system + user 双段）
 import { SKILL_COMPLIANCE_REVIEWER_SKILL } from '../lib/skillComplianceReview'
 
 export interface SeedSkill {
@@ -185,7 +185,7 @@ export const SEED_SKILLS: SeedSkill[] = [
       '请只返回 JSON，形如 {"thisWeek":["..."],"nextWeek":["..."],"risks":["..."]}。',
     ].join('\n'),
     inputSchema: {
-      role: { type: 'string', label: '岗位/项目', required: false, placeholder: '如：产品经理 / 溯源 控制台' },
+      role: { type: 'string', label: '岗位/项目', required: false, placeholder: '如：产品经理 / 格物 控制台' },
       done: { type: 'text', label: '本周完成要点', required: true, placeholder: '如：完成 Skill 市场必备入口；补充 Passport 证据展示；修复台账筛选。' },
       plan: { type: 'text', label: '下周计划要点', required: false, placeholder: '如：完善企业 Registry 审批；补充失败库 Adapter 复验。' },
     },
@@ -199,7 +199,7 @@ export const SEED_SKILLS: SeedSkill[] = [
     examples: [
       {
         input: {
-          role: '产品经理 / 溯源 控制台',
+          role: '产品经理 / 格物 控制台',
           done: '完成 Skill 市场必备入口；补充 Passport 证据展示；修复台账筛选。',
           plan: '完善企业 Registry 审批；补充失败库 Adapter 复验。',
         },

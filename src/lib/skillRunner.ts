@@ -364,7 +364,7 @@ export async function runSkill(args: RunSkillArgs): Promise<RunSkillResult> {
           skillId: skill?.id ? String(skill.id) : undefined,
           skillVersionId: version?.id ? String(version.id) : undefined,
           skillVersion: version?.version,
-          source: 'suyuan',
+          source: 'gewu',
         },
       })
       usedModel = m

@@ -7,7 +7,7 @@ function computeChecksum(core: any): string {
   return 'sha256:' + createHash('sha256').update(canonicalString(core), 'utf8').digest('hex')
 }
 
-// 构造 溯源 Skill Spec v1 manifest（可移植、可校验、可验真）。
+// 构造 格物 Skill Spec v1 manifest（可移植、可校验、可验真）。
 // 不含时间戳，保证同一版本每次导出字节一致、checksum/签名稳定。
 export function buildManifest(skill: any, version: any, opts: { siteUrl?: string; env?: Record<string, string | undefined> } = {}) {
   const author = typeof skill.author === 'object' ? skill.author?.username : undefined
@@ -17,7 +17,7 @@ export function buildManifest(skill: any, version: any, opts: { siteUrl?: string
     outputSchema && typeof outputSchema === 'object' && Object.keys(outputSchema).length > 0
 
   const core: any = {
-    schema_version: 'suyuan.skill/v1',
+    schema_version: 'gewu.skill/v1',
     id: skill.slug,
     name: skill.title,
     version: version?.version || '1.0.0',
@@ -46,7 +46,7 @@ export function buildManifest(skill: any, version: any, opts: { siteUrl?: string
       endpoint_type: ['ollama', 'lmstudio', 'openai_compatible'],
     },
     examples: Array.isArray(version?.examples) ? version.examples : [],
-    source: 'suyuan',
+    source: 'gewu',
   }
   if (opts.siteUrl) core.skill_url = `${opts.siteUrl}/skills/${skill.slug}`
 

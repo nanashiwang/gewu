@@ -1,10 +1,10 @@
 # Changelog
 
-All notable changes to **溯源** are documented here.
+All notable changes to **格物** are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/) and the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
-公开站点地址由部署方通过 `SUYUAN_SITE_URL` 配置。
+公开站点地址由部署方通过 `GEWU_SITE_URL` 配置。
 
 ## [Unreleased]
 
@@ -38,7 +38,7 @@ This project adheres to [Semantic Versioning](https://semver.org/) and the
 - Web 服务:FastAPI + 异步任务队列、IP 限速、报告 JPG 卡片生成
 - 中转站红黑榜:按域名聚合公开报告,贝叶斯排序防 1-sample 刷分
 - 可分享链接 `/r/{id}` 与社交分享图片 `/r/{id}.jpg`
-- CLI 工具 `suyuan`:`detect` / `compare` / `ping` 三个子命令
+- CLI 工具 `gewu`:`detect` / `compare` / `ping` 三个子命令
 - 官方基线收集脚本 `bench.sh`(Opus 4.7 / Sonnet 4.6 / Haiku 4.5 / Opus 4.6)
 
 ### Privacy

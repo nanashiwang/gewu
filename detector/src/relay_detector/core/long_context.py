@@ -207,7 +207,7 @@ class Needle:
 def make_needles(seed: str) -> list[Needle]:
     """Three deterministic needles seeded by relay identity.
 
-    Each suyuan run gets its own seed (relay domain + timestamp), so
+    Each gewu run gets its own seed (relay domain + timestamp), so
     needles are unique per check — a relay that memorized one set won't
     fool the next user. Three positions catch sliding-window truncation
     that a single end-needle would miss.

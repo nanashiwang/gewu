@@ -37,7 +37,7 @@ function redactLiteral(text: string, value: string): string {
 export function redactNewApiProbeText(text: string, extraSecrets: string[] = []): string {
   let out = String(text || '')
     .replace(/sk-[A-Za-z0-9/_+\-=]{8,}/g, 'sk_<redacted>')
-    .replace(/hs_[A-Za-z0-9-]+/g, 'hs_<user>')
+    .replace(/gw_[A-Za-z0-9-]+/g, 'gw_<user>')
   for (const secret of [
     process.env.NEWAPI_ADMIN_KEY || '',
     process.env.MODEL_GATEWAY_KEY || '',
@@ -192,7 +192,7 @@ export async function runNewApiPermissionProbe(options: NewApiProbeOptions = {})
     throw new Error('缺少 NEWAPI_ADMIN_BASE_URL / NEWAPI_ADMIN_KEY / NEWAPI_ADMIN_USER_ID')
   }
 
-  const impossibleTokenName = `hs_preflight_impossible_${Date.now()}`
+  const impossibleTokenName = `gw_preflight_impossible_${Date.now()}`
   const futureStartTimestamp = Math.floor(Date.now() / 1000) + 10 * 365 * 24 * 60 * 60
   return Promise.all([
     probePath('/api/token/?p=1&page_size=1', { baseUrl, key, userId, bearer, timeoutMs, subGroup, fetchImpl }),
@@ -260,7 +260,7 @@ export function classifyNewApiProbe(checks: NewApiProbeCheck[]): {
   const logPrefix = logScope === 'self' ? '/api/log/self?' : '/api/log/?'
   const settlementCheck = checks.find((c) => c.path.includes(`${logPrefix}type=2&p=`))
   const logSettlementOK = !!(settlementCheck?.ok && (settlementCheck.ambiguousSettlementCount || 0) === 0)
-  const filterCheck = checks.find((c) => c.path.startsWith(logPrefix) && c.path.includes('token_name=hs_preflight_impossible'))
+  const filterCheck = checks.find((c) => c.path.startsWith(logPrefix) && c.path.includes('token_name=gw_preflight_impossible'))
   const logFilterOK = !!(filterCheck?.ok && (filterCheck.recordCount || 0) === 0)
   const timeFilterCheck = checks.find((c) => c.path.startsWith(logPrefix) && c.path.includes('start_timestamp='))
   const logTimeFilterOK = !!(timeFilterCheck?.ok && (timeFilterCheck.recordCount || 0) === 0)

@@ -32,7 +32,7 @@ export interface SkillPackageAnalysis {
   packageType: PackageType
   checksum: string
   fileSize: number
-  sourceFormat?: 'suyuan' | 'claude_skill' | 'gpts' | 'github_readme'
+  sourceFormat?: 'gewu' | 'claude_skill' | 'gpts' | 'github_readme'
   entries: SkillPackageEntry[]
   manifestName?: string
   manifestText?: string
@@ -73,7 +73,7 @@ const MAX_PACKAGE_BYTES = 15 * 1024 * 1024
 const MAX_ENTRY_COUNT = 300
 const MAX_TOTAL_UNCOMPRESSED_BYTES = 25 * 1024 * 1024
 const MAX_TEXT_BYTES = 96 * 1024
-const MANIFEST_NAMES = new Set(['suyuan.skill.yaml', 'suyuan.skill.yml'])
+const MANIFEST_NAMES = new Set(['gewu.skill.yaml', 'gewu.skill.yml'])
 const README_RE = /^readme\.(md|txt)$/i
 const CLAUDE_SKILL_RE = /^skill\.md$/i
 const GPTS_CONFIG_RE = /^(gpts?|gpt-config|actions)\.(json|yaml|yml)$/i
@@ -167,7 +167,7 @@ function inferExternalImport(args: {
   permissions?: SkillPackageAnalysis['permissions']
   description?: string
 } {
-  if (args.manifest) return { sourceFormat: 'suyuan' }
+  if (args.manifest) return { sourceFormat: 'gewu' }
 
   if (args.claudeSkillText) {
     const text = args.claudeSkillText.trim()
@@ -359,13 +359,13 @@ function normalizePermissions(raw: any): SkillPackageAnalysis['permissions'] {
 function collectStaticIssues(analysis: SkillPackageAnalysis) {
   const issues = analysis.issues
   if (!analysis.manifestName) {
-    issues.push({ level: 'manual', code: 'MANIFEST_MISSING', message: '未提供 suyuan.skill.yaml/yml，只能进入 Imported / 人工审核，不能自动 Verified 上架' })
+    issues.push({ level: 'manual', code: 'MANIFEST_MISSING', message: '未提供 gewu.skill.yaml/yml，只能进入 Imported / 人工审核，不能自动 Verified 上架' })
   } else if (analysis.manifestName.split('/').length > 1) {
-    issues.push({ level: 'warning', code: 'MANIFEST_NESTED', message: '建议把 suyuan.skill.yaml 放在压缩包根目录' })
+    issues.push({ level: 'warning', code: 'MANIFEST_NESTED', message: '建议把 gewu.skill.yaml 放在压缩包根目录' })
   }
   const schema = String(analysis.manifest?.schema_version || analysis.manifest?.schemaVersion || '')
-  if (analysis.manifest && schema !== 'suyuan.skill/v1') {
-    issues.push({ level: 'blocker', code: 'SCHEMA_VERSION_INVALID', message: 'schema_version 必须是 suyuan.skill/v1' })
+  if (analysis.manifest && schema !== 'gewu.skill/v1') {
+    issues.push({ level: 'blocker', code: 'SCHEMA_VERSION_INVALID', message: 'schema_version 必须是 gewu.skill/v1' })
   }
   if (analysis.manifest && !analysis.promptTemplate) {
     issues.push({ level: 'manual', code: 'PROMPT_ENTRY_MISSING', message: '当前平台自动上架仅支持包含 prompt.user_template 的 Skill 包' })
@@ -407,7 +407,7 @@ export function analyzeSkillPackage(fileName: string, input: Buffer): SkillPacka
     try {
       manifest = parseYaml(manifestText)
     } catch {
-      issues.push({ level: 'blocker', code: 'MANIFEST_INVALID_YAML', message: 'suyuan.skill.yaml 不是合法 YAML' })
+      issues.push({ level: 'blocker', code: 'MANIFEST_INVALID_YAML', message: 'gewu.skill.yaml 不是合法 YAML' })
     }
   }
   const prompt = manifest?.prompt || {}
@@ -419,7 +419,7 @@ export function analyzeSkillPackage(fileName: string, input: Buffer): SkillPacka
     packageType,
     checksum: sha256(input),
     fileSize: input.byteLength,
-    sourceFormat: imported.sourceFormat || (manifest ? 'suyuan' : undefined),
+    sourceFormat: imported.sourceFormat || (manifest ? 'gewu' : undefined),
     entries: parsed.entries,
     manifestName,
     manifestText,

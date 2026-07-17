@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   return new Response(csv, {
     headers: {
       'content-type': 'text/csv; charset=utf-8',
-      'content-disposition': `attachment; filename="suyuan-enterprise-audit-${organizationId}.csv"`,
+      'content-disposition': `attachment; filename="gewu-enterprise-audit-${organizationId}.csv"`,
     },
   })
 }

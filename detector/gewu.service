@@ -1,18 +1,18 @@
 [Unit]
-Description=溯源 relay verification web service
+Description=格物 relay verification web service
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/suyuan-detector
+WorkingDirectory=/opt/gewu-detector
 Environment=PYTHONUNBUFFERED=1
-Environment=SUYUAN_JOBS_DIR=/opt/suyuan-detector/web_data/jobs
-Environment=SUYUAN_WISHLIST_PATH=/opt/suyuan-detector/web_data/wishlist.txt
-EnvironmentFile=-/etc/suyuan.env
-ExecStartPre=/usr/bin/test -d /opt/suyuan-detector/web_data/jobs
-ExecStartPre=/usr/bin/test -w /opt/suyuan-detector/web_data/jobs
-ExecStart=/opt/suyuan-detector/venv/bin/python -m uvicorn web.server:app \
+Environment=GEWU_JOBS_DIR=/opt/gewu-detector/web_data/jobs
+Environment=GEWU_WISHLIST_PATH=/opt/gewu-detector/web_data/wishlist.txt
+EnvironmentFile=-/etc/gewu.env
+ExecStartPre=/usr/bin/test -d /opt/gewu-detector/web_data/jobs
+ExecStartPre=/usr/bin/test -w /opt/gewu-detector/web_data/jobs
+ExecStart=/opt/gewu-detector/venv/bin/python -m uvicorn web.server:app \
   --host 127.0.0.1 --port 8765 \
   --workers 1 \
   --log-level info \
@@ -23,8 +23,8 @@ RestartSec=3
 TimeoutStopSec=45
 StandardOutput=journal
 StandardError=journal
-User=suyuan
-Group=suyuan
+User=gewu
+Group=gewu
 UMask=0077
 NoNewPrivileges=true
 PrivateDevices=true
@@ -37,7 +37,7 @@ ProtectKernelTunables=true
 LockPersonality=true
 RestrictRealtime=true
 RestrictSUIDSGID=true
-ReadWritePaths=/opt/suyuan-detector/web_data
+ReadWritePaths=/opt/gewu-detector/web_data
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 
 [Install]

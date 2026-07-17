@@ -6,7 +6,7 @@ import { getPublicKeyInfo } from '@/lib/signing'
 
 function envWithKey() {
   const { privateKey } = generateKeyPairSync('ed25519')
-  return { SUYUAN_SIGNING_KEY: (privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer).toString('base64') }
+  return { GEWU_SIGNING_KEY: (privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer).toString('base64') }
 }
 
 const baseInput = {

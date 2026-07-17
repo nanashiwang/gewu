@@ -152,7 +152,7 @@ describe('enterprise — 企业 Registry 授权', () => {
       },
     }, {
       organizationId: 'org-1',
-      baseUrl: 'https://suyuan.example.com/v1/enterprise/identity/authorize?organizationId=org-1',
+      baseUrl: 'https://gewu.example.com/v1/enterprise/identity/authorize?organizationId=org-1',
       redirectPath: '/console/enterprise',
       state: 'state-1',
       nonce: 'nonce-1',
@@ -163,7 +163,7 @@ describe('enterprise — 企业 Registry 授权', () => {
       expect(result.authorize).toMatchObject({
         provider: 'oidc',
         organizationId: 'org-1',
-        callbackUrl: 'https://suyuan.example.com/v1/enterprise/identity/callback',
+        callbackUrl: 'https://gewu.example.com/v1/enterprise/identity/callback',
         state: 'state-1',
         nonce: 'nonce-1',
         redirectPath: '/console/enterprise',
@@ -173,7 +173,7 @@ describe('enterprise — 企业 Registry 授权', () => {
       expect(url.origin + url.pathname).toBe('https://idp.example.com/oauth2/v1/authorize')
       expect(url.searchParams.get('response_type')).toBe('code')
       expect(url.searchParams.get('client_id')).toBe('client-1')
-      expect(url.searchParams.get('redirect_uri')).toBe('https://suyuan.example.com/v1/enterprise/identity/callback')
+      expect(url.searchParams.get('redirect_uri')).toBe('https://gewu.example.com/v1/enterprise/identity/callback')
       expect(url.searchParams.get('scope')).toBe('openid email profile')
       expect(url.searchParams.get('state')).toBe('state-1')
       expect(url.searchParams.get('nonce')).toBe('nonce-1')
@@ -181,7 +181,7 @@ describe('enterprise — 企业 Registry 授权', () => {
 
     expect(buildEnterpriseSsoAuthorizeUrl({ sso: { enabled: true, provider: 'saml' } }, {
       organizationId: 'org-1',
-      baseUrl: 'https://suyuan.example.com',
+      baseUrl: 'https://gewu.example.com',
     })).toMatchObject({ ok: false, reason: expect.stringContaining('OIDC') })
   })
 
@@ -244,7 +244,7 @@ describe('enterprise — 企业 Registry 授权', () => {
       },
     }, {
       organizationId: 'org-1',
-      baseUrl: 'https://suyuan.example.com/v1/enterprise/identity/authorize',
+      baseUrl: 'https://gewu.example.com/v1/enterprise/identity/authorize',
       nonce: 'nonce-2',
     })
     expect(generated.ok).toBe(true)
@@ -268,7 +268,7 @@ describe('enterprise — 企业 Registry 授权', () => {
       },
     }, {
       code: 'secret-auth-code',
-      callbackUrl: 'https://suyuan.example.com/v1/enterprise/identity/callback',
+      callbackUrl: 'https://gewu.example.com/v1/enterprise/identity/callback',
     })
 
     expect(result.ok).toBe(true)
@@ -280,7 +280,7 @@ describe('enterprise — 企业 Registry 授权', () => {
         body: {
           grant_type: 'authorization_code',
           code: '<callback_code>',
-          redirect_uri: 'https://suyuan.example.com/v1/enterprise/identity/callback',
+          redirect_uri: 'https://gewu.example.com/v1/enterprise/identity/callback',
           client_id: 'client-1',
         },
         nextActions: expect.arrayContaining([
@@ -297,7 +297,7 @@ describe('enterprise — 企业 Registry 授权', () => {
       sso: { enabled: true, provider: 'oidc', issuer: 'https://idp.example.com', clientId: 'client-1', tokenEndpoint: 'http://idp.example.com/token' },
     }, {
       code: 'code',
-      callbackUrl: 'https://suyuan.example.com/v1/enterprise/identity/callback',
+      callbackUrl: 'https://gewu.example.com/v1/enterprise/identity/callback',
     })).toMatchObject({ ok: false, reason: '身份策略存在阻断项，不能换取 OIDC token' })
   })
 

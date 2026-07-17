@@ -10,9 +10,9 @@ import { isPublicScoreSnapshot, publicScoreSnapshotWhere } from '@/lib/scoreSnap
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: '公开验签 · 溯源',
+  title: '公开验签 · 格物',
   description:
-    '公开验证 溯源 兼容分与证据快照的 payloadHash 与 ed25519 签名。',
+    '公开验证 格物 兼容分与证据快照的 payloadHash 与 ed25519 签名。',
 }
 
 const STATUS: Record<string, { label: string; className: string }> = {
@@ -113,7 +113,7 @@ export default async function VerifyPage({
             </span>
           ) : (
             <span className="ml-1 text-amber-200">
-              未配置 SUYUAN_SIGNING_KEY，新快照只能做哈希校验
+              未配置 GEWU_SIGNING_KEY，新快照只能做哈希校验
             </span>
           )}
         </div>

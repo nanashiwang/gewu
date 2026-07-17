@@ -42,7 +42,7 @@ export async function SiteNav({ initialTheme = 'dark' }: { initialTheme?: ThemeM
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--accent)] text-sm text-white">
             ⬡
           </span>
-          <span className="text-[var(--accent)]">溯源</span>
+          <span className="text-[var(--accent)]">格物</span>
         </Link>
 
         <MobileNav items={NAV} />

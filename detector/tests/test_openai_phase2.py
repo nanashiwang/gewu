@@ -100,7 +100,7 @@ class FakeOpenAIBaseClient:
                 content='{"ok":true,"nonce":"openai-detector"}',
                 usage=usage,
             )
-        elif "SUYUAN_STREAM_CHECK" in prompt:
+        elif "GEWU_STREAM_CHECK" in prompt:
             response = _chat_payload(model=model, content=EXPECTED_TEXT, usage=usage)
         elif "HTTP status 418" in prompt:
             response = _chat_payload(
@@ -234,7 +234,7 @@ class StreamOnlyOpenAIBaseClient:
             }
         elif body.get("response_format"):
             delta = {"content": '{"ok":true,"nonce":"openai-detector"}'}
-        elif "SUYUAN_STREAM_CHECK" in prompt:
+        elif "GEWU_STREAM_CHECK" in prompt:
             delta = {"content": EXPECTED_TEXT}
         elif "HTTP status 418" in prompt:
             delta = {"content": "HTTP 418 means I'm a teapot."}
@@ -368,7 +368,7 @@ async def test_stream_fallback_reassembles_tool_call_deltas():
     assert call["id"] == "call_stream_only"
     assert call["function"]["name"] == "get_current_weather"
     assert call["function"]["arguments"].startswith("{")
-    assert response["_suyuan_transport"]["effective_stream"] is True
+    assert response["_gewu_transport"]["effective_stream"] is True
 
 
 @pytest.mark.asyncio

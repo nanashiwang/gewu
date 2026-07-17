@@ -132,7 +132,7 @@ export function buildSkillCertificateCore(input: SkillCertificateInput) {
   const passport = input.passport || {}
   const statusReasons = certificateStatusReasons(input)
   const core = {
-    schemaVersion: 'suyuan.skill.certificate/v1',
+    schemaVersion: 'gewu.skill.certificate/v1',
     issuedAt: input.issuedAt || new Date().toISOString(),
     subject: input.skill,
     status: certificateStatus(input, statusReasons),

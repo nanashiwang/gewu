@@ -120,7 +120,7 @@ async function main() {
       try {
         await admin.setQuotaToCredits(userId, 0)
       } catch (e) {
-        throw new Error(`校准临时子令牌 quota 清零失败，请手动清零 hs_${userId}: ${(e as Error).message}`)
+        throw new Error(`校准临时子令牌 quota 清零失败，请手动清零 gw_${userId}: ${(e as Error).message}`)
       }
     }
   }

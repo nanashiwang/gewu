@@ -1,8 +1,8 @@
 import type { Payload } from 'payload'
 import { createClient } from 'redis'
 
-const QUEUE_KEY = 'hs:reverify:queue'
-const DEDUPE_PREFIX = 'hs:reverify:dedupe:'
+const QUEUE_KEY = 'gw:reverify:queue'
+const DEDUPE_PREFIX = 'gw:reverify:dedupe:'
 const DEFAULT_DEDUPE_SECONDS = 6 * 60 * 60
 
 export interface ReverifyJob {

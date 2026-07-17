@@ -1,0 +1,24 @@
+[Unit]
+Description=格物 scheduled relay monitor (%i)
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/gewu-monitor/%i.env
+ConditionPathExists=/etc/gewu-monitor/%i.key
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/gewu-detector
+Environment=PYTHONUNBUFFERED=1
+Environment=GEWU_JOBS_DIR=/opt/gewu-detector/web_data/jobs
+EnvironmentFile=/etc/gewu-monitor/%i.env
+LoadCredential=api_key:/etc/gewu-monitor/%i.key
+ExecStart=/opt/gewu-detector/venv/bin/gewu monitor-once --target-id %i
+User=gewu
+Group=gewu
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/gewu-detector/web_data
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6

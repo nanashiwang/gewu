@@ -4,7 +4,7 @@ This directory holds **ground-truth detection reports** collected by running
 `bench.sh` against the official Anthropic API (`https://api.anthropic.com`)
 with a real `sk-ant-...` key.
 
-Each file `<model>_<mode>.json` is the raw output of `suyuan detect`
+Each file `<model>_<mode>.json` is the raw output of `gewu detect`
 in that mode, against that model, on the official API. These represent what
 the detector should see when there is no relay involvement: an unaltered
 Claude API response, scored 100/100 when our detectors are healthy.
@@ -44,7 +44,7 @@ OFFICIAL_KEY=sk-ant-...  ./bench.sh
 After running on the deploy host, copy the output back into this directory:
 
 ```bash
-scp -r root@<host>:/tmp/baselines/*.json suyuan/detector/data/baselines/
+scp -r root@<host>:/tmp/baselines/*.json gewu/detector/data/baselines/
 ```
 
 ## Files

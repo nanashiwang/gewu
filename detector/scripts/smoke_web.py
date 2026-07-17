@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Public, credential-free production smoke test for the 溯源 web service."""
+"""Public, credential-free production smoke test for the 格物 web service."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from urllib.request import Request, urlopen
 def fetch(base_url: str, path: str, timeout: float) -> tuple[dict[str, str], bytes]:
     request = Request(
         urljoin(base_url.rstrip("/") + "/", path.lstrip("/")),
-        headers={"User-Agent": "suyuan-deployment-smoke/1"},
+        headers={"User-Agent": "gewu-deployment-smoke/1"},
     )
     with urlopen(request, timeout=timeout) as response:  # noqa: S310
         if response.status != 200:
@@ -36,8 +36,8 @@ def check(base_url: str, timeout: float) -> None:
 
     headers, body = fetch(base_url, "/", timeout)
     html = body.decode("utf-8")
-    if "溯源" not in html:
-        raise RuntimeError("home page does not contain the 溯源 brand")
+    if "格物" not in html:
+        raise RuntimeError("home page does not contain the 格物 brand")
 
     expected_headers = {
         "x-content-type-options": "nosniff",
@@ -53,7 +53,7 @@ def check(base_url: str, timeout: float) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("base_url", help="public site URL, for example https://suyuan.example")
+    parser.add_argument("base_url", help="public site URL, for example https://gewu.example")
     parser.add_argument("--timeout", type=float, default=10.0)
     args = parser.parse_args()
     try:

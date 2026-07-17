@@ -315,7 +315,7 @@ export function formatUserUsageDriftJsonl(
   return rows
     .map((row) =>
       JSON.stringify({
-        schema: 'suyuan.newapi.user_drift.v1',
+        schema: 'gewu.newapi.user_drift.v1',
         ...meta,
         userId: row.userId,
         newapiUsageCents: row.newapiUsageCents,

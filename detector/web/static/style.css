@@ -1,4 +1,4 @@
-/* 溯源 interface — compact, evidence-first, and dependency-free. */
+/* 格物 interface — compact, evidence-first, and dependency-free. */
 
 :root {
   --bg: #ffffff;
@@ -42,6 +42,17 @@ code {
   border: 1px solid var(--line);
 }
 
+.transport-warning {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid #d97706;
+  border-radius: 8px;
+  background: #fffbeb;
+  color: #7c2d12;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 .site-header {
   border-bottom: 1px solid var(--line);
   background: var(--bg);
@@ -72,13 +83,25 @@ code {
   place-items: center;
   width: 30px;
   height: 30px;
-  border-radius: 9px;
-  color: #fff;
-  background: linear-gradient(145deg, #4338ca, #7c3aed);
-  box-shadow: 0 5px 14px rgba(79, 70, 229, 0.24);
-  font-size: 16px;
-  line-height: 1;
-  font-weight: 800;
+  border: 1px solid #e5ddd1;
+  border-radius: 8px;
+  background: #f7f2e8;
+  box-shadow: 0 3px 10px rgba(23, 21, 18, 0.1);
+}
+.brand-mark svg {
+  width: 26px;
+  height: 26px;
+  fill: #171512;
+}
+.brand-mark-cutout {
+  fill: none;
+  stroke: #f7f2e8;
+  stroke-width: 5;
+}
+.brand-mark-aperture {
+  fill: none;
+  stroke: #b6402c;
+  stroke-width: 3;
 }
 
 /* Desktop / tablet: nav inline next to brand, left-grouped (NOT pushed to
@@ -284,7 +307,7 @@ code {
 
 /* ============================== Trust Strip ==============================
  * Hub homepage section right below the hero capsule. The whole strip
- * exists because 溯源's product premise is "hand us your API key" —
+ * exists because 格物's product premise is "hand us your API key" —
  * users won't do that without proof of trust. We give 3 cards of
  * concrete promises, each linking into the actual code that proves it.
  * Visual weight is intentionally heavy: subtle gradient bg + clear
@@ -578,9 +601,9 @@ code {
 }
 .hub-meta-inline strong { color: var(--text); font-weight: 600; }
 
-/* "why suyuan" 5-card differentiator grid */
-.why-suyuan { margin: 44px 0 8px; }
-.why-suyuan h2 {
+/* "why gewu" 5-card differentiator grid */
+.why-gewu { margin: 44px 0 8px; }
+.why-gewu h2 {
   font-size: 24px;
   margin: 0 0 18px;
   letter-spacing: -0.01em;
@@ -1493,7 +1516,7 @@ code {
   .protocol-grid { grid-template-columns: 1fr; }
   .why-grid { grid-template-columns: 1fr; }
   .answer-capsule { font-size: 16px; }
-  .why-suyuan h2, .how-it-works h2 { font-size: 20px; }
+  .why-gewu h2, .how-it-works h2 { font-size: 20px; }
 
   /* leaderboard 手机端:rank 列改小 + score 移到 main 下方,避免 3 列挤 */
   .lb-row {

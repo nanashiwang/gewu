@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
- * 溯源 —— 本地 Skill Runner CLI
+ * 格物 —— 本地 Skill Runner CLI
  *
- *   suyuan login [--hub <url>]                设备码登录
- *   suyuan whoami                             查看登录归属
- *   suyuan rotate-token                       轮换本机 Runner 令牌
- *   suyuan install <slug>                     安装 Skill 到本地 ~/.suyuan/skills
- *   suyuan list                               列出已安装 Skill
- *   suyuan run <slug|file> [选项]              运行（已装则离线读本地）
- *   suyuan outdated                           检查有更新的 Skill
- *   suyuan update [<slug>]                    更新（不带 slug 则全部）
- *   suyuan remove <slug>                      移除已安装 Skill
- *   suyuan doctor [--endpoint <url>] [--model <m>]   体检：登录/endpoint/模型
+ *   gewu login [--hub <url>]                设备码登录
+ *   gewu whoami                             查看登录归属
+ *   gewu rotate-token                       轮换本机 Runner 令牌
+ *   gewu install <slug>                     安装 Skill 到本地 ~/.gewu/skills
+ *   gewu list                               列出已安装 Skill
+ *   gewu run <slug|file> [选项]              运行（已装则离线读本地）
+ *   gewu outdated                           检查有更新的 Skill
+ *   gewu update [<slug>]                    更新（不带 slug 则全部）
+ *   gewu remove <slug>                      移除已安装 Skill
+ *   gewu doctor [--endpoint <url>] [--model <m>]   体检：登录/endpoint/模型
  *
  * run 选项：--endpoint --model --key --hub --in key=value --raw
  */
@@ -24,7 +24,7 @@ import { stdin as input, stdout as output } from 'node:process'
 import { normalizeSkillSlug, resolveSkillDir } from './pathSafety.mjs'
 
 const RUNNER_VERSION = '0.2.0'
-const HOME = path.join(os.homedir(), '.suyuan')
+const HOME = path.join(os.homedir(), '.gewu')
 const CONFIG_PATH = path.join(HOME, 'config.json')
 const SKILLS_DIR = path.join(HOME, 'skills')
 const DEFAULT_HUB = 'http://localhost:3000'
@@ -48,7 +48,7 @@ function writeConfig(cfg) {
 }
 function requireAuth(args) {
   const cfg = readConfig()
-  if (!cfg.token) throw new Error('尚未登录，请先 suyuan login')
+  if (!cfg.token) throw new Error('尚未登录，请先 gewu login')
   return { hub: (args.hub || cfg.hub || DEFAULT_HUB).replace(/\/$/, ''), token: cfg.token }
 }
 function bearer(token) {
@@ -184,7 +184,7 @@ async function cmdLogin(args) {
     }
     if (data.error && data.error !== 'authorization_pending') throw new Error(`登录失败：${data.error}`)
   }
-  throw new Error('设备码已过期，请重新 suyuan login')
+  throw new Error('设备码已过期，请重新 gewu login')
 }
 
 async function cmdWhoami(args) {
@@ -251,7 +251,7 @@ async function installSlug(hub, token, slug, opts = {}) {
 }
 async function cmdInstall(args) {
   const { hub, token } = requireAuth(args)
-  if (!args._[0]) throw new Error('用法：suyuan install <slug> [--allow-unsigned]')
+  if (!args._[0]) throw new Error('用法：gewu install <slug> [--allow-unsigned]')
   const slug = normalizeSkillSlug(args._[0])
   const data = await installSlug(hub, token, slug, { allowUnsigned: !!args['allow-unsigned'] })
   console.log(`✅ 已安装 ${data.name} (v${data.version}) → ${skillDir(slug)}/skill.yaml`)
@@ -267,12 +267,12 @@ async function cmdInstall(args) {
 }
 function cmdList() {
   const items = listInstalled()
-  if (items.length === 0) return console.log('（暂无已安装 Skill，用 suyuan install <slug> 安装）')
+  if (items.length === 0) return console.log('（暂无已安装 Skill，用 gewu install <slug> 安装）')
   console.log('已安装 Skill：')
   for (const m of items) console.log(`  · ${m.slug}  v${m.version}  ${(m.checksum || '').slice(0, 26)}…`)
 }
 async function cmdRemove(args) {
-  if (!args._[0]) throw new Error('用法：suyuan remove <slug>')
+  if (!args._[0]) throw new Error('用法：gewu remove <slug>')
   const slug = normalizeSkillSlug(args._[0])
   removeInstalled(slug)
   try {
@@ -441,7 +441,7 @@ async function collectInputs(schema, preset) {
 async function cmdRun(args) {
   const cfg = readConfig()
   const ref = args._[0]
-  if (!ref) throw new Error('用法：suyuan run <slug|file> [选项]')
+  if (!ref) throw new Error('用法：gewu run <slug|file> [选项]')
 
   // 已安装的 slug → 离线读本地；否则按文件或从 Hub 拉取
   let manifestRef = ref
@@ -548,7 +548,7 @@ async function cmdRun(args) {
 async function cmdDoctor(args) {
   const cfg = readConfig()
   const ok = (b) => (b ? '✓' : '✗')
-  console.log('溯源 Runner 体检：')
+  console.log('格物 Runner 体检：')
   console.log(`  ${ok(fs.existsSync(CONFIG_PATH))} 配置文件 ${CONFIG_PATH}`)
   // 登录
   let loginOk = false
@@ -605,7 +605,7 @@ async function main() {
     doctor: cmdDoctor,
   }
   if (table[cmd]) return table[cmd](args)
-  console.log('用法：suyuan <login|whoami|rotate-token|install|list|run|outdated|update|remove|doctor> [选项]')
+  console.log('用法：gewu <login|whoami|rotate-token|install|list|run|outdated|update|remove|doctor> [选项]')
   process.exit(cmd ? 1 : 0)
 }
 

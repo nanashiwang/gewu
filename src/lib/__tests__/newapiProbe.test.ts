@@ -5,9 +5,9 @@ describe('newapiProbe — 管理权限探测分类', () => {
   afterEach(() => vi.unstubAllEnvs())
 
   it('不把 sk/用户子令牌名写入探测输出', () => {
-    const s = redactNewApiProbeText('bad sk-abcdef1234567890 for hs_user-1')
+    const s = redactNewApiProbeText('bad sk-abcdef1234567890 for gw_user-1')
     expect(s).not.toContain('abcdef1234567890')
-    expect(s).not.toContain('hs_user-1')
+    expect(s).not.toContain('gw_user-1')
   })
 
   it('不把管理 access token 写入探测输出', () => {
@@ -31,7 +31,7 @@ describe('newapiProbe — 管理权限探测分类', () => {
     const r = classifyNewApiProbe([
       { path: '/api/token/?p=1', ok: true },
       { path: '/api/log/?p=1', ok: true },
-      { path: '/api/log/?type=2&token_name=hs_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 1 },
+      { path: '/api/log/?type=2&token_name=gw_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 1 },
     ])
     expect(r.logOK).toBe(true)
     expect(r.logFilterOK).toBe(false)
@@ -42,7 +42,7 @@ describe('newapiProbe — 管理权限探测分类', () => {
     const r = classifyNewApiProbe([
       { path: '/api/token/?p=1', ok: true },
       { path: '/api/log/?p=1', ok: true },
-      { path: '/api/log/?type=2&token_name=hs_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 0 },
+      { path: '/api/log/?type=2&token_name=gw_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 0 },
       { path: '/api/log/?type=2&start_timestamp=9999999999&p=1&page_size=1', ok: true, recordCount: 1 },
     ])
     expect(r.logOK).toBe(true)
@@ -56,7 +56,7 @@ describe('newapiProbe — 管理权限探测分类', () => {
       { path: '/api/token/?p=1', ok: true },
       { path: '/api/log/?p=1', ok: true },
       { path: '/api/log/?type=2&p=1&page_size=5', ok: true, recordCount: 1, ambiguousSettlementCount: 0 },
-      { path: '/api/log/?type=2&token_name=hs_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 0 },
+      { path: '/api/log/?type=2&token_name=gw_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 0 },
       { path: '/api/log/?type=2&start_timestamp=9999999999&p=1&page_size=1', ok: true, recordCount: 0 },
       { path: '/api/pricing', ok: true, recordCount: 1 },
       { path: '/api/status', ok: true },
@@ -79,7 +79,7 @@ describe('newapiProbe — 管理权限探测分类', () => {
       { path: '/api/log/?p=1', ok: false },
       { path: '/api/log/self?p=1', ok: true },
       { path: '/api/log/self?type=2&p=1&page_size=5', ok: true, recordCount: 1, ambiguousSettlementCount: 0 },
-      { path: '/api/log/self?type=2&token_name=hs_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 0 },
+      { path: '/api/log/self?type=2&token_name=gw_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 0 },
       { path: '/api/log/self?type=2&start_timestamp=9999999999&p=1&page_size=1', ok: true, recordCount: 0 },
       { path: '/api/pricing', ok: true, recordCount: 1 },
       { path: '/api/status', ok: true },
@@ -92,7 +92,7 @@ describe('newapiProbe — 管理权限探测分类', () => {
       { path: '/api/token/?p=1', ok: true },
       { path: '/api/log/?p=1', ok: true },
       { path: '/api/log/?type=2&p=1&page_size=5', ok: true, recordCount: 1, ambiguousSettlementCount: 0 },
-      { path: '/api/log/?type=2&token_name=hs_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 0 },
+      { path: '/api/log/?type=2&token_name=gw_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 0 },
       { path: '/api/log/?type=2&start_timestamp=9999999999&p=1&page_size=1', ok: true, recordCount: 0 },
     ]
     expect(classifyNewApiProbe([...base, { path: '/api/pricing', ok: false }, { path: '/api/status', ok: true }]).hint).toContain('/api/pricing')
@@ -104,7 +104,7 @@ describe('newapiProbe — 管理权限探测分类', () => {
       { path: '/api/token/?p=1', ok: true },
       { path: '/api/log/?p=1', ok: true },
       { path: '/api/log/?type=2&p=1&page_size=5', ok: true, recordCount: 1, ambiguousSettlementCount: 1 },
-      { path: '/api/log/?type=2&token_name=hs_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 0 },
+      { path: '/api/log/?type=2&token_name=gw_preflight_impossible_1&p=1&page_size=1', ok: true, recordCount: 0 },
       { path: '/api/log/?type=2&start_timestamp=9999999999&p=1&page_size=1', ok: true, recordCount: 0 },
     ])
     expect(r.logSettlementOK).toBe(false)
@@ -132,7 +132,7 @@ describe('newapiProbe — 管理权限探测分类', () => {
             text: async () => JSON.stringify({ success: true, data: { items: [] } }),
           }
         }
-        if (url.includes('token_name=hs_preflight_impossible')) {
+        if (url.includes('token_name=gw_preflight_impossible')) {
           return {
             status: 200,
             ok: true,
@@ -171,7 +171,7 @@ describe('newapiProbe — 管理权限探测分类', () => {
           status: 200,
           ok: true,
           text: async () =>
-            JSON.stringify({ success: false, message: 'bad admin-secret-token-abcdef for hs_user-1' }),
+            JSON.stringify({ success: false, message: 'bad admin-secret-token-abcdef for gw_user-1' }),
         }
       },
     })
@@ -180,18 +180,18 @@ describe('newapiProbe — 管理权限探测分类', () => {
       'https://newapi.example.com/api/token/?p=1&page_size=1',
       'https://newapi.example.com/api/log/?p=1&page_size=1',
       'https://newapi.example.com/api/log/?type=2&p=1&page_size=5',
-      expect.stringMatching(/^https:\/\/newapi\.example\.com\/api\/log\/\?type=2&token_name=hs_preflight_impossible_/),
+      expect.stringMatching(/^https:\/\/newapi\.example\.com\/api\/log\/\?type=2&token_name=gw_preflight_impossible_/),
       expect.stringMatching(/^https:\/\/newapi\.example\.com\/api\/log\/\?type=2&start_timestamp=/),
       'https://newapi.example.com/api/log/self?p=1&page_size=1',
       'https://newapi.example.com/api/log/self?type=2&p=1&page_size=5',
-      expect.stringMatching(/^https:\/\/newapi\.example\.com\/api\/log\/self\?type=2&token_name=hs_preflight_impossible_/),
+      expect.stringMatching(/^https:\/\/newapi\.example\.com\/api\/log\/self\?type=2&token_name=gw_preflight_impossible_/),
       expect.stringMatching(/^https:\/\/newapi\.example\.com\/api\/log\/self\?type=2&start_timestamp=/),
       'https://newapi.example.com/api/pricing',
       'https://newapi.example.com/api/status',
     ])
     expect(classifyNewApiProbe(checks)).toMatchObject({ tokenOK: true, logOK: false })
     expect(checks[1].message).not.toContain('admin-secret-token-abcdef')
-    expect(checks[1].message).not.toContain('hs_user-1')
+    expect(checks[1].message).not.toContain('gw_user-1')
   })
 
   it('单个探测网络失败时返回失败项而不是让整次预检崩掉', async () => {
@@ -229,7 +229,7 @@ describe('newapiProbe — 管理权限探测分类', () => {
             success: true,
             data: {
               items: url.includes('/api/log/?type=2&p=1&page_size=5')
-                ? [{ type: 2, quota: 700, token_name: 'hs_u1', stream_status: { status: 'error' } }]
+                ? [{ type: 2, quota: 700, token_name: 'gw_u1', stream_status: { status: 'error' } }]
                 : [],
             },
           }),

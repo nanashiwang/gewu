@@ -9,7 +9,7 @@ import { isPublicAdapterProfile } from '@/lib/adapterProfilePublic'
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: '失败知识库 · 溯源',
+  title: '失败知识库 · 格物',
   description: '基于真实运行回流的模型失败模式摘要：症状、可能原因与修复方向。',
 }
 

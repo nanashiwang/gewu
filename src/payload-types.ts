@@ -2519,7 +2519,7 @@ export interface EconomySetting {
 export interface DeploymentSetting {
   id: string;
   /**
-   * 例如 https://suyuan.example.com；NAS 内网试跑可用 http://NAS_IP:8787。
+   * 例如 https://gewu.example.com；NAS 内网试跑可用 http://NAS_IP:8787。
    */
   serverUrl?: string | null;
   /**

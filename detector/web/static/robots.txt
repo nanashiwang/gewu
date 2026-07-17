@@ -1,4 +1,4 @@
-# 溯源 robots.txt — SEO + AI crawler policy
+# 格物 robots.txt — SEO + AI crawler policy
 # See SEO_AI_GEO_PLAN §3.1.A
 
 User-agent: *

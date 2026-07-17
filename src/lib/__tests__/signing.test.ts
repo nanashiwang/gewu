@@ -10,7 +10,7 @@ beforeAll(async () => {
   // 生成临时 ed25519 私钥注入 env（模块 privKey 懒加载，import 前置 env 即可）
   const { privateKey } = generateKeyPairSync('ed25519')
   const der = privateKey.export({ format: 'der', type: 'pkcs8' }) as Buffer
-  process.env.SUYUAN_SIGNING_KEY = der.toString('base64')
+  process.env.GEWU_SIGNING_KEY = der.toString('base64')
   process.env.PAYLOAD_SECRET = 'test-secret'
   signing = await import('@/lib/signing')
 })
@@ -59,12 +59,12 @@ describe('signing 往返（信任模型一致性）', () => {
 
   it('无签名密钥时优雅降级为 null（不抛错）', async () => {
     vi.resetModules()
-    const saved = process.env.SUYUAN_SIGNING_KEY
-    delete process.env.SUYUAN_SIGNING_KEY
+    const saved = process.env.GEWU_SIGNING_KEY
+    delete process.env.GEWU_SIGNING_KEY
     const fresh = await import('@/lib/signing')
     expect(fresh.signCanonical({ a: 1 })).toBeNull()
     expect(fresh.getPublicKeyInfo()).toBeNull()
-    process.env.SUYUAN_SIGNING_KEY = saved
+    process.env.GEWU_SIGNING_KEY = saved
     vi.resetModules()
   })
 })

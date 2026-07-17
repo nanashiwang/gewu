@@ -9,7 +9,7 @@ export const SKILL_REVIEW_SYSTEM_PROMPT = [
 ].join('\n')
 
 export const SKILL_REVIEW_PROMPT_TEMPLATE = [
-  '请审核一个待上架的 溯源 Skill 包，判断能否自动上架。',
+  '请审核一个待上架的 格物 Skill 包，判断能否自动上架。',
   '',
   '必须检查：',
   '1. 内容合规：违法、诈骗、色情、暴力、自伤、仇恨、侵权、隐私侵犯、绕过安全边界。',
@@ -19,7 +19,7 @@ export const SKILL_REVIEW_PROMPT_TEMPLATE = [
   '5. 一致性和质量：如提供 manifest，需与 README/简介/文件列表一致；未提供 manifest 时，README/简介是否足够说明用途；是否空壳、广告、抄袭明显或无法运行。',
   '',
   '判定规则：',
-  '- approve：仅限低风险、用途明确、无敏感收集、无高风险权限，且提供格式完整的 suyuan.skill.yaml/yml。',
+  '- approve：仅限低风险、用途明确、无敏感收集、无高风险权限，且提供格式完整的 gewu.skill.yaml/yml。',
   '- manual_review：无 manifest、存在不确定风险、需要人工看代码/脚本、权限较高、说明不一致、质量存疑。',
   '- reject：明显恶意、违法、诈骗、密钥泄漏、盗取凭据、绕过安全边界或高可信恶意。',
   '',
@@ -61,7 +61,7 @@ export const SKILL_COMPLIANCE_REVIEWER_SKILL = {
     description: { type: 'text', label: '简介' },
     rule_issues: { type: 'text', label: '规则预检结果' },
     file_list: { type: 'text', label: '文件列表', required: true },
-    manifest: { type: 'text', label: 'suyuan.skill.yaml', required: true },
+    manifest: { type: 'text', label: 'gewu.skill.yaml', required: true },
     readme: { type: 'text', label: 'README' },
   },
   outputSchema: {
@@ -89,8 +89,8 @@ export const SKILL_COMPLIANCE_REVIEWER_SKILL = {
         category: '内容创作',
         description: '根据主题生成标题',
         rule_issues: '无',
-        file_list: 'suyuan.skill.yaml (800 bytes)\nREADME.md (200 bytes)',
-        manifest: 'schema_version: suyuan.skill/v1\nruntime:\n  type: prompt\npermissions:\n  network: false',
+        file_list: 'gewu.skill.yaml (800 bytes)\nREADME.md (200 bytes)',
+        manifest: 'schema_version: gewu.skill/v1\nruntime:\n  type: prompt\npermissions:\n  network: false',
         readme: '用于生成标题，不收集敏感信息。',
       },
       output: {

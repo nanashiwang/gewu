@@ -63,10 +63,10 @@ describe('newapiAdmin — stub 模式', () => {
     expect(isRealMode()).toBe(false)
     const a = createNewApiAdmin()
     expect(a.mode).toBe('stub')
-    expect(await a.provisionSubToken('u1')).toEqual({ tokenName: 'hs_u1', simulated: true })
+    expect(await a.provisionSubToken('u1')).toEqual({ tokenName: 'gw_u1', simulated: true })
   })
-  it('子令牌命名 hs_<userId>', () => {
-    expect(subTokenName('abc-123')).toBe('hs_abc-123')
+  it('子令牌命名 gw_<userId>', () => {
+    expect(subTokenName('abc-123')).toBe('gw_abc-123')
   })
 })
 
@@ -86,7 +86,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     await expect(a.adjustQuota('u1', 1)).rejects.toBeInstanceOf(NewApiAdminError)
   })
 
-  it('provisionSubToken：先查名→无则 POST 建 hs_<id>(remain 0/有限 TTL) + 正确鉴权头', async () => {
+  it('provisionSubToken：先查名→无则 POST 建 gw_<id>(remain 0/有限 TTL) + 正确鉴权头', async () => {
     realEnv()
     vi.stubEnv('APPROVED_PLATFORM_MODELS', 'deepseek-chat,qwen-plus')
     const tokens: any[] = []
@@ -94,10 +94,10 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
     const a = createNewApiAdmin()
     const r = await a.provisionSubToken('u1')
-    expect(r).toMatchObject({ tokenName: 'hs_u1', key: 'sk-new', tokenId: 5, simulated: false })
+    expect(r).toMatchObject({ tokenName: 'gw_u1', key: 'sk-new', tokenId: 5, simulated: false })
     const post = calls.find((c) => c.method === 'POST')
     expect(post.body).toMatchObject({
-      name: 'hs_u1',
+      name: 'gw_u1',
       remain_quota: 0,
       group: 'platform-lowcost',
       unlimited_quota: false,
@@ -112,11 +112,11 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
   it('provisionSubToken：发现历史无限配额子令牌时先关闭 unlimited_quota', async () => {
     realEnv()
     vi.stubEnv('APPROVED_PLATFORM_MODELS', 'deepseek-chat,qwen-plus')
-    const tokens = [{ id: 5, name: 'hs_u1', key: 'sk', remain_quota: 100, unlimited_quota: true }]
+    const tokens = [{ id: 5, name: 'gw_u1', key: 'sk', remain_quota: 100, unlimited_quota: true }]
     const calls: any[] = []
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
     const a = createNewApiAdmin()
-    await expect(a.provisionSubToken('u1')).resolves.toMatchObject({ tokenName: 'hs_u1', key: 'sk' })
+    await expect(a.provisionSubToken('u1')).resolves.toMatchObject({ tokenName: 'gw_u1', key: 'sk' })
     const put = calls.find((c) => c.method === 'PUT')
     expect(put.body).toMatchObject({
       id: 5,
@@ -131,11 +131,11 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
   it('provisionSubToken：发现历史子令牌模型限制缺失/漂移时会重写白名单', async () => {
     realEnv()
     vi.stubEnv('APPROVED_PLATFORM_MODELS', 'deepseek-chat,qwen-plus')
-    const tokens = [{ id: 5, name: 'hs_u1', key: 'sk', remain_quota: 100, unlimited_quota: false, model_limits_enabled: false }]
+    const tokens = [{ id: 5, name: 'gw_u1', key: 'sk', remain_quota: 100, unlimited_quota: false, model_limits_enabled: false }]
     const calls: any[] = []
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
     const a = createNewApiAdmin()
-    await expect(a.provisionSubToken('u1')).resolves.toMatchObject({ tokenName: 'hs_u1', key: 'sk' })
+    await expect(a.provisionSubToken('u1')).resolves.toMatchObject({ tokenName: 'gw_u1', key: 'sk' })
     const put = calls.find((c) => c.method === 'PUT')
     expect(put.body).toMatchObject({
       remain_quota: 100,
@@ -150,7 +150,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubEnv('APPROVED_PLATFORM_MODELS', 'deepseek-chat,qwen-plus')
     const tokens = [{
       id: 5,
-      name: 'hs_u1',
+      name: 'gw_u1',
       key: 'sk',
       remain_quota: 100,
       unlimited_quota: false,
@@ -161,7 +161,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     const calls: any[] = []
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
     const a = createNewApiAdmin()
-    await expect(a.provisionSubToken('u1')).resolves.toMatchObject({ tokenName: 'hs_u1', key: 'sk' })
+    await expect(a.provisionSubToken('u1')).resolves.toMatchObject({ tokenName: 'gw_u1', key: 'sk' })
     const put = calls.find((c) => c.method === 'PUT')
     expect(put.body).toMatchObject({
       remain_quota: 100,
@@ -176,8 +176,8 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     realEnv()
     vi.stubEnv('APPROVED_PLATFORM_MODELS', 'deepseek-chat,qwen-plus')
     const tokens = [
-      { id: 5, name: 'hs_u1', key: 'sk-a', remain_quota: 100, unlimited_quota: false },
-      { id: 6, name: 'hs_u1', key: 'sk-b', remain_quota: 200, unlimited_quota: true },
+      { id: 5, name: 'gw_u1', key: 'sk-a', remain_quota: 100, unlimited_quota: false },
+      { id: 6, name: 'gw_u1', key: 'sk-b', remain_quota: 200, unlimited_quota: true },
     ]
     const calls: any[] = []
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
@@ -220,7 +220,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     realEnv()
     vi.stubEnv('APPROVED_PLATFORM_MODELS', ', ,')
     const calls: any[] = []
-    vi.stubGlobal('fetch', mockFetch([{ id: 5, name: 'hs_u1', key: 'sk', remain_quota: 99999 }], calls))
+    vi.stubGlobal('fetch', mockFetch([{ id: 5, name: 'gw_u1', key: 'sk', remain_quota: 99999 }], calls))
     const a = createNewApiAdmin()
     await expect(a.provisionSubToken('u1')).rejects.toThrow('平台代付白名单不能为空')
     expect(calls).toHaveLength(0)
@@ -240,7 +240,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     realEnv()
     vi.stubEnv('NEWAPI_SUB_GROUP', '')
     const calls: any[] = []
-    vi.stubGlobal('fetch', mockFetch([{ id: 5, name: 'hs_u1', key: 'sk', remain_quota: 99999 }], calls))
+    vi.stubGlobal('fetch', mockFetch([{ id: 5, name: 'gw_u1', key: 'sk', remain_quota: 99999 }], calls))
     const a = createNewApiAdmin()
     await expect(a.provisionSubToken('u1')).rejects.toThrow('NEWAPI_SUB_GROUP 必须配置')
     expect(calls).toHaveLength(0)
@@ -255,16 +255,16 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     const calls: any[] = []
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
     const a = createNewApiAdmin()
-    await expect(a.provisionSubToken('u1')).resolves.toMatchObject({ tokenName: 'hs_u1' })
+    await expect(a.provisionSubToken('u1')).resolves.toMatchObject({ tokenName: 'gw_u1' })
     const post = calls.find((c) => c.method === 'POST')
-    expect(post.body).toMatchObject({ name: 'hs_u1', group: '' })
+    expect(post.body).toMatchObject({ name: 'gw_u1', group: '' })
     expectRollingExpiry(post.body.expired_time)
   })
 
   it('adjustQuota：读令牌→remain_quota += delta*CREDIT_TO_QUOTA→PUT(绝对值)', async () => {
     realEnv()
     vi.stubEnv('APPROVED_PLATFORM_MODELS', 'deepseek-chat,qwen-plus')
-    const tokens = [{ id: 5, name: 'hs_u1', key: 'sk', remain_quota: 100, unlimited_quota: true }]
+    const tokens = [{ id: 5, name: 'gw_u1', key: 'sk', remain_quota: 100, unlimited_quota: true }]
     const calls: any[] = []
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
     const a = createNewApiAdmin()
@@ -282,7 +282,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
   it('setQuotaToCredits：按本平台余额设置绝对 quota，避免异步 delta 覆盖', async () => {
     realEnv()
     vi.stubEnv('APPROVED_PLATFORM_MODELS', 'deepseek-chat,qwen-plus')
-    const tokens = [{ id: 5, name: 'hs_u1', key: 'sk', remain_quota: 99999, unlimited_quota: true }]
+    const tokens = [{ id: 5, name: 'gw_u1', key: 'sk', remain_quota: 99999, unlimited_quota: true }]
     const calls: any[] = []
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
     const a = createNewApiAdmin()
@@ -299,7 +299,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
   it('setQuotaToCredits：从 0 余额充值时先禁用写 quota，再 status_only 启用', async () => {
     realEnv()
     vi.stubEnv('APPROVED_PLATFORM_MODELS', 'deepseek-chat,qwen-plus')
-    const tokens = [{ id: 5, name: 'hs_u1', key: 'sk', status: 1, remain_quota: 0, unlimited_quota: false }]
+    const tokens = [{ id: 5, name: 'gw_u1', key: 'sk', status: 1, remain_quota: 0, unlimited_quota: false }]
     const calls: any[] = []
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
     const a = createNewApiAdmin()
@@ -316,7 +316,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
   it('setQuotaToCredits：余额归零时禁用子令牌，避免 New API 拒绝启用零额度 token', async () => {
     realEnv()
     vi.stubEnv('APPROVED_PLATFORM_MODELS', 'deepseek-chat,qwen-plus')
-    const tokens = [{ id: 5, name: 'hs_u1', key: 'sk', status: 1, remain_quota: 100, unlimited_quota: true }]
+    const tokens = [{ id: 5, name: 'gw_u1', key: 'sk', status: 1, remain_quota: 100, unlimited_quota: true }]
     const calls: any[] = []
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
     const a = createNewApiAdmin()
@@ -331,7 +331,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
   it('非法 NEWAPI_CREDIT_TO_QUOTA 运行时 fail-closed，不下发 null/NaN 配额', async () => {
     realEnv()
     vi.stubEnv('NEWAPI_CREDIT_TO_QUOTA', '0')
-    const tokens = [{ id: 5, name: 'hs_u1', key: 'sk', remain_quota: 99999 }]
+    const tokens = [{ id: 5, name: 'gw_u1', key: 'sk', remain_quota: 99999 }]
     const calls: any[] = []
     vi.stubGlobal('fetch', mockFetch(tokens, calls))
     const a = createNewApiAdmin()
@@ -343,7 +343,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     realEnv()
     vi.stubEnv('NEWAPI_CREDIT_TO_QUOTA', '')
     const calls: any[] = []
-    vi.stubGlobal('fetch', mockFetch([{ id: 5, name: 'hs_u1', key: 'sk', remain_quota: 99999 }], calls))
+    vi.stubGlobal('fetch', mockFetch([{ id: 5, name: 'gw_u1', key: 'sk', remain_quota: 99999 }], calls))
     const a = createNewApiAdmin()
     await expect(a.setQuotaToCredits('u1', 3)).rejects.toThrow('必须显式配置')
     expect(calls).toHaveLength(0)
@@ -365,7 +365,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     expect(u).toMatchObject({ costCents: 3, usedQuota: 2100, calls: 2, simulated: false }) // (1400+700)/700=3
     const log = calls.find((c) => c.url.includes('/api/log/'))
     expect(log.url).toContain('type=2')
-    expect(log.url).toContain('token_name=hs_u1')
+    expect(log.url).toContain('token_name=gw_u1')
   })
 
   it('fetchUsage：按日志模型字段分组，为不同模型倍率毛利对账提供输入', async () => {
@@ -378,9 +378,9 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
             success: true,
             data: {
               items: [
-                { type: 2, quota: 1400, token_name: 'hs_u1', created_at: 1, model_name: 'deepseek-chat' },
-                { type: 2, quota: 700, token_name: 'hs_u1', created_at: 1, modelName: 'qwen-plus' },
-                { type: 2, quota: 700, token_name: 'hs_u1', created_at: 1 },
+                { type: 2, quota: 1400, token_name: 'gw_u1', created_at: 1, model_name: 'deepseek-chat' },
+                { type: 2, quota: 700, token_name: 'gw_u1', created_at: 1, modelName: 'qwen-plus' },
+                { type: 2, quota: 700, token_name: 'gw_u1', created_at: 1 },
               ],
             },
           }),
@@ -430,7 +430,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
                 {
                   type: 2,
                   quota: 700,
-                  token_name: 'hs_u1',
+                  token_name: 'gw_u1',
                   created_at: 1,
                   model_name: 'deepseek-chat',
                   prompt_tokens: 1000,
@@ -479,7 +479,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
                 {
                   type: 2,
                   quota: 700,
-                  token_name: 'hs_u1',
+                  token_name: 'gw_u1',
                   created_at: 1,
                   model_name: 'deepseek-chat',
                   prompt_tokens: 10,
@@ -615,9 +615,9 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
         const page = Number(u.searchParams.get('p') || 1)
         const items =
           page === 1
-            ? Array.from({ length: 1000 }, () => ({ type: 2, quota: 700, token_name: 'hs_u1', created_at: 1 }))
+            ? Array.from({ length: 1000 }, () => ({ type: 2, quota: 700, token_name: 'gw_u1', created_at: 1 }))
             : page === 2
-              ? [{ type: 2, quota: 1400, token_name: 'hs_u1', created_at: 1 }]
+              ? [{ type: 2, quota: 1400, token_name: 'gw_u1', created_at: 1 }]
               : []
         return new Response(JSON.stringify({ success: true, data: { items } }), { status: 200 })
       }),
@@ -634,7 +634,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
   it('fetchUsage：日志超过扫描上限时 fail-closed，避免真钱用量被截断低估', async () => {
     realEnv()
     const calls: any[] = []
-    const fullPage = Array.from({ length: 1000 }, () => ({ type: 2, quota: 1, token_name: 'hs_u1', created_at: 1 }))
+    const fullPage = Array.from({ length: 1000 }, () => ({ type: 2, quota: 1, token_name: 'gw_u1', created_at: 1 }))
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string, opts: any) => {
@@ -653,7 +653,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'hs_u1', created_at: 1 }, { type: 2, token_name: 'hs_u1', created_at: 1, model_name: 'deepseek-chat' }] } }), {
+        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'gw_u1', created_at: 1 }, { type: 2, token_name: 'gw_u1', created_at: 1, model_name: 'deepseek-chat' }] } }), {
           status: 200,
         }),
       ),
@@ -667,7 +667,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, data: { items: [{ quota: 700, token_name: 'hs_u1', created_at: 1 }] } }), {
+        new Response(JSON.stringify({ success: true, data: { items: [{ quota: 700, token_name: 'gw_u1', created_at: 1 }] } }), {
           status: 200,
         }),
       ),
@@ -681,7 +681,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, data: { items: [{ type: 1, quota: 700, token_name: 'hs_u1', created_at: 1 }] } }), {
+        new Response(JSON.stringify({ success: true, data: { items: [{ type: 1, quota: 700, token_name: 'gw_u1', created_at: 1 }] } }), {
           status: 200,
         }),
       ),
@@ -695,7 +695,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, data: { items: [{ type: 6, quota: 700, token_name: 'hs_u1', created_at: 1 }] } }), {
+        new Response(JSON.stringify({ success: true, data: { items: [{ type: 6, quota: 700, token_name: 'gw_u1', created_at: 1 }] } }), {
           status: 200,
         }),
       ),
@@ -709,7 +709,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'hs_u1', created_at: 1, is_refund: true }] } }), {
+        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'gw_u1', created_at: 1, is_refund: true }] } }), {
           status: 200,
         }),
       ),
@@ -723,7 +723,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'hs_u1', created_at: 1, stream_status: { status: 'error' } }] } }), {
+        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'gw_u1', created_at: 1, stream_status: { status: 'error' } }] } }), {
           status: 200,
         }),
       ),
@@ -751,7 +751,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'hs_u2', created_at: 1 }] } }), {
+        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'gw_u2', created_at: 1 }] } }), {
           status: 200,
         }),
       ),
@@ -765,7 +765,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'hs_u1' }] } }), {
+        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'gw_u1' }] } }), {
           status: 200,
         }),
       ),
@@ -779,7 +779,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async () =>
-        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'hs_u1', created_at: 9 }] } }), {
+        new Response(JSON.stringify({ success: true, data: { items: [{ type: 2, quota: 700, token_name: 'gw_u1', created_at: 9 }] } }), {
           status: 200,
         }),
       ),
@@ -803,7 +803,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
                 {
                   type: 2,
                   quota: 700,
-                  token_name: 'hs_u1',
+                  token_name: 'gw_u1',
                   created_at: Math.floor((Date.now() + 10 * 60 * 1000) / 1000),
                 },
               ],
@@ -832,7 +832,7 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
                 {
                   type: 2,
                   quota: 700,
-                  token_name: 'hs_u1',
+                  token_name: 'gw_u1',
                   created_at: Math.floor((Date.now() + 60 * 1000) / 1000),
                 },
               ],
@@ -865,9 +865,9 @@ describe('newapiAdmin — real 模式(new-api 源码规格)', () => {
   })
 
   it('logTokenName：兼容 New API 日志 token_name 别名', () => {
-    expect(logTokenName({ token_name: 'hs_u1' })).toBe('hs_u1')
-    expect(logTokenName({ tokenName: 'hs_u1' })).toBe('hs_u1')
-    expect(logTokenName({ token: { name: 'hs_u1' } })).toBe('hs_u1')
+    expect(logTokenName({ token_name: 'gw_u1' })).toBe('gw_u1')
+    expect(logTokenName({ tokenName: 'gw_u1' })).toBe('gw_u1')
+    expect(logTokenName({ token: { name: 'gw_u1' } })).toBe('gw_u1')
     expect(logTokenName({})).toBe('')
   })
 

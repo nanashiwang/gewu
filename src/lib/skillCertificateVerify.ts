@@ -112,7 +112,7 @@ export function normalizeSkillCertificateVerifyRequest(body: any): SkillCertific
       publicKeyInfo: usablePublicKey(body.publicKeyInfo) ?? usablePublicKey(body.publicKey) ?? null,
     }
   }
-  if (body?.schemaVersion === 'suyuan.skill.certificate/v1') {
+  if (body?.schemaVersion === 'gewu.skill.certificate/v1') {
     return {
       certificate: body,
       certificateSignature: null,

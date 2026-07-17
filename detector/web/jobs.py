@@ -40,8 +40,8 @@ from .security import redact_secret, redact_text
 JobStatus = Literal["queued", "running", "done", "error"]
 
 JOBS_DIR = Path(
-    os.environ.get("SUYUAN_JOBS_DIR")
-    or "/opt/suyuan-detector/web_data/jobs"
+    os.environ.get("GEWU_JOBS_DIR")
+    or "/opt/gewu-detector/web_data/jobs"
 )
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 

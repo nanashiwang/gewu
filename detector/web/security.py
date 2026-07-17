@@ -32,7 +32,18 @@ class TargetValidationError(ValueError):
 
 def private_targets_allowed() -> bool:
     """Return whether this deployment explicitly allows private targets."""
-    value = os.environ.get("SUYUAN_ALLOW_PRIVATE_TARGETS", "")
+    value = os.environ.get("GEWU_ALLOW_PRIVATE_TARGETS", "")
+    return value.strip().lower() in _TRUE_VALUES
+
+
+def insecure_api_allowed() -> bool:
+    """Return whether credential-bearing API calls may use plain HTTP.
+
+    This escape hatch exists only for local development. Hosted deployments
+    should leave it disabled so API keys are rejected before form parsing when
+    a reverse proxy accidentally exposes the service without TLS.
+    """
+    value = os.environ.get("GEWU_ALLOW_INSECURE_API", "")
     return value.strip().lower() in _TRUE_VALUES
 
 
@@ -68,7 +79,7 @@ async def validate_target_url(
 
     All currently resolved addresses must be globally routable.  A self-hosted
     operator who intentionally needs LAN targets can set
-    ``SUYUAN_ALLOW_PRIVATE_TARGETS=1``; URL structure checks still apply.
+    ``GEWU_ALLOW_PRIVATE_TARGETS=1``; URL structure checks still apply.
     """
     if not isinstance(value, str):
         raise TargetValidationError("中转站地址格式不正确")

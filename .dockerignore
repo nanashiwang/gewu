@@ -4,7 +4,7 @@ node_modules
 .gitignore
 detector
 docs/*
-!docs/suyuan-功能说明书.md
+!docs/gewu-功能说明书.md
 README.md
 .env
 .env.*

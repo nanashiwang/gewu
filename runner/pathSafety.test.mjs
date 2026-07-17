@@ -28,7 +28,7 @@ describe('runner path safety', () => {
   })
 
   it('keeps every resolved directory inside the skills root', () => {
-    const root = path.resolve('C:/Users/demo/.suyuan/skills')
+    const root = path.resolve('C:/Users/demo/.gewu/skills')
     const target = resolveSkillDir(root, 'safe-skill')
     expect(path.relative(root, target)).toBe('safe-skill')
     expect(() => resolveSkillDir(root, '../..')).toThrow()

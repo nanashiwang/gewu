@@ -10,7 +10,7 @@ export const SiteSettings: GlobalConfig = {
     update: isAdmin,
   },
   fields: [
-    { name: 'siteName', type: 'text', defaultValue: '溯源', label: '站点名称' },
+    { name: 'siteName', type: 'text', defaultValue: '格物', label: '站点名称' },
     {
       name: 'slogan',
       type: 'text',

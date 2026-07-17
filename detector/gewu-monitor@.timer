@@ -1,12 +1,12 @@
 [Unit]
-Description=Run 溯源 relay monitor %i every hour
+Description=Run 格物 relay monitor %i every hour
 
 [Timer]
 OnBootSec=5min
 OnUnitActiveSec=1h
 RandomizedDelaySec=10min
 Persistent=true
-Unit=suyuan-monitor@%i.service
+Unit=gewu-monitor@%i.service
 
 [Install]
 WantedBy=timers.target

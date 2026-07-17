@@ -1,7 +1,7 @@
 {
-  "name": "suyuan",
+  "name": "gewu",
   "version": "0.1.0",
-  "description": "溯源 — AI Skill 的可信与兼容控制平面",
+  "description": "格物 — AI Skill 的可信与兼容控制平面",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
@@ -28,7 +28,7 @@
     "test:watch": "vitest",
     "lint": "cross-env NODE_OPTIONS=--no-deprecation tsx scripts/lint-guardrails.ts",
     "typecheck": "tsc --noEmit",
-    "runner": "node runner/suyuan.mjs",
+    "runner": "node runner/gewu.mjs",
     "worker:reconcile-newapi": "cross-env NODE_OPTIONS=--no-deprecation tsx src/worker/reconcile-newapi.ts",
     "worker:plan-newapi-drift": "cross-env NODE_OPTIONS=--no-deprecation tsx src/worker/plan-newapi-drift-actions.ts",
     "worker:migrate-secrets": "cross-env NODE_OPTIONS=--no-deprecation tsx src/worker/migrate-secrets.ts",

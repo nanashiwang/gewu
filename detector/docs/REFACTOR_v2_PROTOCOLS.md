@@ -1,4 +1,4 @@
-# 溯源 v2 重构设计: 三套独立产品共享一个品牌
+# 格物 v2 重构设计: 三套独立产品共享一个品牌
 
 > **状态**: v0.2 草案,已完成第一轮架构 review 修订
 > **作者**:项目维护者
@@ -8,7 +8,7 @@
 
 ## 0. TL;DR
 
-溯源 从单一 Claude 检测工具演进为三套产品入口: Claude、OpenAI、Gemini。三者共享品牌、Web 基础设施、任务队列、通用报告模型和检测器接口,但协议实现、检测项、报告模板、baseline、文案语境保持隔离。
+格物 从单一 Claude 检测工具演进为三套产品入口: Claude、OpenAI、Gemini。三者共享品牌、Web 基础设施、任务队列、通用报告模型和检测器接口,但协议实现、检测项、报告模板、baseline、文案语境保持隔离。
 
 v0.2 修正了 v0.1 的关键问题:
 
@@ -34,7 +34,7 @@ v0.2 修正了 v0.1 的关键问题:
 | Web 路由 | 单体 `server.py` | 协议 router + lazy load |
 | 熔断 | 全部一起挂 | 协议路由可用 feature flag 关闭 |
 
-Claude 的 thinking block 原始/篡改回放是 溯源 的高强度协议信号。OpenAI/Gemini 没有同类回放信号,所以 UI 和报告必须明确告诉用户:不同协议的 100 分含义不同,且都不是绝对模型身份证明。
+Claude 的 thinking block 原始/篡改回放是 格物 的高强度协议信号。OpenAI/Gemini 没有同类回放信号,所以 UI 和报告必须明确告诉用户:不同协议的 100 分含义不同,且都不是绝对模型身份证明。
 
 ---
 
@@ -229,7 +229,7 @@ Gemini:
 ```python
 ENABLED = [
     p.strip()
-    for p in os.environ.get("SUYUAN_PROTOCOLS", "anthropic").split(",")
+    for p in os.environ.get("GEWU_PROTOCOLS", "anthropic").split(",")
     if p.strip()
 ]
 
@@ -259,7 +259,7 @@ for proto in ENABLED:
 | jobs | `web_data/jobs/<protocol>/` |
 | router | `/api/detect/<protocol>` 独立 |
 | 依赖 | 新协议重依赖放 extras,默认部署不强制安装 |
-| 熔断 | `SUYUAN_PROTOCOLS` 控制启用协议 |
+| 熔断 | `GEWU_PROTOCOLS` 控制启用协议 |
 
 CI 增加 `tests/test_isolation.py` 或脚本检查:
 
@@ -337,7 +337,7 @@ Phase 0 不移动 `src/relay_detector/openai/`。新增:
 src/relay_detector/openai/_LEGACY.md
 ```
 
-内容说明: 该包仍服务 `suyuan openai validate/baseline`;Phase 2 再迁移到 `protocols/openai`,旧路径保留 re-export shim。
+内容说明: 该包仍服务 `gewu openai validate/baseline`;Phase 2 再迁移到 `protocols/openai`,旧路径保留 re-export shim。
 
 ### 6.5 Web 兼容
 
@@ -355,9 +355,9 @@ Phase 0 最小目标:
 
 ```bash
 pytest tests/ -v
-suyuan --help
-suyuan openai --help
-suyuan detect --help
+gewu --help
+gewu openai --help
+gewu detect --help
 ```
 
 部署验证:
@@ -429,29 +429,29 @@ Gemini 首版定位为协议级验证,检测 API shape、function calling、stre
 
 ## 11. CLI
 
-统一使用 `suyuan` console script:
+统一使用 `gewu` console script:
 
 ```toml
 [project.scripts]
-suyuan = "relay_detector.cli:app"
+gewu = "relay_detector.cli:app"
 ```
 
 Phase 0 旧命令仍工作:
 
 ```bash
-suyuan detect ...
-suyuan compare report.json
-suyuan openai validate ...
-suyuan openai baseline ...
+gewu detect ...
+gewu compare report.json
+gewu openai validate ...
+gewu openai baseline ...
 ```
 
 后续新增:
 
 ```bash
-suyuan claude detect ...
-suyuan openai detect ...
-suyuan gemini detect ...
-suyuan compare report.json
+gewu claude detect ...
+gewu openai detect ...
+gewu gemini detect ...
+gewu compare report.json
 ```
 
 ---
@@ -486,8 +486,8 @@ Phase 2+:
 |---|---|
 | Phase 0 代码重构出问题 | 切回 main 或 DNS 回旧服务 |
 | Phase 1 hub 影响转化 | `/` 重新 302 到 `/claude` |
-| OpenAI 误报严重 | `SUYUAN_PROTOCOLS=anthropic,gemini` 并重启 |
-| Gemini 依赖/协议问题 | `SUYUAN_PROTOCOLS=anthropic,openai` 并重启 |
+| OpenAI 误报严重 | `GEWU_PROTOCOLS=anthropic,gemini` 并重启 |
+| Gemini 依赖/协议问题 | `GEWU_PROTOCOLS=anthropic,openai` 并重启 |
 
 ---
 
@@ -498,7 +498,7 @@ Phase 2+:
 | Q1 `/` 是 hub 还是 Claude 页 | Hub |
 | Q2 评分是否各协议独立 | 独立 0-100,强制显示 tier badge |
 | Q3 历史 job 是否迁移 | 不重写磁盘,loader 默认缺省为 anthropic |
-| Q4 CLI 名称 | 统一为 `suyuan` |
+| Q4 CLI 名称 | 统一为 `gewu` |
 | Q5 是否 main 直改 | 不允许,必须开 refactor 分支 |
 | Q6 tier 文案放哪里 | 报告页顶部 banner 必须显示 |
 | Q7 OpenAI 支持哪条协议 | Phase 2 先 Chat Completions,Responses 留 Phase 2.5 |

@@ -68,7 +68,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "中转站和官方 API 有什么区别?",
                 "官方 API 字段、签名、错误格式都是确定的;中转站之间差异巨大 — "
                 "有的 1:1 透传,有的会改写 usage 字段、剥离 thinking 块、用别的模型替换、"
-                "甚至注入额外 system prompt。溯源 检测的就是这种「中间到底动了什么」。",
+                "甚至注入额外 system prompt。格物 检测的就是这种「中间到底动了什么」。",
             ),
             FAQEntry(
                 "relay-legal",
@@ -83,7 +83,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "relay-steal-key",
                 "用中转站的 API key 有什么风险?",
-                "溯源 实测过很多家中转站,常见的坑有 5 种(都见过真实案例):"
+                "格物 实测过很多家中转站,常见的坑有 5 种(都见过真实案例):"
                 "① <strong>偷偷换成别的模型</strong> — 你买的是 GPT,实际给你跑的可能是 Claude 或其他"
                 "更便宜的模型。表面上看不出来,但写出来的内容风格、思路、解题习惯都不对,"
                 "用来做正经事很容易翻车。"
@@ -94,12 +94,12 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "有的中转站干脆不告诉你这次用了多少 token,你根本对不上账。"
                 "充值的钱很可能比官方贵不少,却没有任何凭证可查。"
                 "④ <strong>菜单上的模型实际没货</strong> — 它对外宣称支持几十个模型,"
-                "你真去用其中一些,直接报「没有这个模型」。溯源 在你提交检测前会先帮你"
+                "你真去用其中一些,直接报「没有这个模型」。格物 在你提交检测前会先帮你"
                 "试一下,免得你白等半分钟拿到一份全 0 分的报告。"
                 "⑤ <strong>规则说变就变</strong> — 同一把 key,今天用得好好的,"
                 "第二天可能突然提示「需要升级套餐」「分组失效」甚至直接封号。"
                 "中转站后台规则可以无通知调整,大额充值之前最好先小额试用,"
-                "并跑一次 溯源 看看实际表现。",
+                "并跑一次 格物 看看实际表现。",
             ),
         ),
     ),
@@ -117,7 +117,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "三个方向:① 协议字段(id 前缀、object、finish_reason 是否符合官方规范);"
                 "② 能力指纹(thinking block 回放、PDF 多模态、function calling shape);"
                 "③ 用量字段(usage 里有没有混入异源痕迹如 claude_cache_creation_*)。"
-                "溯源 把这三类合成 7-10 项检测。",
+                "格物 把这三类合成 7-10 项检测。",
             ),
             FAQEntry(
                 "common-fake-tactics",
@@ -131,7 +131,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "ask-who-are-you",
                 "直接问「你是谁」能验证模型真假吗?",
                 "不能。现代模型都被训练得知道怎么回答身份问题,而且中转站可以注入 system prompt "
-                "让模型说「我是 Claude」。溯源 把「身份一致性」检测的权重设为 5%,"
+                "让模型说「我是 Claude」。格物 把「身份一致性」检测的权重设为 5%,"
                 "只作为最弱的辅助信号 — 更强的证据来自 thinking block 的原始/篡改回放验证。",
             ),
             FAQEntry(
@@ -139,7 +139,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "Kiro / Amazon Q 等兼容网关怎么检测?",
                 "Kiro 和 Amazon Q 是 Amazon 的 Claude 替身网关,响应没有 Claude thinking signature "
                 "(它们走的是 AWS Bedrock 的简化接口,不返回服务端签名)。"
-                "溯源 在 thinking_signature 检测上会直接判 0 分,fail 整体检测。",
+                "格物 在 thinking_signature 检测上会直接判 0 分,fail 整体检测。",
             ),
             FAQEntry(
                 "gpt-becomes-claude",
@@ -147,7 +147,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "看响应的 usage 字段。原生 OpenAI 只有 prompt_tokens / completion_tokens / total_tokens "
                 "三个键。如果出现 claude_cache_creation_5_m_tokens、usage_source: anthropic 等字段,"
                 "会强烈提示响应经过了异源协议适配或自定义 usage 扩展,但不能仅凭字段断言"
-                "实际后端模型。溯源 把这种协议不兼容风险标记为 critical 级别。",
+                "实际后端模型。格物 把这种协议不兼容风险标记为 critical 级别。",
             ),
         ),
     ),
@@ -155,14 +155,14 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
         id="claude",
         title="Claude API 中转站",
         intro=(
-            "Claude 是 溯源 检测最深入的协议 — thinking block 可以做原始回放与篡改"
+            "Claude 是 格物 检测最深入的协议 — thinking block 可以做原始回放与篡改"
             "对照验证,提供比字段存在性更强的协议证据。"
         ),
         entries=(
             FAQEntry(
                 "thinking-signature",
-                "thinking signature 是什么?溯源 怎么验证它?",
-                "thinking signature 是 Claude 启用扩展思考时返回的 opaque 字段。溯源 不只看"
+                "thinking signature 是什么?格物 怎么验证它?",
+                "thinking signature 是 Claude 启用扩展思考时返回的 opaque 字段。格物 不只看"
                 "字段和长度:还会回放原始 thinking block,再篡改单个字符做负向对照。只有原始块"
                 "被接受、篡改块被明确以 thinking 校验错误拒绝才通过。这是高强度协议证据,"
                 "不是本地公钥验签或绝对真伪证明。",
@@ -170,14 +170,14 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "claude-code-relay",
                 "Claude code 中转站怎么挑?",
-                "关键看 4 点:① 跑一次 溯源 看 thinking signature 是否拿到 100 分;"
+                "关键看 4 点:① 跑一次 格物 看 thinking signature 是否拿到 100 分;"
                 "② 看 usage 里有没有 claude_* 之外的异源字段;"
                 "③ 看 stream / non-stream 一致性(中转站常常在两条路径上做不同处理);"
                 "④ 看消息 id 是否符合 msg_ / toolu_ / srvtoolu_ 前缀规范。",
             ),
             FAQEntry(
                 "claude-detector-coverage",
-                "溯源 的 Claude 检测覆盖哪些维度?",
+                "格物 的 Claude 检测覆盖哪些维度?",
                 "11 项,按权重:thinking signature (25%) > behavioral signature (15%) > "
                 "structured output (12%) > consistency / knowledge / token usage (各 10%) > pdf (8%) > "
                 "identity / protocol / integrity / message_id (各 5%)。"
@@ -188,14 +188,14 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "Claude 中转站 stream 模式没返回 thinking 怎么回事?",
                 "这是 Claude Opus 4.7 已知的 API drift — adaptive thinking + streaming + summarized "
                 "的组合下,SSE 流里不出现 thinking 块(non-stream 正常)。"
-                "溯源 的 thinking_signature detector 已经针对这个切到非流式,确保检测可靠。",
+                "格物 的 thinking_signature detector 已经针对这个切到非流式,确保检测可靠。",
             ),
             FAQEntry(
                 "claude-cost",
                 "检测时为什么要消耗 token?成本多少?",
                 "检测发真请求,每次 standard 模式约 12 个 API 调用,token 总消耗 ~3000-5000 "
                 "(取决于 thinking 是否触发)。按 Haiku 价格 ~$0.012,Sonnet ~$0.05,"
-                "Opus ~$0.20。溯源 自己不收费 — 你付的是上游 API 的真实 token 钱。",
+                "Opus ~$0.20。格物 自己不收费 — 你付的是上游 API 的真实 token 钱。",
             ),
             FAQEntry(
                 "claude-zero-score",
@@ -210,7 +210,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
         id="openai",
         title="OpenAI 中转站",
         intro=(
-            "OpenAI 协议没有同类 thinking block 签名回放信号,溯源 在 OpenAI 上主要做"
+            "OpenAI 协议没有同类 thinking block 签名回放信号,格物 在 OpenAI 上主要做"
             "「协议合规 + 适配层指纹识别」 — 抓中转站用 Anthropic / Google 后端伪装 GPT 的痕迹。"
         ),
         entries=(
@@ -220,14 +220,14 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "响应的 usage 字段是最直接的证据。真原生 OpenAI 只有 prompt_tokens / "
                 "completion_tokens / total_tokens。如果发现 claude_cache_creation_5_m_tokens、"
                 "usage_source: anthropic、或 input_tokens / output_tokens(Anthropic 命名),"
-                "会强烈提示异源协议适配或自定义 usage 扩展。溯源 标为 critical 并让该项"
+                "会强烈提示异源协议适配或自定义 usage 扩展。格物 标为 critical 并让该项"
                 " detector 失败,但不会仅凭一个字段断言实际后端模型。",
             ),
             FAQEntry(
                 "openai-75-marginal",
                 "我的 GPT-4o 检测出 75 分,verdict 是 marginal,怎么解读?",
                 "75 分本身在「通过」区间,但如果有任何 critical 级别的 issues "
-                "(尤其 protocol detector 报多个 critical),溯源 会把 verdict 砍到 marginal — "
+                "(尤其 protocol detector 报多个 critical),格物 会把 verdict 砍到 marginal — "
                 "圆圈变黄、提示「存在风险」。这通常意味着接口能用但中转站在做协议转换,"
                 "实际跑的可能不是真的 GPT 模型。",
             ),
@@ -237,20 +237,20 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "OpenAI strict 模式应该返回纯 JSON,不能包 Markdown 代码块。"
                 "如果返回 ```json {...} ``` 格式,有两种可能:① 中转站没透传 response_format 参数;"
                 "② 透传了但底层模型(很可能不是 GPT)不理解 strict 模式。"
-                "溯源 通过 markdown_json_seen 标志区分这两种情况。",
+                "格物 通过 markdown_json_seen 标志区分这两种情况。",
             ),
             FAQEntry(
                 "openai-model-mismatch",
                 "我用的中转站 model 字段返回 gpt-4o,但响应明显不像 GPT,怎么办?",
                 "model 字段只是字符串,中转站可以填任何值。真伪要看其他指标:"
-                "① 溯源 协议规范性 detector 会扫 usage 字段指纹;"
+                "① 格物 协议规范性 detector 会扫 usage 字段指纹;"
                 "② 行为差异(GPT 偏简洁,Claude 偏礼貌啰嗦);"
                 "③ 多次调用的 token 数 CV(模型一致性 detector)。",
             ),
             FAQEntry(
                 "openai-no-models",
                 "OpenAI 中转站测出来 0 个模型可用怎么办?",
-                "溯源 的预探测会列出该 key 在中转站上有多少模型属于本协议。"
+                "格物 的预探测会列出该 key 在中转站上有多少模型属于本协议。"
                 "如果当前页是 OpenAI 但 0 个 GPT 模型,会显示一个黄色卡片提示"
                 "「该 key 在此中转站没有 GPT 模型,但有 X 个 Claude 模型 / Y 个 Gemini 模型 → "
                 "一键跳转测那边」。",
@@ -261,7 +261,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
         id="gemini",
         title="Gemini API 中转站",
         intro=(
-            "溯源 的 Gemini 检测只走 OpenAI 兼容路径(POST /chat/completions),"
+            "格物 的 Gemini 检测只走 OpenAI 兼容路径(POST /chat/completions),"
             "因为 99% 的第三方 Gemini 中转站都用这条。Gemini 3 系列默认开 thinking,"
             "对 max_tokens 设置和 token 用量统计有特殊要求。"
         ),
@@ -271,33 +271,33 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "为什么 Gemini API 中转站经常 model_not_found?",
                 "三种可能:① 中转站只代理部分 Gemini 模型(很多中转站只有 3.x preview 系列,没有 2.5);"
                 "② 模型名拼写差异(gemini-2.5-flash vs models/gemini-2.5-flash);③ 模型已下架。"
-                "溯源 提交前会做 preflight,500ms 内识别死模型并给出可用列表替代。",
+                "格物 提交前会做 preflight,500ms 内识别死模型并给出可用列表替代。",
             ),
             FAQEntry(
                 "gemini-thinking-default",
                 "Gemini 3.x preview 检测时 max_completion_tokens 应该填多少?",
                 "至少 64,推荐 128+。Gemini 3 默认开 thinking,会消耗 30-60 reasoning_tokens 才输出文本。"
                 "如果 max 太小(< 32),thinking 占满后没空间出文本,响应就是空字符串 + "
-                "finish_reason=length。溯源 的 detector 已经把 max 调到 64-384。",
+                "finish_reason=length。格物 的 detector 已经把 max 调到 64-384。",
             ),
             FAQEntry(
                 "gemini-no-native",
-                "溯源 为什么不支持 Gemini 原生 /v1beta/models/X:generateContent 路径?",
+                "格物 为什么不支持 Gemini 原生 /v1beta/models/X:generateContent 路径?",
                 "99% 的第三方 Gemini 中转站只暴露 OpenAI 兼容协议,Google 官方也提供 OpenAI 兼容"
                 "端点 /v1beta/openai。维护两套独立的检测逻辑成本高且容易引入翻译层导致结果失真,"
-                "所以 溯源 集中在 OpenAI 兼容路径上做透。",
+                "所以 格物 集中在 OpenAI 兼容路径上做透。",
             ),
             FAQEntry(
                 "gemini-pick",
                 "Gemini 中转站怎么挑?",
                 "三档:① 必须支持 gemini-2.5-flash 或 gemini-3-flash-preview(2026 stable);"
-                "② 溯源 上跑出 protocol 检测 ≥ 80;"
+                "② 格物 上跑出 protocol 检测 ≥ 80;"
                 "③ usage 字段没有 gemini_* 之外的异源残留(意味着没在转协议)。"
-                "溯源 自动按推荐顺序排序中转站的模型列表。",
+                "格物 自动按推荐顺序排序中转站的模型列表。",
             ),
             FAQEntry(
                 "gemini-google-official",
-                "Google 官方 Gemini API 也能用 溯源 测吗?",
+                "Google 官方 Gemini API 也能用 格物 测吗?",
                 "可以。base_url 填 https://generativelanguage.googleapis.com/v1beta/openai,"
                 "api_key 用 Google AI Studio 申请的 AIza... key。Google 官方端点应该全 7 项 100 分,"
                 "可作为基线对比第三方中转站。",
@@ -305,13 +305,13 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
         ),
     ),
     FAQCategory(
-        id="suyuan",
-        title="溯源 工具使用",
+        id="gewu",
+        title="格物 工具使用",
         intro="工具本身的使用、报告解读、自托管等问题。",
         entries=(
             FAQEntry(
                 "how-to-use",
-                "溯源 怎么用?最简流程?",
+                "格物 怎么用?最简流程?",
                 f"三步:① 打开 {brand.site_url}/claude(或 /openai、/gemini);"
                 "② 填中转站 base_url + api_key,选模型(下拉自动列出该 key 在该中转站可用的模型);"
                 "③ 点「开始检测」,30-60 秒拿到报告。报告会生成可分享的公开 URL (/r/{job_id}),"
@@ -340,9 +340,9 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             ),
             FAQEntry(
                 "self-host",
-                "可以本地自托管 溯源 吗?",
-                "可以,溯源 完全开源。clone 仓库 → pip install -e .[web] → "
-                "uvicorn web.server:app 即可。CLI 也可以单独用:suyuan detect "
+                "可以本地自托管 格物 吗?",
+                "可以,格物 完全开源。clone 仓库 → pip install -e .[web] → "
+                "uvicorn web.server:app 即可。CLI 也可以单独用:gewu detect "
                 "--base-url ... --api-key ... --mode full。详见 README。",
             ),
         ),
@@ -351,13 +351,13 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
         id="privacy",
         title="隐私与安全",
         intro=(
-            "把 API key 交给一个检测工具是有风险的事,所以 溯源 在数据处理上的承诺需要"
+            "把 API key 交给一个检测工具是有风险的事,所以 格物 在数据处理上的承诺需要"
             "可验证 — 我们的代码完全开源,你可以审计、可以自托管。"
         ),
         entries=(
             FAQEntry(
                 "key-stored",
-                "溯源 会记录我的 API key 吗?",
+                "格物 会记录我的 API key 吗?",
                 "原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。"
                 "报告里 key 是脱敏形式 (sk-y7xU••••••0h),上游若在错误文本里反射 key 也会在"
                 "持久化前递归脱敏。代码开源可验证。",
@@ -365,7 +365,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "vs-cctest-privacy",
                 "跟 cctest.ai 在数据安全上有什么区别?",
-                "cctest.ai 也声称不上传 key,但代码闭源无法验证。溯源 完全开源,"
+                "cctest.ai 也声称不上传 key,但代码闭源无法验证。格物 完全开源,"
                 "你可以 clone 代码自己跑(git clone ... && uvicorn web.server:app),"
                 "或者审计服务端代码(GitHub 上完全公开)。",
             ),
@@ -374,7 +374,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "检测过程会调用上游产生费用吗?",
                 "会,但很少。standard 模式约 12 个真实请求,token 总消耗 3000-5000。"
                 "按 Haiku 大约 $0.012,Sonnet $0.05,Opus $0.20。"
-                "这个钱付给上游(中转站或官方),溯源 自身不收费。",
+                "这个钱付给上游(中转站或官方),格物 自身不收费。",
             ),
             FAQEntry(
                 "personal-info",
@@ -389,36 +389,36 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
         id="compare",
         title="工具对比",
         intro=(
-            "中转站检测领域不止 溯源 一家,这一组讲清楚 溯源 跟同类工具的差异、"
+            "中转站检测领域不止 格物 一家,这一组讲清楚 格物 跟同类工具的差异、"
             "以及怎么挑中转站。"
         ),
         entries=(
             FAQEntry(
                 "vs-cctest",
-                "溯源 跟 cctest.ai 有什么区别?",
+                "格物 跟 cctest.ai 有什么区别?",
                 "cctest 只做 Claude(单协议),用「黑盒检测」对抗规避,但维度有限。"
-                "溯源 三协议(Claude / OpenAI / Gemini)+ thinking block 签名回放验证 + "
+                "格物 三协议(Claude / OpenAI / Gemini)+ thinking block 签名回放验证 + "
                 "跨协议自动跳转 + 预提交死模型识别 + 完全开源,且 OpenAI 上能识别"
                 "「GPT 实为 Claude」的协议适配层指纹。",
             ),
             FAQEntry(
                 "vs-hvoy",
-                "溯源 跟 hvoy.ai 有什么区别?",
+                "格物 跟 hvoy.ai 有什么区别?",
                 "hvoy 也支持三协议,但检测维度浅(主要是协议合规)。"
-                "溯源 在 Claude 上有 thinking block 原始/篡改回放验证、"
+                "格物 在 Claude 上有 thinking block 原始/篡改回放验证、"
                 "OpenAI 上有协议转换指纹识别(usage_source 等 critical 级)、"
                 "Gemini 上适配 thinking-by-default 模型,深度更够。",
             ),
             FAQEntry(
                 "vs-leaderboards",
-                "中转站对比榜单(aiapipk.com / 知乎评测)跟 溯源 是什么关系?",
-                "那些是「主观评测」或「广告导向」,溯源 是「客观技术检测」。"
-                "可以互补:用榜单初筛信誉好的中转站,再用 溯源 做技术验证。",
+                "中转站对比榜单(aiapipk.com / 知乎评测)跟 格物 是什么关系?",
+                "那些是「主观评测」或「广告导向」,格物 是「客观技术检测」。"
+                "可以互补:用榜单初筛信誉好的中转站,再用 格物 做技术验证。",
             ),
             FAQEntry(
                 "how-to-pick-relay",
                 "怎么挑中转站?有什么硬性指标?",
-                "溯源 推荐 5 条硬指标:① thinking signature ≥ 100;"
+                "格物 推荐 5 条硬指标:① thinking signature ≥ 100;"
                 "② protocol critical_issue_count = 0;③ stream / non-stream usage 一致;"
                 "④ 模型 id 字段匹配请求模型(model_consistency pass);"
                 "⑤ 多次请求 completion_tokens CV < 0.10(稳定性)。",

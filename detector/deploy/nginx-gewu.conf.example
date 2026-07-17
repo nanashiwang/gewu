@@ -1,9 +1,9 @@
-# Install this file under /etc/nginx/sites-available/suyuan, replace the
+# Install this file under /etc/nginx/sites-available/gewu, replace the
 # placeholder domain, enable it, then obtain TLS with certbot.
 # The result page polls /api/status every 2.5 seconds. Keep this edge limit
 # above normal polling traffic; application-level probe/detect limits remain
 # stricter and protect expensive outbound work.
-limit_req_zone $binary_remote_addr zone=suyuan_api:10m rate=120r/m;
+limit_req_zone $binary_remote_addr zone=gewu_api:10m rate=120r/m;
 
 server {
     listen 80;
@@ -14,7 +14,7 @@ server {
     limit_req_status 429;
 
     location /api/ {
-        limit_req zone=suyuan_api burst=12 nodelay;
+        limit_req zone=gewu_api burst=12 nodelay;
         proxy_pass http://127.0.0.1:8765;
         proxy_http_version 1.1;
         proxy_set_header Host $host;

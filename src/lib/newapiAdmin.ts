@@ -74,7 +74,7 @@ export interface PricingResult {
 
 export interface NewApiAdmin {
   readonly mode: 'real' | 'stub'
-  /** 为用户建/确保受限子令牌（低价分组 + 配额 + TTL），返回 token_name（约定 hs_<userId>） */
+  /** 为用户建/确保受限子令牌（低价分组 + 配额 + TTL），返回 token_name（约定 gw_<userId>） */
   provisionSubToken(userId: string): Promise<SubToken>
   /** 将子令牌配额同步为指定 credit 余额对应的绝对值（权威账本在本平台） */
   setQuotaToCredits(userId: string, credits: number): Promise<QuotaResult>
@@ -126,7 +126,7 @@ export function isRealMode(env: Env = process.env): boolean {
 
 // 令牌命名约定：1 个 New API 账号 = 全体用户，靠子令牌名隔离
 export function subTokenName(userId: string): string {
-  return `hs_${userId}`
+  return `gw_${userId}`
 }
 
 function platformModelLimits(env: Env = process.env): string {

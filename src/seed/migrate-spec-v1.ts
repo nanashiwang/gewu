@@ -3,7 +3,7 @@ import { getPayload } from 'payload'
 import config from '../payload.config'
 import { SEED_SKILLS } from './skills'
 
-// 溯源 Skill Spec v1 非破坏性迁移：
+// 格物 Skill Spec v1 非破坏性迁移：
 // - 官方 Skill（按 slug 匹配 SEED_SKILLS）：套用拆分后的 system/user 模板 + 示例
 // - 其它 Skill：整段 promptTemplate 保留为 user 模板，systemPrompt 留空（运行行为不变）
 // - 所有版本补 license / minRunnerVersion / permissions 默认值

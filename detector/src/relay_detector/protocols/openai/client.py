@@ -324,7 +324,7 @@ class ThrottledOpenAIClient:
             if _broadcast and chunks_for_broadcast:
                 synthesized = _synthesize_stream_response(chunks_for_broadcast, usage)
                 if _transport_meta:
-                    synthesized["_suyuan_transport"] = dict(_transport_meta)
+                    synthesized["_gewu_transport"] = dict(_transport_meta)
                 latency = int((time.monotonic() - request_started) * 1000)
                 request = dict(body)
                 request["stream"] = True
@@ -350,7 +350,7 @@ class ThrottledOpenAIClient:
         if not chunks:
             raise OpenAIAPIError(502, "stream ended without any data chunks")
         response = _synthesize_stream_response(chunks, usage)
-        response["_suyuan_transport"] = dict(transport_meta)
+        response["_gewu_transport"] = dict(transport_meta)
         request = dict(body)
         request["stream"] = True
         self._broadcast(request, response, httpx.Headers(), last_elapsed)

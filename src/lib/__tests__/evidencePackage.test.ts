@@ -101,9 +101,9 @@ describe('evidencePackage — 证据包导出', () => {
 
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.filename).toBe('suyuan-evidence-writer.json')
+    expect(result.filename).toBe('gewu-evidence-writer.json')
     expect(result.package).toMatchObject({
-      schemaVersion: 'suyuan.evidence.package/v1',
+      schemaVersion: 'gewu.evidence.package/v1',
       scope: 'public_skill',
       subject: { skill: { id: 'skill-1', slug: 'writer' } },
       manifest: { checksum: 'sha256:manifest', downloadUrl: '/v1/skills/writer/manifest' },

@@ -26,7 +26,7 @@ export function runnerUpdatePlaybook(items: RunnerUpdateItem[] = []) {
         label: outdated.length > 0 ? '先更新过期 Skill' : '保持当前版本',
         description:
           outdated.length > 0
-            ? '这些本地安装的 checksum 已落后；先执行 suyuan update，再提交兼容报告。'
+            ? '这些本地安装的 checksum 已落后；先执行 gewu update，再提交兼容报告。'
             : '当前 checksum 与 Hub 一致，可以继续本地运行或回传脱敏兼容报告。',
         slugs: outdated.map((item) => item.slug).filter(Boolean),
       },

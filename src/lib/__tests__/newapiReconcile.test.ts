@@ -261,7 +261,7 @@ describe('newapiReconcile — New API 真值与本地 credit 消费漂移检测'
     })
     const parsed = JSON.parse(text)
     expect(parsed).toMatchObject({
-      schema: 'suyuan.newapi.user_drift.v1',
+      schema: 'gewu.newapi.user_drift.v1',
       userId: 'u1',
       direction: 'newapi_gt_local',
       action: 'manual_backfill_local_or_refund_gateway',
@@ -270,19 +270,19 @@ describe('newapiReconcile — New API 真值与本地 credit 消费漂移检测'
 
   it('逐用户漂移报告默认写入 gitignored JSONL，显式路径禁止误覆盖非 JSONL 文件', () => {
     const monthStart = new Date('2026-07-01T00:00:00.000Z')
-    expect(resolveReconcileDriftReportPath({ cwd: '/tmp/suyuan', monthStart })).toBe(
-      resolve('/tmp/suyuan', '.reconcile-reports', 'newapi-drift-2026-07.jsonl'),
+    expect(resolveReconcileDriftReportPath({ cwd: '/tmp/gewu', monthStart })).toBe(
+      resolve('/tmp/gewu', '.reconcile-reports', 'newapi-drift-2026-07.jsonl'),
     )
     expect(() =>
       resolveReconcileDriftReportPath({
-        explicitPath: '/tmp/suyuan/.env',
+        explicitPath: '/tmp/gewu/.env',
         monthStart,
       }),
     ).toThrow('NEWAPI_RECONCILE_DRIFT_REPORT_PATH')
   })
 
   it('逐用户漂移报告写出后强制 0600，避免用户 ID 与金额被同机用户读取', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'suyuan-drift-'))
+    const dir = await mkdtemp(join(tmpdir(), 'gewu-drift-'))
     const file = join(dir, 'drift.jsonl')
     await writeFile(file, 'old\n', { mode: 0o644 })
     const rows = buildUserUsageDriftReport([
@@ -300,14 +300,14 @@ describe('newapiReconcile — New API 真值与本地 credit 消费漂移检测'
     if (process.platform !== 'win32') expect((await stat(file)).mode & 0o777).toBe(0o600)
     const parsed = JSON.parse((await readFile(file, 'utf8')).trim())
     expect(parsed).toMatchObject({
-      schema: 'suyuan.newapi.user_drift.v1',
+      schema: 'gewu.newapi.user_drift.v1',
       userId: 'u1',
       generatedAt: '2026-07-03T00:00:00.000Z',
     })
   })
 
   it.skipIf(process.platform === 'win32')('逐用户漂移报告拒绝软链接路径，避免跟随软链覆盖敏感文件', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'suyuan-drift-symlink-'))
+    const dir = await mkdtemp(join(tmpdir(), 'gewu-drift-symlink-'))
     const target = join(dir, 'target.env')
     const link = join(dir, 'drift.jsonl')
     await writeFile(target, 'SECRET=keep\n', 'utf8')
@@ -327,7 +327,7 @@ describe('newapiReconcile — New API 真值与本地 credit 消费漂移检测'
   })
 
   it('无逐用户漂移时不写空报告', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'suyuan-drift-empty-'))
+    const dir = await mkdtemp(join(tmpdir(), 'gewu-drift-empty-'))
     await expect(
       writeUserDriftReportFile([], {
         explicitPath: join(dir, 'empty.jsonl'),
@@ -367,7 +367,7 @@ describe('newapiReconcile — New API 真值与本地 credit 消费漂移检测'
   it('漂移人工处理计划输出 JSONL，供运营留痕复核', () => {
     const parsed = parseUserUsageDriftJsonl(
       JSON.stringify({
-        schema: 'suyuan.newapi.user_drift.v1',
+        schema: 'gewu.newapi.user_drift.v1',
         monthStartISO: '2026-07-01T00:00:00.000Z',
         generatedAt: '2026-07-03T00:00:00.000Z',
         usageSource: 'newapi',
@@ -384,7 +384,7 @@ describe('newapiReconcile — New API 真值与本地 credit 消费漂移检测'
     const out = formatDriftRemediationPlanJsonl(buildDriftRemediationPlan(parsed))
     const step = JSON.parse(out)
     expect(step).toMatchObject({
-      schema: 'suyuan.newapi.user_drift_remediation.v1',
+      schema: 'gewu.newapi.user_drift_remediation.v1',
       userId: 'u1',
       suggestedLocalCreditDelta: -30,
     })
@@ -396,7 +396,7 @@ describe('newapiReconcile — New API 真值与本地 credit 消费漂移检测'
     expect(() =>
       parseUserUsageDriftJsonl(
         JSON.stringify({
-          schema: 'suyuan.newapi.user_drift.v1',
+          schema: 'gewu.newapi.user_drift.v1',
           monthStartISO: '2026-07-01T00:00:00.000Z',
           generatedAt: '2026-07-03T00:00:00.000Z',
           usageSource: 'newapi',
@@ -415,7 +415,7 @@ describe('newapiReconcile — New API 真值与本地 credit 消费漂移检测'
 
   it('漂移 JSONL 解析会拒绝方向或动作被手改反的报告', () => {
     const base = {
-      schema: 'suyuan.newapi.user_drift.v1',
+      schema: 'gewu.newapi.user_drift.v1',
       monthStartISO: '2026-07-01T00:00:00.000Z',
       generatedAt: '2026-07-03T00:00:00.000Z',
       usageSource: 'newapi',
@@ -436,7 +436,7 @@ describe('newapiReconcile — New API 真值与本地 credit 消费漂移检测'
 
   it('漂移 JSONL 解析会拒绝同月同用户重复行，避免双补扣或双退款', () => {
     const line = JSON.stringify({
-      schema: 'suyuan.newapi.user_drift.v1',
+      schema: 'gewu.newapi.user_drift.v1',
       monthStartISO: '2026-07-01T00:00:00.000Z',
       generatedAt: '2026-07-03T00:00:00.000Z',
       usageSource: 'newapi',
