@@ -1868,3 +1868,120 @@ code {
   /* 收紧 container 横向 padding,把 16px 让给正文 */
   .container { padding-left: 16px; padding-right: 16px; }
 }
+
+/* Unified public red/black ranking. */
+.leaderboard-hero { margin-bottom: 30px; }
+.public-ranking-section { margin: 34px 0 42px; }
+.public-ranking-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+  padding: 0 2px 12px;
+  border-bottom: 2px solid var(--line);
+}
+.public-ranking-heading h2 {
+  margin: 2px 0 0;
+  font-size: 28px;
+  letter-spacing: -0.03em;
+}
+.public-ranking-heading > strong {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.public-ranking-heading-red { border-color: #ef4444; }
+.public-ranking-heading-red h2,
+.public-ranking-heading-red > strong { color: #b91c1c; }
+.public-ranking-heading-black { border-color: #111827; }
+.public-ranking-heading-black h2,
+.public-ranking-heading-black > strong { color: #111827; }
+.public-ranking-kicker {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+}
+.public-ranking-list {
+  display: grid;
+  gap: 10px;
+}
+.public-rank-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 82px;
+  align-items: center;
+  gap: 16px;
+  min-height: 88px;
+  padding: 16px 20px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: 0 7px 20px rgba(15, 23, 42, 0.04);
+}
+.public-rank-row-red { border-left: 4px solid #ef4444; }
+.public-rank-row-black { border-left: 4px solid #111827; }
+.public-rank-position {
+  color: var(--muted);
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.public-rank-position span {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--bg-soft);
+  font-size: 13px;
+}
+.public-rank-main { min-width: 0; }
+.public-rank-main h3 {
+  overflow: hidden;
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.public-rank-main p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.public-rank-score {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.public-rank-score strong {
+  font-size: 30px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.public-rank-row-red .public-rank-score strong { color: #b91c1c; }
+.public-rank-row-black .public-rank-score strong { color: #111827; }
+.public-rank-score span {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.public-ranking-note { margin-top: 0; }
+
+@media (max-width: 640px) {
+  .public-ranking-section { margin: 28px 0 34px; }
+  .public-rank-row {
+    grid-template-columns: 38px minmax(0, 1fr) 54px;
+    gap: 10px;
+    min-height: 78px;
+    padding: 14px 12px;
+  }
+  .public-rank-position { font-size: 20px; }
+  .public-rank-position span { width: 28px; height: 28px; font-size: 11px; }
+  .public-rank-main h3 { font-size: 14px; }
+  .public-rank-main p { font-size: 11px; line-height: 1.5; }
+  .public-rank-score strong { font-size: 24px; }
+}

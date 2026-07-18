@@ -24,6 +24,7 @@ from .brand import brand
 from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
 from .image_report import render_report_jpg
 from .probe import probe_model_alive, probe_relay
+from .public_rankings import BLACK_RANKING, RED_RANKING, UPDATED_AT
 from .ratelimit import check_rate
 from .security import (
     MAX_API_KEY_LENGTH,
@@ -259,89 +260,24 @@ async def gemini_index(request: Request) -> HTMLResponse:
     )
 
 
-_LEADERBOARD_TOP_N = 10
-_LEADERBOARD_PER_PAGE = 25
-
-
 @app.get("/leaderboard", response_class=HTMLResponse)
-async def leaderboard_page(
-    request: Request,
-    page: int = 1,
-) -> HTMLResponse:
-    """中转站红黑榜 — 按域名聚合所有公开检测报告。
-
-    SEO/GEO 杀手锏:任意「XX 中转站怎么样」搜索直接命中此页。
-
-    Layout:
-      - Top 10 (主榜):always visible, no pagination, sorted by Bayesian-
-        weighted ranking score so consistently-tested relays beat fluky-
-        single-pass ones.
-      - Rest (全部列表):paginated 25/page via ?page=N. Each page indexable
-        for SEO long-tail (`?page=2` etc.).
-    """
-    all_relays, summary = leaderboard.aggregate()
-    top = all_relays[:_LEADERBOARD_TOP_N]
-    rest = all_relays[_LEADERBOARD_TOP_N:]
-
-    total_rest = len(rest)
-    total_pages = max(1, (total_rest + _LEADERBOARD_PER_PAGE - 1) // _LEADERBOARD_PER_PAGE)
-    page = max(1, min(page, total_pages))
-    rest_start = (page - 1) * _LEADERBOARD_PER_PAGE
-    rest_page_items = rest[rest_start:rest_start + _LEADERBOARD_PER_PAGE]
-
+async def leaderboard_page(request: Request) -> HTMLResponse:
+    """Render the single public red/black ranking surface."""
     return templates.TemplateResponse(
         request,
         "leaderboard.html",
         {
-            "top_relays": top,
-            "rest_relays": rest_page_items,
-            "rest_start_rank": _LEADERBOARD_TOP_N + rest_start + 1,
-            "summary": summary,
-            "page": page,
-            "total_pages": total_pages,
-            "has_rest": total_rest > 0,
-            "protocol_labels": leaderboard.PROTOCOL_LABELS,
-            "verdict_labels": leaderboard.VERDICT_LABELS,
+            "red_sites": RED_RANKING,
+            "black_sites": BLACK_RANKING,
+            "updated_at": UPDATED_AT,
         },
     )
 
 
 @app.get("/leaderboard/{domain}", response_class=HTMLResponse)
-async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse:
-    """每域名独立详情页 — SEO 长尾关键的杠杆。
-
-    用户搜「{domain} 中转站怎么样」/「{domain} 真假」/「{domain} 评测」时,
-    Google 直接命中此页。包含该域名的所有历史检测、协议覆盖、最常失败的
-    detector,以及指向每份具体 /r/{job_id} 报告的链接。
-    """
-    if not leaderboard.is_valid_domain(domain):
-        raise HTTPException(status_code=404, detail="invalid domain")
-    result = leaderboard.aggregate_one(domain)
-    if result is None:
-        raise HTTPException(status_code=404, detail="no reports for this domain")
-    relay, history = result
-
-    # Top 5 most-failed detectors across all protocols — the headline issues.
-    failed_summary: list[tuple[str, int]] = []
-    seen_names: set[str] = set()
-    for ps in relay.by_protocol.values():
-        for name, cnt in ps.failed_detectors.most_common(5):
-            if name not in seen_names:
-                failed_summary.append((name, cnt))
-                seen_names.add(name)
-    failed_summary.sort(key=lambda x: x[1], reverse=True)
-
-    return templates.TemplateResponse(
-        request,
-        "leaderboard_detail.html",
-        {
-            "relay": relay,
-            "history": history,
-            "failed_summary": failed_summary[:8],
-            "protocol_labels": leaderboard.PROTOCOL_LABELS,
-            "verdict_labels": leaderboard.VERDICT_LABELS,
-        },
-    )
+async def leaderboard_domain_page(domain: str) -> RedirectResponse:
+    """Collapse legacy detail URLs into the single public ranking page."""
+    return RedirectResponse(url="/leaderboard", status_code=308)
 
 
 @app.get("/faq", response_class=HTMLResponse)
@@ -932,11 +868,10 @@ async def sitemap_xml() -> Response:
 
     `lastmod` is included for every URL so search engines know when to
     revisit. Static pages use the underlying template's mtime (≈ deploy
-    time); /leaderboard and /leaderboard/{domain} use the most recent
-    report timestamp since their content is data-driven.
+    time); /leaderboard uses the most recent report timestamp because its
+    content is data-driven.
     """
-    # Aggregate once: powers both /leaderboard's lastmod (max across all
-    # relays) and each /leaderboard/{domain} page's per-relay lastmod.
+    # Aggregate once so /leaderboard's lastmod follows the latest report.
     relays, _ = leaderboard.aggregate()
     relay_last_checked = [r.last_checked for r in relays if r.last_checked]
     leaderboard_lastmod = (
@@ -981,18 +916,6 @@ async def sitemap_xml() -> Response:
                 f"<changefreq>monthly</changefreq>"
                 f"<priority>0.6</priority></url>"
             )
-
-    # Per-domain detail pages — primary long-tail SEO surface. lastmod is
-    # the relay's most recent report so Google revisits whenever new data
-    # lands for that domain.
-    for r in relays:
-        if not leaderboard.is_valid_domain(r.domain):
-            continue
-        line = f"  <url><loc>{xml_escape(brand.url(f'/leaderboard/{r.domain}'))}</loc>"
-        if r.last_checked:
-            line += f"<lastmod>{r.last_checked.strftime('%Y-%m-%d')}</lastmod>"
-        line += "<changefreq>weekly</changefreq><priority>0.75</priority></url>"
-        lines.append(line)
 
     lines.append("</urlset>\n")
     return Response(
