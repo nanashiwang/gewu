@@ -45,7 +45,8 @@
     "worker:import-skill-sources": "cross-env NODE_OPTIONS=--no-deprecation tsx src/worker/import-skill-sources.ts",
     "worker:preflight-private": "cross-env NODE_OPTIONS=--no-deprecation tsx src/worker/preflight-private-deploy.ts",
     "worker:sync-skill-sources": "cross-env IMPORT_SYNC=1 NODE_OPTIONS=--no-deprecation tsx src/worker/import-skill-sources.ts",
-    "worker:reverify-queue": "cross-env NODE_OPTIONS=--no-deprecation tsx src/worker/reverify-queue.ts"
+    "worker:reverify-queue": "cross-env NODE_OPTIONS=--no-deprecation tsx src/worker/reverify-queue.ts",
+    "worker:relay-checks": "cross-env NODE_OPTIONS=--no-deprecation tsx src/worker/relay-checks.ts"
   },
   "dependencies": {
     "@payloadcms/db-postgres": "3.86.0",

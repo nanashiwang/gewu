@@ -21,6 +21,11 @@ export default async function ConsoleOverview() {
     overrideAccess: true,
   })
   const runnerIds = runners.docs.map((r: any) => r.id)
+  const relaySites = await payload.count({
+    collection: 'relay-sites' as any,
+    where: { owner: { equals: uid } },
+    overrideAccess: true,
+  })
 
   const [installs, runs, successfulRuns, formatValidRuns, trustedRuns, reruns, compatCount] =
     await Promise.all([
@@ -72,6 +77,11 @@ export default async function ConsoleOverview() {
     ])
 
   const cards = [
+    {
+      href: '/console/relays',
+      label: '我的中转站',
+      value: relaySites.totalDocs,
+    },
     {
       href: '/console/installs',
       label: '已安装 Skill',

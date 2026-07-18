@@ -12,6 +12,7 @@ import { getRegistrationEmailRequired, normalizeRegistrationEmail, resolveRegist
 import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 import { registerCreateErrorMessage, validateRegisterInput } from '@/lib/registerValidation'
 import { normalizeRegisterBody, readAuthFormBody, readAuthJsonBody } from '@/lib/authRequest'
+import { internalApiUrl } from '@/lib/internalApiUrl'
 
 function isFormRegisterRequest(request: Request): boolean {
   const contentType = request.headers.get('content-type') || ''
@@ -42,7 +43,7 @@ function formFailure(message: string): Response {
 }
 
 async function formSuccess(request: Request, email: string, password: string): Promise<Response> {
-  const loginRes = await fetch(`${new URL(request.url).origin}/api/users/login`, {
+  const loginRes = await fetch(internalApiUrl('/api/users/login', request.url), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),

@@ -36,6 +36,21 @@ services:
       retries: 10
 
   # 应用（Next.js + Payload）。构建：docker compose build app；启动：docker compose up -d app
+  # 数据库迁移与 app 共用 builder 层；成功后 app 才启动，避免新代码先于 schema 上线。
+  migrate:
+    build:
+      context: .
+      target: builder
+    restart: 'no'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ['npm', 'run', 'payload', '--', 'migrate']
+    environment:
+      PAYLOAD_SECRET: ${PAYLOAD_SECRET}
+      DATABASE_URL: postgres://payload:${POSTGRES_PASSWORD:-payload}@postgres:5432/gewu
+
+  # 应用（Next.js + Payload）。构建：docker compose build app；启动：docker compose up -d app
   app:
     build: .
     container_name: gewu-app
@@ -45,6 +60,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       # 只注入最小启动项；模型网关/New API/签名等部署后在后台配置
       PAYLOAD_SECRET: ${PAYLOAD_SECRET}
@@ -52,6 +69,10 @@ services:
       REDIS_URL: redis://redis:6379
       SERVER_URL: ${SERVER_URL}
       NEXT_PUBLIC_SERVER_URL: ${NEXT_PUBLIC_SERVER_URL}
+      INTERNAL_SERVER_URL: http://127.0.0.1:3000
+      DETECTOR_BASE_URL: ${DETECTOR_BASE_URL:-https://gewu.uk}
+      DETECTOR_PUBLIC_URL: ${DETECTOR_PUBLIC_URL:-https://gewu.uk}
+      RELAY_CRON_SECRET: ${RELAY_CRON_SECRET}
       # 媒体上传目录，指向下方挂载的持久卷
       MEDIA_DIR: /app/media
     ports:
@@ -69,6 +90,19 @@ services:
     volumes:
       # 上传文件持久化：容器重建/更新不丢（见 docs/生产部署清单 P1-1）
       - mediadata:/app/media
+
+  relay-cron:
+    build: .
+    container_name: gewu-relay-cron
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    command: ['node', 'scripts/relay-cron.mjs']
+    environment:
+      RELAY_CRON_SECRET: ${RELAY_CRON_SECRET}
+      RELAY_CRON_URL: http://app:3000/v1/internal/relay-checks/run
+      RELAY_CRON_INTERVAL_MS: ${RELAY_CRON_INTERVAL_MS:-60000}
 
 volumes:
   pgdata:

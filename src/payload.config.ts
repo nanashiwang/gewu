@@ -39,6 +39,8 @@ import { OrganizationMembers } from './collections/OrganizationMembers'
 import { EnterpriseRegistries } from './collections/EnterpriseRegistries'
 import { EnterpriseAuditLogs } from './collections/EnterpriseAuditLogs'
 import { Media } from './collections/Media'
+import { RelaySites } from './collections/RelaySites'
+import { RelayChecks } from './collections/RelayChecks'
 import { SiteSettings } from './globals/SiteSettings'
 import { EconomySettings } from './globals/EconomySettings'
 import { DeploymentSettings } from './globals/DeploymentSettings'
@@ -72,6 +74,9 @@ export default buildConfig({
     CompatReports,
     CompatTestCases,
     AdapterProfiles,
+    // ── 中转治理 ──
+    RelaySites,
+    RelayChecks,
     // ── 成员管理 ──
     Users,
     InviteCodes,

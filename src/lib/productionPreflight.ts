@@ -216,6 +216,17 @@ export function checkProductionEnv(env: Env = process.env): PreflightIssue[] {
   if (!present(env, 'REDIS_URL')) {
     add(issues, 'blocker', 'REDIS_URL_MISSING', '缺少 REDIS_URL；生产平台代付限流不能退回单机计数')
   }
+  const detectorBase = parseUrl(env.DETECTOR_BASE_URL)
+  if (!detectorBase || !['http:', 'https:'].includes(detectorBase.protocol)) {
+    add(issues, 'blocker', 'DETECTOR_BASE_URL_INVALID', 'DETECTOR_BASE_URL 缺失或不是有效 http/https 地址')
+  }
+  if (!parseHttpsUrl(env.DETECTOR_PUBLIC_URL)) {
+    add(issues, 'blocker', 'DETECTOR_PUBLIC_URL_INVALID', 'DETECTOR_PUBLIC_URL 必须是有效 https:// 公网地址')
+  }
+  const relayCronSecret = env.RELAY_CRON_SECRET || ''
+  if (relayCronSecret.length < 24 || /change_me|relay_cron_secret/i.test(relayCronSecret)) {
+    add(issues, 'blocker', 'RELAY_CRON_SECRET_WEAK', 'RELAY_CRON_SECRET 必须是至少 24 字符的强随机值')
+  }
 
   if (!present(env, 'MODEL_GATEWAY_BASE_URL')) {
     add(issues, 'blocker', 'MODEL_GATEWAY_BASE_URL_MISSING', '缺少 MODEL_GATEWAY_BASE_URL；生产禁止 mock 运行')

@@ -31,6 +31,7 @@ RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs -m nextjs
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/docs ./docs
+COPY --from=builder /app/scripts/relay-cron.mjs ./scripts/relay-cron.mjs
 
 # 媒体持久化目录：先以 root 建目录并赋权给 nextjs，再切非 root（否则 nextjs 对 /app 无写权限、上传会 EACCES）
 RUN mkdir -p /app/media && chown -R nextjs:nodejs /app/media

@@ -6,6 +6,7 @@ import { ADMIN_GROUPS } from '@/lib/adminNav'
 
 const PERSONAL = [
   { href: '/console', label: '概览', exact: true },
+  { href: '/console/relays', label: '我的中转站' },
   { href: '/console/notifications', label: '通知' },
   { href: '/console/skills', label: '我的作品', exact: true },
   { href: '/console/skills/new', label: '发布 Skill' },
@@ -22,9 +23,11 @@ const PERSONAL = [
 export function ConsoleSidebar({
   isStaff,
   canManageEnterprise = false,
+  canReviewRelays = false,
 }: {
   isStaff: boolean
   canManageEnterprise?: boolean
+  canReviewRelays?: boolean
 }) {
   const pathname = usePathname()
 
@@ -62,6 +65,14 @@ export function ConsoleSidebar({
               className={itemCls(pathname === '/console/enterprise')}
             >
               企业策略
+            </Link>
+          )}
+          {canReviewRelays && (
+            <Link
+              href="/console/relays/review"
+              className={itemCls(pathname === '/console/relays/review')}
+            >
+              中转站审核
             </Link>
           )}
           <Link

@@ -9,6 +9,9 @@ import * as migration_20260703_064500_audit_logs from './20260703_064500_audit_l
 import * as migration_20260706_003000_registration_email_required from './20260706_003000_registration_email_required';
 import * as migration_20260706_020000_deployment_settings from './20260706_020000_deployment_settings';
 import * as migration_20260716_120000_gewu_brand from './20260716_120000_gewu_brand';
+import * as migration_20260718_120000_relay_backend from './20260718_120000_relay_backend';
+import * as migration_20260718_130000_schema_alignment from './20260718_130000_schema_alignment';
+import * as migration_20260718_140000_relay_check_hardening from './20260718_140000_relay_check_hardening';
 
 export const migrations = [
   {
@@ -65,5 +68,20 @@ export const migrations = [
     up: migration_20260716_120000_gewu_brand.up,
     down: migration_20260716_120000_gewu_brand.down,
     name: '20260716_120000_gewu_brand',
+  },
+  {
+    up: migration_20260718_120000_relay_backend.up,
+    down: migration_20260718_120000_relay_backend.down,
+    name: '20260718_120000_relay_backend',
+  },
+  {
+    up: migration_20260718_130000_schema_alignment.up,
+    down: migration_20260718_130000_schema_alignment.down,
+    name: '20260718_130000_schema_alignment',
+  },
+  {
+    up: migration_20260718_140000_relay_check_hardening.up,
+    down: migration_20260718_140000_relay_check_hardening.down,
+    name: '20260718_140000_relay_check_hardening',
   },
 ];

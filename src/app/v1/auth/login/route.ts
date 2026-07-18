@@ -3,6 +3,7 @@ import config from '@payload-config'
 import { normalizeLoginBody, readAuthFormBody, readAuthJsonBody } from '@/lib/authRequest'
 import { loginIdentifierKind, normalizeLoginIdentifier } from '@/lib/loginIdentifier'
 import { loginErrorMessage } from '@/lib/loginErrors'
+import { internalApiUrl } from '@/lib/internalApiUrl'
 
 function isFormLoginRequest(request: Request): boolean {
   const contentType = request.headers.get('content-type') || ''
@@ -78,8 +79,7 @@ export async function POST(request: Request) {
     email = user.email
   }
 
-  const origin = new URL(request.url).origin
-  const loginRes = await fetch(`${origin}/api/users/login`, {
+  const loginRes = await fetch(internalApiUrl('/api/users/login', request.url), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),

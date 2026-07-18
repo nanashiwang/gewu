@@ -17,6 +17,14 @@ export interface AdminGroup {
 // 顺序与归属对齐 payload.config.ts 的分组（已剔除 hidden 的 device-codes）
 export const ADMIN_GROUPS: AdminGroup[] = [
   {
+    key: 'relay',
+    label: '中转治理',
+    items: [
+      { slug: 'relay-sites', label: '中转站', kind: 'collection' },
+      { slug: 'relay-checks', label: '检测记录', kind: 'collection' },
+    ],
+  },
+  {
     key: 'skill',
     label: 'Skill 内容',
     items: [

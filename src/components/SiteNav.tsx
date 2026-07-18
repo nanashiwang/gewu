@@ -7,6 +7,7 @@ import { MobileNav } from './MobileNav'
 import { NavLink } from './NavLink'
 
 const NAV = [
+  { href: '/relays', label: '中转质量' },
   { href: '/skills', label: 'Skill 市场' },
   { href: '/models', label: '模型榜' },
   { href: '/failures', label: '失败库' },

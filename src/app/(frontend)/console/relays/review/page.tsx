@@ -1,0 +1,13 @@
+import { notFound } from 'next/navigation'
+import { RelayReviewActions } from '@/components/relay/RelayReviewActions'
+import { getCurrentUser } from '@/lib/auth'
+import { getPayloadClient } from '@/lib/payload'
+import { RELAY_CLAIM_LABELS, RELAY_CONTACT_LABELS, RELAY_PROTOCOL_LABELS, RELAY_STATUS_LABELS, relayStatusClass } from '@/lib/relayUi'
+
+export default async function RelayReviewPage() {
+  const user = await getCurrentUser() as any
+  if (!user || !['admin', 'reviewer'].includes(user.role)) notFound()
+  const payload = await getPayloadClient()
+  const result = await payload.find({ collection: 'relay-sites' as any, where: { status: { in: ['pending', 'approved', 'suspended'] } }, sort: 'status,-updatedAt', limit: 100, depth: 1, overrideAccess: true })
+  return <div className="space-y-5"><div><h1 className="text-xl font-bold">中转站审核</h1><p className="mt-1 text-sm text-[var(--muted)]">只有完成域名认领的站点才能通过；拒绝和暂停必须留下原因。</p></div>{result.docs.length === 0 ? <div className="card p-5 text-sm text-[var(--muted)]">暂无待处理站点。</div> : <div className="space-y-4">{(result.docs as any[]).map((site) => <article key={site.id} className="card p-5"><div className="grid gap-5 lg:grid-cols-[1fr_360px]"><div><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold">{site.name}</h2><span className={relayStatusClass(site.status)}>{RELAY_STATUS_LABELS[site.status]}</span><span className={relayStatusClass(site.claimStatus)}>{RELAY_CLAIM_LABELS[site.claimStatus]}</span></div><div className="mt-2 space-y-1 break-all text-xs text-[var(--muted)]"><div>官网：<a className="text-[var(--accent)]" href={site.websiteUrl} target="_blank" rel="noreferrer">{site.websiteUrl}</a></div><div>API：{site.apiBaseUrl}</div><div>{RELAY_PROTOCOL_LABELS[site.protocol]} · {site.model} · 所有者 {site.owner?.username || site.owner?.email || '—'}</div></div>{site.description && <p className="mt-3 whitespace-pre-wrap text-sm">{site.description}</p>}<div className="mt-4 rounded-xl border border-[var(--border)] p-3"><div className="text-xs font-medium">运营联系方式（仅站长与运营可见）</div><div className="mt-2 space-y-1 text-sm">{Array.isArray(site.contacts) && site.contacts.length > 0 ? site.contacts.map((contact: any, index: number) => <div key={index} className="flex flex-wrap justify-between gap-2"><span className="text-[var(--muted)]">{RELAY_CONTACT_LABELS[contact.type] || contact.type}{contact.isPublic ? ' · 已公开' : ' · 私密'}</span><span className="break-all">{contact.value}</span></div>) : <span className="text-[var(--danger)]">未填写联系方式，不能完成审核。</span>}</div></div></div><RelayReviewActions siteId={site.id} /></div></article>)}</div>}</div>
+}

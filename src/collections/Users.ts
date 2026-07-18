@@ -198,6 +198,8 @@ export const Users: CollectionConfig = {
         // 阻断危险场景：仍有作品(会悬空作者) / 进行中或争议悬赏(冻结贡献值会卡死)
         const skills = await p.count({ collection: 'skills', where: { author: { equals: id } }, ...opts })
         if (skills.totalDocs > 0) throw new Error('该用户仍有 Skill 作品，请先转移或删除其作品后再删账号')
+        const relaySites = await p.count({ collection: 'relay-sites' as any, where: { owner: { equals: id } }, ...opts })
+        if (relaySites.totalDocs > 0) throw new Error('该用户仍有中转站，请先转移或删除中转站后再删账号')
         const activeBounties = await p.count({
           collection: 'bounties',
           where: {

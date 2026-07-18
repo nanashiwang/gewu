@@ -77,6 +77,8 @@ export interface Config {
     'compat-reports': CompatReport;
     'compat-test-cases': CompatTestCase;
     'adapter-profiles': AdapterProfile;
+    'relay-sites': RelaySite;
+    'relay-checks': RelayCheck;
     users: User;
     'invite-codes': InviteCode;
     'contribution-logs': ContributionLog;
@@ -118,6 +120,8 @@ export interface Config {
     'compat-reports': CompatReportsSelect<false> | CompatReportsSelect<true>;
     'compat-test-cases': CompatTestCasesSelect<false> | CompatTestCasesSelect<true>;
     'adapter-profiles': AdapterProfilesSelect<false> | AdapterProfilesSelect<true>;
+    'relay-sites': RelaySitesSelect<false> | RelaySitesSelect<true>;
+    'relay-checks': RelayChecksSelect<false> | RelayChecksSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     'invite-codes': InviteCodesSelect<false> | InviteCodesSelect<true>;
     'contribution-logs': ContributionLogsSelect<false> | ContributionLogsSelect<true>;
@@ -1002,6 +1006,94 @@ export interface CompatTestCase {
   createdAt: string;
 }
 /**
+ * 用户提交的中转站、所有权验证、审核状态和定时检测配置。API Key 只保存密文且永不回显。
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "relay-sites".
+ */
+export interface RelaySite {
+  id: string;
+  name: string;
+  slug: string;
+  owner: string | User;
+  websiteUrl: string;
+  apiBaseUrl: string;
+  description?: string | null;
+  /**
+   * 由用户前台维护；每项包含 type、value、isPublic。公开展示仅输出 isPublic=true 的项。
+   */
+  contacts?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  protocol: 'openai' | 'anthropic' | 'gemini';
+  model: string;
+  mode: 'quick' | 'standard' | 'full';
+  apiKeyEncrypted?: string | null;
+  hasApiKey?: boolean | null;
+  status: 'draft' | 'pending' | 'approved' | 'rejected' | 'suspended';
+  claimStatus: 'unverified' | 'pending' | 'verified' | 'failed' | 'manual';
+  claimDomain: string;
+  claimToken: string;
+  claimedAt?: string | null;
+  claimCheckedAt?: string | null;
+  scheduleEnabled?: boolean | null;
+  scheduleIntervalHours: '6' | '12' | '24' | '72' | '168';
+  nextCheckAt?: string | null;
+  lastCheckAt?: string | null;
+  lastScore?: number | null;
+  lastGrade?: string | null;
+  lastVerdict?: string | null;
+  reviewNotes?: string | null;
+  reviewedBy?: (string | null) | User;
+  reviewedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * 手动和定时检测的不可变历史。写入仅允许服务端检测桥接器。
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "relay-checks".
+ */
+export interface RelayCheck {
+  id: string;
+  site: string | RelaySite;
+  triggeredBy?: (string | null) | User;
+  source: 'manual' | 'scheduled';
+  protocol: 'openai' | 'anthropic' | 'gemini';
+  model: string;
+  mode: 'quick' | 'standard' | 'full';
+  status: 'queued' | 'running' | 'done' | 'error';
+  detectorJobId?: string | null;
+  resultUrl?: string | null;
+  score?: number | null;
+  grade?: string | null;
+  verdict?: string | null;
+  summary?: string | null;
+  startedAt?: string | null;
+  finishedAt?: string | null;
+  durationMs?: number | null;
+  pollFailures?: number | null;
+  report?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  error?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "invite-codes".
  */
@@ -1553,6 +1645,14 @@ export interface PayloadLockedDocument {
         value: string | AdapterProfile;
       } | null)
     | ({
+        relationTo: 'relay-sites';
+        value: string | RelaySite;
+      } | null)
+    | ({
+        relationTo: 'relay-checks';
+        value: string | RelayCheck;
+      } | null)
+    | ({
         relationTo: 'users';
         value: string | User;
       } | null)
@@ -1952,6 +2052,69 @@ export interface AdapterProfilesSelect<T extends boolean = true> {
   afterMetrics?: T;
   evidenceHash?: T;
   lastVerifiedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "relay-sites_select".
+ */
+export interface RelaySitesSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  owner?: T;
+  websiteUrl?: T;
+  apiBaseUrl?: T;
+  description?: T;
+  contacts?: T;
+  protocol?: T;
+  model?: T;
+  mode?: T;
+  apiKeyEncrypted?: T;
+  hasApiKey?: T;
+  status?: T;
+  claimStatus?: T;
+  claimDomain?: T;
+  claimToken?: T;
+  claimedAt?: T;
+  claimCheckedAt?: T;
+  scheduleEnabled?: T;
+  scheduleIntervalHours?: T;
+  nextCheckAt?: T;
+  lastCheckAt?: T;
+  lastScore?: T;
+  lastGrade?: T;
+  lastVerdict?: T;
+  reviewNotes?: T;
+  reviewedBy?: T;
+  reviewedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "relay-checks_select".
+ */
+export interface RelayChecksSelect<T extends boolean = true> {
+  site?: T;
+  triggeredBy?: T;
+  source?: T;
+  protocol?: T;
+  model?: T;
+  mode?: T;
+  status?: T;
+  detectorJobId?: T;
+  resultUrl?: T;
+  score?: T;
+  grade?: T;
+  verdict?: T;
+  summary?: T;
+  startedAt?: T;
+  finishedAt?: T;
+  durationMs?: T;
+  pollFailures?: T;
+  report?: T;
+  error?: T;
   updatedAt?: T;
   createdAt?: T;
 }

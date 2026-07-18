@@ -42,6 +42,7 @@ export default async function ConsoleLayout({
         <ConsoleSidebar
           isStaff={isStaff}
           canManageEnterprise={canManageEnterprise}
+          canReviewRelays={['admin', 'reviewer'].includes(u.role)}
         />
       </aside>
       <div className="min-w-0">{children}</div>

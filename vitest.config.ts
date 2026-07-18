@@ -4,7 +4,10 @@ import { resolve } from 'path'
 // 单测配置：node 环境（被测均为纯函数/crypto，无需 DOM）；解析 @/ 别名到 src。
 export default defineConfig({
   resolve: {
-    alias: { '@': resolve(__dirname, './src') },
+    alias: {
+      '@payload-config': resolve(__dirname, './src/payload.config.ts'),
+      '@': resolve(__dirname, './src'),
+    },
   },
   test: {
     environment: 'node',
