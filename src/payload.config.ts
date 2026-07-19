@@ -108,6 +108,8 @@ export default buildConfig({
   ],
   globals: [SiteSettings, EconomySettings, DeploymentSettings],
   editor: lexicalEditor(),
+  graphQL: { disable: true },
+  telemetry: false,
   secret: payloadSecret,
   db: postgresAdapter({
     pool: {

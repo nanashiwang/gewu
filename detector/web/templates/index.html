@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Claude API 中转站检测 · thinking 签名回放验证 | 格物{% endblock %}
-{% block description %}免费检测 Claude API 中转站的协议透传质量 — 对 thinking block 做原始回放和篡改对照,再结合 10 项辅助检测与 Token 用量检查。无需注册,API key 不持久化,代码开源。{% endblock %}
+{% block description %}免费检测 Claude API 中转站的协议透传质量 — 对 thinking block 做原始回放和篡改对照,再结合 10 项辅助检测与 Token 用量检查。无需注册,API key 不持久化,结果可复核。{% endblock %}
 {% block og_title %}Claude API 中转站检测 · thinking block 回放与协议评估{% endblock %}
 {% block og_description %}thinking block 原始/篡改回放验证 + 10 项辅助检测 + Token 用量风险识别。免费、不持久化 key、可分享 JPG 报告。{% endblock %}
 {% block canonical %}{{ brand.site_url }}/claude{% endblock %}
@@ -41,7 +41,7 @@
     {"@type":"Question","name":"Kiro / Amazon Q / Bedrock 等兼容网关怎么识别?","acceptedAnswer":{"@type":"Answer","text":"兼容网关可能缺少 thinking block,也可能只伪造字段但不执行签名约束。格物 会做原始/篡改回放对照并结合其他协议信号;单项失败表示该强证据缺失,不单凭一个字段作绝对结论。"}},
     {"@type":"Question","name":"格物 的 Claude 检测覆盖哪些维度?","acceptedAnswer":{"@type":"Answer","text":"11 项,按权重:thinking signature (25%) > behavioral signature (15%) > structured output (12%) > consistency / knowledge / token usage (各 10%) > pdf (8%) > identity / protocol / integrity / message_id (各 5%)。standard 模式跑 9 项约 45 秒,full 模式跑全 11 项约 75 秒。"}},
     {"@type":"Question","name":"检测会不会消耗我的 API 余额?","acceptedAnswer":{"@type":"Answer","text":"会。完整模式通常约 16-18 个请求,费用取决于模型、thinking 实际输出和中转站定价,从你的 API key 对应账户扣除。报告会展示实际请求数和 token 用量,格物 自身不收费。"}},
-    {"@type":"Question","name":"格物 会记录我的 API key 吗?","acceptedAnswer":{"@type":"Answer","text":"原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告仅保留脱敏形式 (sk-y7xU••••••0h),代码完全开源可审计,也可以自托管。"}},
+    {"@type":"Question","name":"格物 会记录我的 API key 吗?","acceptedAnswer":{"@type":"Answer","text":"原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告仅保留脱敏形式 (sk-y7xU••••••0h),原始 API key 不进入报告或日志,并会对反射内容脱敏。"}},
     {"@type":"Question","name":"支持哪些 Claude 模型?","acceptedAnswer":{"@type":"Answer","text":"Claude Opus 4.7、Sonnet 4.6、Haiku 4.5、Opus 4.6、Sonnet 4.5、Opus 4.5、Opus 4.1。检测器自动适配各模型的 thinking 模式(extended vs adaptive)和 PDF 页数上限。"}}
   ]
 }
@@ -71,7 +71,7 @@
   <h1>这家 Claude API 中转站,是真原生吗?</h1>
   <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
     <strong>格物</strong> 对 Claude <strong>thinking block 做原始/篡改回放验证</strong>,再结合 10 项辅助检测,
-    <strong>1 分钟</strong>评估中转站的协议透传质量与后端替换风险。免费、API key 不持久化、代码开源。
+    <strong>1 分钟</strong>评估中转站的协议透传质量与后端替换风险。免费、API key 不持久化、结果可复核。
   </p>
 </section>
 
@@ -245,14 +245,14 @@
       <p data-mode="layperson">
         原始 API key 只在检测任务执行期间短暂使用,不进入报告、日志或数据库。任务结束后不再
         保留引用,报告页面里只显示打码版(像 sk-y7xU••••••0h)。
-        代码按 AGPL-3.0 许可证公开,
-        担心的话可以自己审计或者下载到自己电脑跑。
+        持久化前会递归清理上游响应中可能反射的密钥内容,
+        报告仅展示脱敏后的密钥标识。
       </p>
       <p data-mode="developer">
         原始 API key 不进入 <code>Job</code> 对象,只在运行任务的局部作用域中使用;任务结束后
         不再保留引用,不写 report JSON、不写应用日志、不持久化。报告里 key 经
-        <code>mask_api_key()</code> 脱敏(保留前 4 位 + 后 4 位)。完整代码以 AGPL-3.0
-        许可证开源并支持自托管。
+        <code>mask_api_key()</code> 脱敏(保留前 4 位 + 后 4 位),上游响应中的密钥反射也会
+        在持久化前递归清理。
       </p>
     </div>
   </details>

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}AI API 中转站真假检测 - 验证 Claude / GPT / Gemini 是不是真的 | 格物{% endblock %}
-{% block description %}格物 是免费的 AI API 中转站检测工具:评估 Claude / GPT / Gemini 的协议透传质量和后端替换风险。Claude 做 thinking block 原始/篡改回放,OpenAI / Gemini 测协议合规。无需注册、API key 不持久化、代码开源。{% endblock %}
+{% block description %}格物 是免费的 AI API 中转站检测工具:评估 Claude / GPT / Gemini 的协议透传质量和后端替换风险。Claude 做 thinking block 原始/篡改回放,OpenAI / Gemini 测协议合规。无需注册、API key 不持久化、报告证据可复核。{% endblock %}
 {% block og_title %}AI API 中转站检测 · Claude / GPT / Gemini 协议与质量评估{% endblock %}
 {% block og_description %}免费评估中转站协议透传和后端替换风险。Claude 签名回放 + 多协议覆盖 + 可分享报告。{% endblock %}
 
@@ -31,7 +31,7 @@
     "提交前死模型预探测",
     "报告可分享(HTML + JPG)",
     "API key 不持久化",
-    "代码完全开源,可自托管"
+    "报告证据可复核"
   ],
   "creator": {"@type": "Organization", "name": "格物", "url": "{{ brand.site_url }}"},
   "description": "格物 通过 Claude thinking signature 等 10 项检测维度,验证 AI API 中转站是否真实透传 Claude 模型,识别用 Kiro / Amazon Q / 其他后端伪装的中转站。同时覆盖 OpenAI / Gemini 协议级检测。"
@@ -63,7 +63,7 @@
       "name": "格物 会偷我的 API key 吗?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告仅保留脱敏形式(sk-y7xU••••••0h),代码完全开源可审计,也可以自托管。"
+        "text": "原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告仅保留脱敏形式(sk-y7xU••••••0h),原始 API key 不进入报告或日志,检测结果保留字段级证据。"
       }
     },
     {
@@ -93,7 +93,7 @@
   <p class="answer-capsule">
     <strong>格物</strong> 是免费的 AI API 中转站检测工具:用 Claude thinking block 原始/篡改回放 + 多维行为指纹,
     <strong>1 分钟</strong>评估 Claude / GPT / Gemini 的协议透传质量和后端替换风险。
-    无需注册、API key 不持久化、代码开源。
+    无需注册、API key 不持久化、报告证据可复核。
   </p>
   <p class="hub-meta">
     已检测 <strong>3 个</strong>协议 · <strong>12 项</strong>独立维度 · <strong>30-75 秒</strong>出报告 · 报告 URL 可分享
@@ -113,54 +113,15 @@
 </section>
 
 <!-- ============================== Trust Strip ============================== -->
-<section class="trust-strip" aria-label="开源与信任">
+<section class="trust-strip" aria-label="安全与信任">
   <div class="trust-strip-head">
-    <h2>🔓 100% 开源 · 评分算法可逐行审计</h2>
-    <p>
-      格物 的本质是「<strong>把 API key 交给我们检测中转站</strong>」 — 这件事的基础是<strong>信任</strong>。
-      所以我们把所有评分逻辑、key 处理代码全部公开,任何人可以审计。这是闭源工具永远做不到的承诺。
-    </p>
+    <h2>🔒 敏感数据最小化 · 报告证据可复核</h2>
+    <p>格物只处理完成本次检测所需的数据,原始 API key 不写入报告和应用日志。</p>
   </div>
-
   <div class="trust-cards">
-    <article class="trust-card">
-      <div class="trust-icon">📜</div>
-      <h3>评分算法公开</h3>
-      <p>
-        12 项 detector 怎么打分、贝叶斯排名公式、tokenizer 校准 — 全在 GitHub,无黑盒。
-      </p>
-      {% if brand.source_url %}<a href="{{ brand.source_url }}"
-        target="_blank" rel="noopener" class="trust-link">查看检测器源码 →</a>{% endif %}
-    </article>
-
-    <article class="trust-card">
-      <div class="trust-icon">🔐</div>
-      <h3>API key 不落盘<br><em>可代码证明</em></h3>
-      <p>
-        SECURITY.md 列出每条 key 处理承诺,每条都标了代码位置 — 你可以
-        <code>grep</code> 验证。不是"我们说不偷",是"代码不让偷"。
-      </p>
-      {% if brand.source_url %}<a href="{{ brand.source_url }}"
-        target="_blank" rel="noopener" class="trust-link">查看安全策略 →</a>{% endif %}
-    </article>
-
-    <article class="trust-card">
-      <div class="trust-icon">⚙️</div>
-      <h3>支持完全自托管</h3>
-      <p>
-        不放心 SaaS?<code>git clone</code> 到自己机器跑,原始 API key 只由你的实例发送给你配置的目标中转站。
-        AGPL-3.0 许可证保证 fork 出去的修改也必须开源。
-      </p>
-      {% if brand.source_url %}<a href="{{ brand.source_url }}"
-        target="_blank" rel="noopener" class="trust-link">自托管指南 →</a>{% endif %}
-    </article>
-  </div>
-
-  <div class="trust-cta">
-    {% if brand.source_url %}
-    <a class="btn btn-source" href="{{ brand.source_url }}" target="_blank" rel="noopener">查看源代码</a>
-    {% endif %}
-    <span class="trust-license-pill">License · AGPL-3.0</span>
+    <article class="trust-card"><div class="trust-icon">📋</div><h3>评分依据清晰</h3><p>每项扣分都对应具体字段、协议信号和检测证据,不只给一个黑箱数字。</p></article>
+    <article class="trust-card"><div class="trust-icon">🔐</div><h3>API key 不落盘</h3><p>原始密钥只在任务执行期间短暂使用,持久化前会对反射的密钥内容递归脱敏。</p></article>
+    <article class="trust-card"><div class="trust-icon">🛡️</div><h3>边界默认关闭</h3><p>内网地址、非 HTTPS 目标、过大请求和未授权管理操作均默认拒绝。</p></article>
   </div>
 </section>
 
@@ -230,8 +191,8 @@
     </div>
     <div class="why-item">
       <div class="why-num">05</div>
-      <h3>完全开源 · key 处理可审计</h3>
-      <p>原始 API key 不进入 Job、报告或应用日志,只在运行任务的局部作用域中短暂使用。代码全开源,你可以审计服务端,或者直接 clone 部署到自己机器上。</p>
+      <h3>敏感数据最小化</h3>
+      <p>原始 API key 不进入 Job、报告或应用日志,只在运行任务的局部作用域中短暂使用;持久化前会递归脱敏上游反射内容。</p>
     </div>
     <div class="why-item">
       <div class="why-num">06</div>

@@ -131,7 +131,7 @@ class RequestBodyLimitMiddleware:
             )(scope, receive, send)
 
 
-app = FastAPI(title=brand.english_name, docs_url=None, redoc_url=None)
+app = FastAPI(title=brand.english_name, docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(
     RequestBodyLimitMiddleware, max_bytes=_MAX_API_REQUEST_BODY_BYTES
 )

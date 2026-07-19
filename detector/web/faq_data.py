@@ -307,7 +307,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
     FAQCategory(
         id="gewu",
         title="格物 工具使用",
-        intro="工具本身的使用、报告解读、自托管等问题。",
+        intro="工具本身的使用、报告解读与数据边界等问题。",
         entries=(
             FAQEntry(
                 "how-to-use",
@@ -338,21 +338,14 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "只有脱敏形式(sk-y7xU••••••0h)。如果你测的是私有中转站不想公开,不要分享 URL。"
                 "后续会加 opt-in 的「私有报告」开关。",
             ),
-            FAQEntry(
-                "self-host",
-                "可以本地自托管 格物 吗?",
-                "可以,格物 完全开源。clone 仓库 → pip install -e .[web] → "
-                "uvicorn web.server:app 即可。CLI 也可以单独用:gewu detect "
-                "--base-url ... --api-key ... --mode full。详见 README。",
-            ),
         ),
     ),
     FAQCategory(
         id="privacy",
         title="隐私与安全",
         intro=(
-            "把 API key 交给一个检测工具是有风险的事,所以 格物 在数据处理上的承诺需要"
-            "可验证 — 我们的代码完全开源,你可以审计、可以自托管。"
+            "把 API key 交给任何检测工具都有风险,所以 格物 从数据最小化、密钥不落盘和"
+            "持久化前递归脱敏三个边界降低风险。"
         ),
         entries=(
             FAQEntry(
@@ -360,14 +353,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "格物 会记录我的 API key 吗?",
                 "原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。"
                 "报告里 key 是脱敏形式 (sk-y7xU••••••0h),上游若在错误文本里反射 key 也会在"
-                "持久化前递归脱敏。代码开源可验证。",
-            ),
-            FAQEntry(
-                "vs-cctest-privacy",
-                "跟 cctest.ai 在数据安全上有什么区别?",
-                "cctest.ai 也声称不上传 key,但代码闭源无法验证。格物 完全开源,"
-                "你可以 clone 代码自己跑(git clone ... && uvicorn web.server:app),"
-                "或者审计服务端代码(GitHub 上完全公开)。",
+                "持久化前递归脱敏,报告只保留必要的字段级证据。",
             ),
             FAQEntry(
                 "upstream-cost",
@@ -381,7 +367,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "报告里有什么个人信息?可以删除吗?",
                 "报告包含:① 完整 base_url;② 脱敏后的 api_key;③ 检测结果。"
                 "没有个人姓名、邮箱、IP。报告链接是公开的,私有中转站地址不应分享;"
-                "如果需要删除特定报告,可通过 GitHub issue 联系。",
+                "当前暂不提供公开报告的自助删除入口;私有中转站地址不要检测或分享。",
             ),
         ),
     ),
@@ -398,7 +384,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "格物 跟 cctest.ai 有什么区别?",
                 "cctest 只做 Claude(单协议),用「黑盒检测」对抗规避,但维度有限。"
                 "格物 三协议(Claude / OpenAI / Gemini)+ thinking block 签名回放验证 + "
-                "跨协议自动跳转 + 预提交死模型识别 + 完全开源,且 OpenAI 上能识别"
+                "跨协议自动跳转 + 预提交死模型识别,且 OpenAI 上能识别"
                 "「GPT 实为 Claude」的协议适配层指纹。",
             ),
             FAQEntry(

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
@@ -54,5 +54,17 @@ def test_homepage_exposes_optional_account_and_relay_management_entry():
     assert response.status_code == 200
     assert 'href="/register"' in response.text
     assert 'href="/login"' in response.text
-    assert "????????" in response.text
-    assert "????????????" in response.text
+    assert "创建账户" in response.text
+    assert "账户与站点管理" in response.text
+
+
+def test_public_pages_do_not_expose_repository_entry_points():
+    client = TestClient(app)
+    for path in ("/", "/faq", "/leaderboard", "/claude", "/openai", "/gemini", "/llms.txt"):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert "github.com" not in response.text.lower()
+        assert "brand.source_url" not in response.text
+        for hidden_term in ("源代码", "查看源码", "完全开源", "自托管", "AGPL-3.0"):
+            assert hidden_term not in response.text
+    assert app.openapi_url is None

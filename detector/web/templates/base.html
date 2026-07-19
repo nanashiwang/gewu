@@ -59,11 +59,6 @@
         <a href="/faq">常见问题</a>
         <a class="nav-login" href="/login">登录</a>
         <a class="nav-register" href="/register">注册</a>
-        {% if brand.source_url %}
-        <a class="nav-source" href="{{ brand.source_url }}"
-          target="_blank" rel="noopener noreferrer"
-          aria-label="查看源代码" title="查看源代码 · AGPL-3.0">源码</a>
-        {% endif %}
       </nav>
     </div>
   </header>
@@ -78,14 +73,12 @@
         </p>
         <p class="footer-desc">
           协议字段 + thinking block 回放 + 长上下文 needle-in-haystack 多层验证。
-          代码完全开源,原始 API key 不持久化。
+          检测过程遵循敏感数据最小化,原始 API key 不持久化。
         </p>
       </div>
       <div class="footer-col">
-        <h4>项目</h4>
+        <h4>安全</h4>
         <ul>
-          {% if brand.source_url %}<li><a href="{{ brand.source_url }}" target="_blank" rel="noopener">源代码</a></li>{% endif %}
-          <li>License: AGPL-3.0</li>
           <li>报告证据可审计</li>
           <li>API key 不持久化</li>
         </ul>
@@ -109,8 +102,7 @@
       </div>
     </div>
     <p class="footer-copyright muted small">
-      © {{ brand.name }} · 独立测评 · 字段级穿透 · AGPL-3.0 开源
-      {% if brand.source_url %}<a href="{{ brand.source_url }}" target="_blank" rel="noopener noreferrer">查看源码</a>{% endif %}
+      © {{ brand.name }} · 独立测评 · 字段级穿透 · 结果可复核
     </p>
   </footer>
   <script src="/static/app.js?v=20260716-1" defer></script>
