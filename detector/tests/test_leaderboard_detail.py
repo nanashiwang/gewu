@@ -82,6 +82,9 @@ def test_is_valid_domain_rejects_garbage():
         "no-dot",                 # no TLD separator
         "..bad",                  # leading dot
         "bad..",                  # trailing dot
+        "bad..com",               # empty interior label
+        "ok.-bad.com",            # label starts with hyphen
+        "ok.bad-.com",            # label ends with hyphen
         "-bad.com",               # leading hyphen
         "bad.com-",               # trailing hyphen
         "evil.com/etc/passwd",    # path traversal
@@ -136,3 +139,11 @@ def test_all_domains_lists_each_unique_host(fake_reports: Path):
     assert "relay-a.example.com" in domains
     assert "relay-b.example.com" in domains
     assert len(domains) == 2
+
+
+def test_parse_score_rejects_non_finite_and_clamps_range():
+    assert leaderboard._parse_score("nan") == 0.0
+    assert leaderboard._parse_score("inf") == 0.0
+    assert leaderboard._parse_score(-5) == 0.0
+    assert leaderboard._parse_score(120) == 100.0
+    assert leaderboard._parse_score("91.5") == 91.5

@@ -10,6 +10,7 @@ SEO 价值:用户搜「XX 中转站怎么样」时,leaderboard 页面包含该�
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import statistics
@@ -50,7 +51,7 @@ _RANKING_PRIOR_WEIGHT = 5.0
 # could legitimately produce from a real base_url. Rejects anything with
 # slashes, query strings, uppercase, unicode, leading/trailing dots/hyphens.
 # Defends path traversal, header injection, and template XSS via stray chars.
-_DOMAIN_RE = re.compile(r"^[a-z0-9](?:[a-z0-9.-]{1,251}[a-z0-9])?$")
+_DOMAIN_LABEL_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")
 
 # Domains hidden from the public leaderboard (and per-domain detail pages).
 # JSON reports remain on disk and individual /r/{job_id} share links keep
@@ -65,7 +66,8 @@ def is_valid_domain(s: str) -> bool:
     """Whether s is safe to accept as a path parameter for /leaderboard/{domain}."""
     if not s or len(s) > 253 or "." not in s:
         return False
-    return bool(_DOMAIN_RE.match(s))
+    labels = s.split(".")
+    return all(label and _DOMAIN_LABEL_RE.fullmatch(label) for label in labels)
 
 
 @dataclass
@@ -179,6 +181,17 @@ def _extract_domain(base_url: str) -> str:
     return host.lower()
 
 
+def _parse_score(value: Any) -> float:
+    """Return a finite public score constrained to the detector's 0?100 scale."""
+    try:
+        score = float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    if not math.isfinite(score):
+        return 0.0
+    return max(0.0, min(100.0, score))
+
+
 def _parse_timestamp(ts: Any) -> datetime | None:
     if not isinstance(ts, str):
         return None
@@ -220,7 +233,9 @@ def aggregate() -> tuple[list[RelayStats], dict[str, int]]:
                 continue
             total_reports += 1
             protocol = str(report.get("protocol") or "anthropic")
-            score = float(report.get("total_score") or 0)
+            if protocol not in PROTOCOL_LABELS:
+                continue
+            score = _parse_score(report.get("total_score"))
             verdict = str(report.get("verdict") or "failed")
             ts = _parse_timestamp(report.get("timestamp"))
             job_id = json_path.stem
@@ -321,7 +336,9 @@ def aggregate_one(domain: str) -> tuple[RelayStats, list[JobEntry]] | None:
                 continue
 
             protocol = str(report.get("protocol") or "anthropic")
-            score = float(report.get("total_score") or 0)
+            if protocol not in PROTOCOL_LABELS:
+                continue
+            score = _parse_score(report.get("total_score"))
             verdict = str(report.get("verdict") or "failed")
             ts = _parse_timestamp(report.get("timestamp"))
             if ts is None:

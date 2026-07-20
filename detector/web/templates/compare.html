@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}中转站对比 | 格物{% endblock %}
+{% block description %}并排比较最多 3 家 AI API 中转站的综合分、样本可信度、检测时间和协议覆盖。{% endblock %}
+{% block canonical %}{{ brand.site_url }}/compare{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex,follow">{% endblock %}
+{% block content %}
+<nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span class="breadcrumb-sep">›</span><a href="/leaderboard">红黑榜</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">中转站对比</span></nav>
+<section class="compare-hero"><span class="public-ranking-kicker">SIDE BY SIDE</span><h1>中转站对比</h1><p>最多比较 3 家。先比较可信度和新鲜度,再看原始分数;没有经过检测的价格或服务承诺不会出现在这里。</p><a class="btn btn-ghost" href="/leaderboard#ranking-browser">返回榜单选择</a></section>
+{% if sites %}
+<section class="compare-grid" style="--compare-count: {{ sites|length }}">
+  {% for site in sites %}
+  <article class="compare-card">
+    <div class="compare-card-head"><span class="confidence-badge confidence-{{ site.confidence_class }}">{{ site.confidence_label }}</span><button type="button" data-compare-remove="{{ site.domain }}" aria-label="移除 {{ site.domain }}">×</button></div>
+    <h2><a href="/leaderboard/{{ site.domain }}">{{ site.domain }}</a></h2>
+    <div class="compare-score"><strong>{{ site.score }}</strong><span>综合分</span></div>
+    <dl><div><dt>排序参考</dt><dd>{{ "%.1f"|format(site.confidence_score) }}</dd></div><div><dt>检测次数</dt><dd>{{ site.report_count }}</dd></div><div><dt>最近检测</dt><dd>{{ site.last_checked }}</dd></div><div><dt>数据状态</dt><dd><span class="freshness-badge freshness-{{ site.freshness_class }}">{{ site.freshness_label }}</span></dd></div><div><dt>协议</dt><dd>{{ site.protocols_label }}</dd></div></dl>
+    <div class="compare-card-actions"><a class="btn btn-primary" href="{{ site.detect_url }}">检测此站</a><a class="btn btn-ghost" href="{{ site.external_url }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer">打开域名 ↗</a></div>
+  </article>
+  {% endfor %}
+  {% if sites|length < 3 %}<a class="compare-add-card" href="/leaderboard#ranking-browser"><strong>＋ 添加中转站</strong><span>还可选择 {{ 3 - sites|length }} 家</span></a>{% endif %}
+</section>
+<section class="compare-explainer"><h2>为什么排序参考分可能低于综合分?</h2><p>排序参考分会把低样本站点向中性值收缩,避免少量偶然高分压过长期稳定样本。综合分仍原样显示,两者分别回答“这次表现怎样”和“现在有多大把握”。</p></section>
+{% else %}
+<section class="compare-empty"><span>尚未选择中转站</span><h1>先从排行榜选择 2–3 家</h1><p>勾选“加入对比”后,这里会并排展示分数、可信度、更新时间和协议覆盖。</p><a class="btn btn-primary" href="/leaderboard#ranking-browser">去排行榜选择</a></section>
+{% endif %}
+{% endblock %}

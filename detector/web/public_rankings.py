@@ -7,6 +7,8 @@ selection rules remain in the platform snapshot and are not rendered publicly.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import date
+from urllib.parse import urlencode, urlsplit
 
 
 PROTOCOL_LABELS = {
@@ -23,10 +25,111 @@ class PublicRankingSite:
     report_count: int
     last_checked: str
     protocols: tuple[str, ...]
+    website_url: str | None = None
 
     @property
     def protocols_label(self) -> str:
-        return " / ".join(PROTOCOL_LABELS[protocol] for protocol in self.protocols)
+        return " / ".join(PROTOCOL_LABELS.get(protocol, protocol) for protocol in self.protocols)
+
+    @property
+    def confidence_score(self) -> float:
+        """Conservative score used for ordering, not a replacement for raw score."""
+        weight = 5
+        return (self.score * self.report_count + 50 * weight) / (
+            self.report_count + weight
+        )
+
+    @property
+    def confidence_label(self) -> str:
+        if self.report_count >= 20:
+            return "高可信"
+        if self.report_count >= 5:
+            return "中可信"
+        return "低样本"
+
+    @property
+    def confidence_class(self) -> str:
+        if self.report_count >= 20:
+            return "high"
+        if self.report_count >= 5:
+            return "medium"
+        return "low"
+
+    @property
+    def age_days(self) -> int | None:
+        try:
+            checked = date.fromisoformat(self.last_checked)
+        except (TypeError, ValueError):
+            return None
+        return max(0, (date.today() - checked).days)
+
+    @property
+    def freshness_label(self) -> str:
+        age = self.age_days
+        if age is None:
+            return "待复测"
+        if age <= 3:
+            return "刚更新"
+        if age <= 14:
+            return "近期"
+        if age <= 30:
+            return "较旧"
+        return "需复测"
+
+    @property
+    def freshness_class(self) -> str:
+        age = self.age_days
+        if age is not None and age <= 3:
+            return "fresh"
+        if age is not None and age <= 14:
+            return "recent"
+        return "stale"
+
+    @property
+    def external_url(self) -> str:
+        """Return a constrained external URL without allowing cross-domain links."""
+        fallback = f"https://{self.domain}"
+        if not self.website_url or len(self.website_url) > 2048:
+            return fallback
+        try:
+            parts = urlsplit(self.website_url)
+        except ValueError:
+            return fallback
+        if (
+            parts.scheme not in {"http", "https"}
+            or not parts.hostname
+            or parts.username is not None
+            or parts.password is not None
+            or parts.query
+            or parts.fragment
+        ):
+            return fallback
+        link_host = parts.hostname.rstrip(".").lower()
+        domain = self.domain.rstrip(".").lower()
+        related = (
+            "." in link_host
+            and (
+                link_host == domain
+                or link_host.endswith(f".{domain}")
+                or domain.endswith(f".{link_host}")
+            )
+        )
+        return self.website_url.rstrip("/") if related else fallback
+
+    @property
+    def primary_protocol(self) -> str:
+        for protocol in ("anthropic", "openai", "gemini"):
+            if protocol in self.protocols:
+                return protocol
+        return "anthropic"
+
+    @property
+    def detect_url(self) -> str:
+        path = {"anthropic": "claude", "openai": "openai", "gemini": "gemini"}[
+            self.primary_protocol
+        ]
+        query = urlencode({"base_url": f"https://{self.domain}"})
+        return f"/{path}?{query}#detect-form"
 
 
 RED_RANKING = (

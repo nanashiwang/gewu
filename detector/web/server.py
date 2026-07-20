@@ -14,7 +14,7 @@ from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import (
-    HTMLResponse, JSONResponse, RedirectResponse, Response,
+    HTMLResponse, JSONResponse, Response,
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -238,6 +238,9 @@ def _gemini_model_choices() -> list[dict[str, str]]:
 _PUBLIC_RANKINGS_TTL_S = 60.0
 _public_rankings_cached_at = 0.0
 _public_rankings_cache: dict[str, object] | None = None
+_public_detail_cache: dict[
+    str, tuple[float, tuple[leaderboard.RelayStats, list[leaderboard.JobEntry]] | None]
+] = {}
 _RED_SCORE_THRESHOLD = 70
 
 
@@ -276,11 +279,17 @@ def _compute_public_ranking_snapshot() -> dict[str, object]:
             report_count=max(1, report_count),
             last_checked=last_checked,
             protocols=protocols,
+            website_url=current.website_url if current is not None else None,
         )
 
     red_sites = tuple(sorted(
         (site for site in sites.values() if site.score >= _RED_SCORE_THRESHOLD),
-        key=lambda site: (-site.score, -site.report_count, site.domain),
+        key=lambda site: (
+            -site.confidence_score,
+            -site.score,
+            -site.report_count,
+            site.domain,
+        ),
     ))
     black_sites = tuple(sorted(
         (site for site in sites.values() if site.score < _RED_SCORE_THRESHOLD),
@@ -317,6 +326,21 @@ def _public_ranking_snapshot() -> dict[str, object]:
 
 def _homepage_metrics() -> dict[str, int | str]:
     return _public_ranking_snapshot()["metrics"]  # type: ignore[return-value]
+
+
+def _public_ranking_detail(
+    domain: str,
+) -> tuple[leaderboard.RelayStats, list[leaderboard.JobEntry]] | None:
+    """Cache per-domain report scans to keep crawler traffic from amplifying I/O."""
+    now = time.monotonic()
+    cached = _public_detail_cache.get(domain)
+    if cached is not None and now - cached[0] < _PUBLIC_RANKINGS_TTL_S:
+        return cached[1]
+    detail = leaderboard.aggregate_one(domain)
+    if len(_public_detail_cache) >= 128:
+        _public_detail_cache.clear()
+    _public_detail_cache[domain] = (now, detail)
+    return detail
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -372,9 +396,72 @@ async def leaderboard_page(request: Request) -> HTMLResponse:
 
 
 @app.get("/leaderboard/{domain}", response_class=HTMLResponse)
-async def leaderboard_domain_page(domain: str) -> RedirectResponse:
-    """Collapse legacy detail URLs into the single public ranking page."""
-    return RedirectResponse(url="/leaderboard", status_code=308)
+async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse:
+    """Render a safe decision page for every domain in the public ranking."""
+    domain = domain.strip().lower()
+    if not leaderboard.is_valid_domain(domain):
+        raise HTTPException(status_code=404, detail="relay not found")
+
+    snapshot = _public_ranking_snapshot()
+    sites = (*snapshot["red_sites"], *snapshot["black_sites"])
+    site = next((candidate for candidate in sites if candidate.domain == domain), None)
+    if site is None:
+        raise HTTPException(status_code=404, detail="relay not found")
+
+    local = _public_ranking_detail(domain)
+    relay = local[0] if local else None
+    history = local[1] if local else []
+    failed_summary: list[tuple[str, int]] = []
+    if relay is not None:
+        failed_counts: dict[str, int] = {}
+        for protocol in relay.by_protocol.values():
+            for name, count in protocol.failed_detectors.items():
+                failed_counts[name] = failed_counts.get(name, 0) + count
+        failed_summary = sorted(
+            failed_counts.items(), key=lambda item: (-item[1], item[0])
+        )[:8]
+
+    return templates.TemplateResponse(
+        request,
+        "leaderboard_detail.html",
+        {
+            "site": site,
+            "relay": relay,
+            "history": history,
+            "trend": list(reversed(history[:12])),
+            "failed_summary": failed_summary,
+            "protocol_labels": leaderboard.PROTOCOL_LABELS,
+            "verdict_labels": leaderboard.VERDICT_LABELS,
+        },
+    )
+
+
+@app.get("/compare", response_class=HTMLResponse)
+async def compare_page(request: Request) -> HTMLResponse:
+    """Compare up to three validated public ranking entries."""
+    requested = request.query_params.get("domains", "")[:1024].split(",")
+    snapshot = _public_ranking_snapshot()
+    site_by_domain = {
+        site.domain: site
+        for site in (*snapshot["red_sites"], *snapshot["black_sites"])
+    }
+    selected: list[PublicRankingSite] = []
+    seen: set[str] = set()
+    for raw_domain in requested:
+        domain = raw_domain.strip().lower()
+        if domain in seen or not leaderboard.is_valid_domain(domain):
+            continue
+        site = site_by_domain.get(domain)
+        if site is not None:
+            selected.append(site)
+            seen.add(domain)
+        if len(selected) == 3:
+            break
+    return templates.TemplateResponse(
+        request,
+        "compare.html",
+        {"sites": selected},
+    )
 
 
 @app.get("/faq", response_class=HTMLResponse)
@@ -1025,6 +1112,14 @@ async def sitemap_xml() -> Response:
             line += f"<lastmod>{lastmod}</lastmod>"
         line += f"<changefreq>{freq}</changefreq><priority>{prio}</priority></url>"
         lines.append(line)
+
+    snapshot = _public_ranking_snapshot()
+    for site in (*snapshot["red_sites"], *snapshot["black_sites"]):
+        lines.append(
+            f"  <url><loc>{xml_escape(brand.url(f'/leaderboard/{site.domain}'))}</loc>"
+            f"<lastmod>{site.last_checked}</lastmod>"
+            f"<changefreq>weekly</changefreq><priority>0.7</priority></url>"
+        )
 
     seen: set[str] = set()
     for dir_path in _SITEMAP_REPORT_DIRS:

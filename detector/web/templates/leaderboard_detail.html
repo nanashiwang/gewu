@@ -1,169 +1,67 @@
 {% extends "base.html" %}
-
-{% set domain = relay.domain %}
-{% set median = relay.overall_median %}
-{% set count = relay.total_count %}
-{% set ranked = relay.is_ranked %}
-{% set verdict_label = '优秀' if median >= 85 else ('通过' if median >= 70 else ('存在风险' if median >= 50 else '未达标')) %}
-
-{% block title %}{{ domain }} 中转站怎么样?{{ count }} 次实测,中位 {{ "%.0f"|format(median) }}/100 · {{ verdict_label }} | 格物{% endblock %}
-{% block description %}{{ domain }} 中转站的真实质量评测:基于 格物 {{ count }} 份独立检测报告聚合,中位分 {{ "%.0f"|format(median) }}/100,判定「{{ verdict_label }}」。覆盖协议:{{ relay.protocols_label }}。详情含每份报告时间、模型、扣分项与原始检测链接。{% endblock %}
-{% block og_title %}{{ domain }} 是真 Claude / GPT / Gemini 吗?{{ "%.0f"|format(median) }}/100{% endblock %}
-{% block og_description %}{{ count }} 份 格物 公开检测报告聚合,识别中转站协议合规、能力剥离、字段伪造。点击查看每份原始报告。{% endblock %}
-
+{% set domain = site.domain %}
+{% block title %}{{ domain }} 中转站检测详情:{{ site.score }}/100 | 格物{% endblock %}
+{% block description %}查看 {{ domain }} 的综合分、样本可信度、最近检测时间、协议覆盖和历史报告,并可一键复测或加入对比。{% endblock %}
 {% block canonical %}{{ brand.site_url }}/leaderboard/{{ domain }}{% endblock %}
 {% block og_url %}{{ brand.site_url }}/leaderboard/{{ domain }}{% endblock %}
-
 {% block head_extra %}
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "BreadcrumbList",
-  "itemListElement": [
-    {"@type": "ListItem", "position": 1, "name": "首页", "item": "{{ brand.site_url }}/"},
-    {"@type": "ListItem", "position": 2, "name": "中转站红黑榜", "item": "{{ brand.site_url }}/leaderboard"},
-    {"@type": "ListItem", "position": 3, "name": "{{ domain }}", "item": "{{ brand.site_url }}/leaderboard/{{ domain }}"}
-  ]
-}
-</script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Article",
-  "headline": "{{ domain }} 中转站质量实测 · 中位 {{ "%.0f"|format(median) }}/100",
-  "description": "{{ domain }} 基于 {{ count }} 份 格物 独立检测报告的聚合评分,判定「{{ verdict_label }}」",
-  "url": "{{ brand.site_url }}/leaderboard/{{ domain }}",
-  "publisher": {"@type": "Organization", "name": "格物", "url": "{{ brand.site_url }}"},
-  "inLanguage": "zh-CN",
-  "isAccessibleForFree": true{% if relay.last_checked %},
-  "dateModified": "{{ relay.last_checked.strftime('%Y-%m-%d') }}"{% endif %}
-}
-</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":{{ (domain ~ " 中转站检测详情")|tojson }},"url":{{ (brand.site_url ~ "/leaderboard/" ~ domain)|tojson }},"description":{{ (domain ~ " 综合分 " ~ site.score ~ "/100,共 " ~ site.report_count ~ " 次检测")|tojson }},"dateModified":{{ site.last_checked|tojson }}}</script>
 {% endblock %}
-
 {% block content %}
-<nav class="breadcrumb" aria-label="面包屑">
-  <a href="/">首页</a>
-  <span class="breadcrumb-sep">›</span>
-  <a href="/leaderboard">红黑榜</a>
-  <span class="breadcrumb-sep">›</span>
-  <span class="breadcrumb-current">{{ domain }}</span>
-</nav>
-
-<section class="hub-hero">
-  <h1>{{ domain }} 中转站怎么样?</h1>
-  <p class="answer-capsule">
-    <strong>{{ domain }}</strong> 在 格物 上累计 <strong>{{ count }}</strong> 次独立检测,
-    中位分 <strong>{{ "%.0f"|format(median) }}/100</strong>,判定<strong>「{{ verdict_label }}」</strong>。
-    覆盖协议:<strong>{{ relay.protocols_label }}</strong>。
-    {% if not ranked %}
-      <span class="lb-badge-info">样本 &lt; 2,数据仅供参考</span>
-    {% endif %}
-    {% if relay.last_checked %}
-      最近一次检测:{{ relay.last_checked.strftime('%Y-%m-%d') }}。
-    {% endif %}
-  </p>
-</section>
-
-<section class="lb-detail-summary">
-  <div class="lb-detail-score lb-score-{{ relay.verdict_class }}">
-    <span class="lb-detail-score-num">{{ "%.0f"|format(median) }}</span>
-    <span class="lb-detail-score-label">中位分</span>
-  </div>
-  <div class="lb-detail-protocols">
-    <h2>各协议表现</h2>
-    <div class="lb-protocols">
-      {% for proto, ps in relay.by_protocol.items() %}
-        {% set verdict_zh = verdict_labels.get(ps.last_verdict, ps.last_verdict) %}
-        {% set badge_class = 'ok' if ps.last_score >= 85 else ('good' if ps.last_score >= 70 else ('warn' if ps.last_score >= 50 else 'fail')) %}
-        <a class="lb-proto-chip lb-proto-{{ badge_class }}" href="/r/{{ ps.last_job_id }}" title="查看 {{ protocol_labels.get(proto, proto) }} 最新报告">
-          <span class="lb-proto-name">{{ protocol_labels.get(proto, proto) }}</span>
-          <span class="lb-proto-score">{{ "%.0f"|format(ps.last_score) }}</span>
-          <span class="lb-proto-verdict">{{ verdict_zh }}</span>
-          <span class="lb-proto-count">×{{ ps.count }}</span>
-        </a>
-      {% endfor %}
+<nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span class="breadcrumb-sep">›</span><a href="/leaderboard">红黑榜</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">{{ domain }}</span></nav>
+<section class="relay-detail-hero">
+  <div class="relay-detail-copy">
+    <div class="leaderboard-eyebrow"><i></i> {{ site.freshness_label }} · {{ site.confidence_label }}</div>
+    <h1>{{ domain }}<br><span>检测详情</span></h1>
+    <p>{{ site.report_count }} 次检测形成当前综合分。先看样本可信度和更新时间,再结合协议与历史报告判断;分数不是永久保证。</p>
+    <div class="relay-detail-actions">
+      <a class="btn btn-primary" href="{{ site.detect_url }}">检测此站</a>
+      <a class="btn btn-ghost" href="{{ site.external_url }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer">打开域名 ↗</a>
+      <button class="btn btn-ghost" type="button" data-watch-domain="{{ domain }}" aria-pressed="false">关注</button>
+      <button class="btn btn-ghost" type="button" data-compare-domain="{{ domain }}" aria-pressed="false">加入对比</button>
     </div>
-    <p class="lb-detail-hint">
-      点击任一协议徽章查看该协议下最近一次的完整检测报告。下方表格列出全部历史。
-    </p>
+  </div>
+  <div class="relay-decision-grid">
+    <div class="relay-decision-score"><strong>{{ site.score }}</strong><span>综合分</span></div>
+    <div><strong>{{ site.report_count }}</strong><span>检测次数</span></div>
+    <div><strong>{{ site.confidence_label }}</strong><span>样本可信度</span></div>
+    <div><strong>{{ site.last_checked }}</strong><span>{{ site.freshness_label }}</span></div>
   </div>
 </section>
-
-{% if failed_summary %}
-<section class="lb-detail-issues">
-  <h2>{{ domain }} 最常出问题的检测项</h2>
-  <p class="lb-detail-hint">
-    以下 detector 在 {{ domain }} 的历史检测中最常被判失败 —— 这些就是该中转站的"软肋"。
-  </p>
-  <ul class="lb-issues-list">
-    {% for name, cnt in failed_summary %}
-      <li>
-        <code>{{ name }}</code>
-        <span class="lb-issues-count">{{ cnt }} 次失败</span>
-      </li>
+<section class="relay-protocol-panel">
+  <div><span class="public-ranking-kicker">PROTOCOL COVERAGE</span><h2>已知协议与复测入口</h2><p>预填内容只有域名,API Key 仍由你在检测页手动输入。</p></div>
+  <div class="relay-protocol-actions">
+    {% for protocol in site.protocols %}
+      {% if protocol == "anthropic" %}{% set path = "claude" %}{% set label = "Claude" %}
+      {% elif protocol == "openai" %}{% set path = "openai" %}{% set label = "OpenAI" %}
+      {% elif protocol == "gemini" %}{% set path = "gemini" %}{% set label = "Gemini" %}
+      {% else %}{% set path = "claude" %}{% set label = protocol %}{% endif %}
+      <a href="/{{ path }}?base_url=https%3A%2F%2F{{ domain }}#detect-form"><span>{{ label }}</span><strong>立即复测 →</strong></a>
     {% endfor %}
-  </ul>
+  </div>
+</section>
+{% if trend|length >= 2 %}
+<section class="relay-trend-section">
+  <div class="relay-section-head"><div><span class="public-ranking-kicker">RECENT TREND</span><h2>最近 {{ trend|length }} 次检测趋势</h2></div><p>仅展示已有逐次报告,不对缺失日期进行推算。</p></div>
+  <div class="relay-trend-chart" role="img" aria-label="{{ domain }} 最近检测分数趋势">
+    {% for item in trend %}<a href="/r/{{ item.job_id }}" class="relay-trend-point" style="--score: {{ item.score|round|int }}" title="{{ item.date_str }} · {{ item.score|round|int }} 分"><span>{{ item.score|round|int }}</span><i></i><small>{{ item.date_str[5:] }}</small></a>{% endfor %}
+  </div>
 </section>
 {% endif %}
-
-<section class="lb-detail-history">
-  <h2>{{ domain }} 全部检测历史 · {{ count }} 份报告</h2>
-  <p class="lb-detail-hint">
-    每份报告都是某次具体的真实请求,点击即可查看完整字段级证据。
-  </p>
-  <div class="lb-history-table-wrap">
-    <table class="lb-history-table">
-      <thead>
-        <tr>
-          <th>日期</th>
-          <th>协议</th>
-          <th>测试模型</th>
-          <th class="num">分数</th>
-          <th>判定</th>
-          <th class="num">扣分项</th>
-          <th>报告</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for j in history %}
-        <tr>
-          <td>{{ j.date_str }}</td>
-          <td>{{ protocol_labels.get(j.protocol, j.protocol) }}</td>
-          <td><code>{{ j.model }}</code></td>
-          <td class="num">
-            <span class="lb-history-score lb-history-score-{{ j.badge_class }}">
-              {{ "%.0f"|format(j.score) }}
-            </span>
-          </td>
-          <td>{{ verdict_labels.get(j.verdict, j.verdict) }}</td>
-          <td class="num">{{ j.failed_count }}</td>
-          <td><a href="/r/{{ j.job_id }}">查看 →</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+{% if relay %}
+<section class="lb-detail-summary">
+  <div class="lb-detail-score lb-score-{{ relay.verdict_class }}"><span class="lb-detail-score-num">{{ "%.0f"|format(relay.overall_median) }}</span><span class="lb-detail-score-label">逐次报告中位分</span></div>
+  <div class="lb-detail-protocols"><h2>各协议最近表现</h2><div class="lb-protocols">{% for proto, ps in relay.by_protocol.items() %}{% set badge_class = 'ok' if ps.last_score >= 85 else ('good' if ps.last_score >= 70 else ('warn' if ps.last_score >= 50 else 'fail')) %}<a class="lb-proto-chip lb-proto-{{ badge_class }}" href="/r/{{ ps.last_job_id }}"><span class="lb-proto-name">{{ protocol_labels.get(proto, proto) }}</span><span class="lb-proto-score">{{ "%.0f"|format(ps.last_score) }}</span><span class="lb-proto-count">×{{ ps.count }}</span></a>{% endfor %}</div><p class="lb-detail-hint">点击协议徽章查看该协议最近一次完整报告。</p></div>
 </section>
-
-<section class="hub-note">
-  <h2>想自己测一下 {{ domain }}?</h2>
-  <p>
-    格物 完全免费,无需注册,原始 API key 不持久化。选对应协议页面填入 base_url 和 key
-    即可在 30–75 秒内拿到独立的检测报告并自动汇入此榜:
-    <a href="/claude">Claude 检测</a> ·
-    <a href="/openai">OpenAI 检测</a> ·
-    <a href="/gemini">Gemini 检测</a>。
-  </p>
-</section>
-
-<section class="hub-note">
-  <h2>这页数据怎么来的?</h2>
-  <p>
-    本页所有数据来自社区在 格物 上对 <strong>{{ domain }}</strong> 进行的
-    <strong>{{ count }}</strong> 次公开检测。每份原始报告永久保存在
-    <code>/r/{job_id}</code> 路径,可随时点击核对。中位分用于排名(避免极端值干扰),
-    最近一次 verdict 决定每个协议的颜色徽章。<a href="/leaderboard">回到完整红黑榜 →</a>
-  </p>
-</section>
+{% endif %}
+{% if failed_summary %}
+<section class="lb-detail-issues"><h2>历史中较常出现的扣分项</h2><p class="lb-detail-hint">只统计已有报告,不能代表未来一定发生。</p><ul class="lb-issues-list">{% for name, count in failed_summary %}<li><code>{{ name }}</code><span class="lb-issues-count">{{ count }} 次</span></li>{% endfor %}</ul></section>
+{% endif %}
+{% if history %}
+<section class="lb-detail-history"><div class="relay-section-head"><div><span class="public-ranking-kicker">EVIDENCE</span><h2>可复核检测历史 · {{ history|length }} 份</h2></div><p>每一行都可进入字段级报告。</p></div><div class="lb-history-table-wrap"><table class="lb-history-table"><thead><tr><th>日期</th><th>协议</th><th>测试模型</th><th class="num">分数</th><th>判定</th><th class="num">扣分项</th><th>报告</th></tr></thead><tbody>{% for item in history %}<tr><td>{{ item.date_str }}</td><td>{{ protocol_labels.get(item.protocol, item.protocol) }}</td><td><code>{{ item.model or "—" }}</code></td><td class="num"><span class="lb-history-score lb-history-score-{{ item.badge_class }}">{{ "%.0f"|format(item.score) }}</span></td><td>{{ verdict_labels.get(item.verdict, item.verdict) }}</td><td class="num">{{ item.failed_count }}</td><td><a href="/r/{{ item.job_id }}">查看 →</a></td></tr>{% endfor %}</tbody></table></div></section>
+{% else %}
+<section class="relay-evidence-empty"><span>当前没有可公开展开的逐次报告</span><h2>不要只看榜单快照,建议现在复测</h2><p>复测会验证当前线路、模型和协议状态,比旧分数更接近你此刻的真实使用体验。</p><a class="btn btn-primary" href="{{ site.detect_url }}">立即复测</a></section>
+{% endif %}
+<section class="ranking-methodology relay-detail-method"><h2>如何做决定</h2><div class="ranking-guide-grid"><article><strong>先看可信度</strong><p>检测次数越少,偶然高分越不应该被放大。</p></article><article><strong>再看新鲜度</strong><p>线路会变化,较旧结果必须用自己的 Key 复测。</p></article><article><strong>最后看协议证据</strong><p>不同协议的验证强度不同,不要把一个协议的高分当成全部能力。</p></article></div></section>
+<div class="compare-selection-bar" id="compare-selection-bar" hidden><span><strong id="compare-selection-count">0</strong>/3 已选</span><div><button type="button" class="btn btn-ghost" id="compare-selection-clear">清空</button><a class="btn btn-primary" id="compare-selection-open" href="/compare" aria-disabled="true">开始对比</a></div></div>
 {% endblock %}

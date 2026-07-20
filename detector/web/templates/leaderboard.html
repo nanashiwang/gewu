@@ -10,8 +10,9 @@
 <article class="public-rank-row public-rank-row-{{ tone }}" data-rank-row data-tone="{{ tone }}" data-domain="{{ site.domain|lower }}" data-protocols="{{ site.protocols|join(' ') }}">
   <div class="public-rank-position"><span>{{ rank }}</span></div>
   <div class="public-rank-main">
-    <div class="public-rank-title-line"><h3><a class="rank-domain-link" href="https://{{ site.domain }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer" aria-label="访问 {{ site.domain }}（新窗口）">{{ site.domain }}<span aria-hidden="true">↗</span></a></h3><span class="rank-freshness">{{ site.last_checked }}</span></div>
-    <div class="rank-protocols">{% for p in site.protocols %}{{ badge(p) }}{% endfor %}<span class="rank-check-count">{{ site.report_count }} 次检测</span></div>
+    <div class="public-rank-title-line"><h3><a class="rank-domain-link" href="{{ site.external_url }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer" aria-label="打开 {{ site.domain }} 外部站点（新窗口）">{{ site.domain }}<span aria-hidden="true">↗</span></a></h3><span class="rank-freshness">{{ site.last_checked }}</span></div>
+    <div class="rank-protocols">{% for p in site.protocols %}{{ badge(p) }}{% endfor %}<span class="rank-check-count">{{ site.report_count }} 次检测</span><span class="confidence-badge confidence-{{ site.confidence_class }}">{{ site.confidence_label }}</span><span class="freshness-badge freshness-{{ site.freshness_class }}">{{ site.freshness_label }}</span></div>
+    <div class="rank-row-actions"><a href="/leaderboard/{{ site.domain }}">详情</a><a href="{{ site.detect_url }}">复测</a><button type="button" data-watch-domain="{{ site.domain }}" aria-pressed="false">关注</button><button type="button" data-compare-domain="{{ site.domain }}" aria-pressed="false">对比</button></div>
   </div>
   <div class="public-rank-score"><strong>{{ site.score }}</strong><span>综合分</span></div>
 </article>
@@ -30,7 +31,7 @@
 
 <section class="ranking-browser" id="ranking-browser"><div class="ranking-browser-head"><div><span class="public-ranking-kicker">RANKING EXPLORER</span><h2>搜索与筛选</h2></div><strong id="ranking-visible-count">{{ coverage.site_count }} 家可见</strong></div>
   <div class="ranking-toolbar"><label class="ranking-search"><span class="sr-only">搜索域名</span><input id="ranking-search" type="search" placeholder="搜索域名,例如 meta-api.vip" autocomplete="off"></label>
-    <div class="ranking-filter-group"><button class="ranking-filter is-active" type="button" data-rank-tone="all">全部</button><button class="ranking-filter" type="button" data-rank-tone="red">红榜</button><button class="ranking-filter" type="button" data-rank-tone="black">风险榜</button></div>
+    <div class="ranking-filter-group"><button class="ranking-filter is-active" type="button" data-rank-tone="all">全部</button><button class="ranking-filter" type="button" data-rank-tone="red">红榜</button><button class="ranking-filter" type="button" data-rank-tone="black">风险榜</button><button class="ranking-filter" type="button" data-rank-watch="true">我的关注</button></div>
     <div class="ranking-filter-group"><button class="ranking-filter is-active" type="button" data-rank-protocol="all">全协议</button><button class="ranking-filter" type="button" data-rank-protocol="anthropic">Claude</button><button class="ranking-filter" type="button" data-rank-protocol="openai">OpenAI</button><button class="ranking-filter" type="button" data-rank-protocol="gemini">Gemini</button></div>
   </div>
 </section>
@@ -38,7 +39,8 @@
 <section class="public-ranking-section" data-ranking-section="red"><div class="public-ranking-heading public-ranking-heading-red"><div><span class="public-ranking-kicker">RED LIST</span><h2>红榜</h2></div><strong><span data-section-count="red">{{ red_sites|length }}</span> 家</strong></div><div class="public-ranking-list">{% for site in red_sites %}{{ row(site, loop.index, "red") }}{% endfor %}</div></section>
 <section class="public-ranking-section" data-ranking-section="black"><div class="public-ranking-heading public-ranking-heading-black"><div><span class="public-ranking-kicker">RISK LIST</span><h2>风险榜</h2></div><strong><span data-section-count="black">{{ black_sites|length }}</span> 家</strong></div><div class="public-ranking-list">{% for site in black_sites %}{{ row(site, loop.index, "black") }}{% endfor %}</div></section>
 <p class="ranking-empty" id="ranking-empty" hidden>没有匹配的中转站,请换个域名或筛选条件。</p>
-<details class="ranking-methodology"><summary>排名和分数怎么看?</summary><div><p>榜单同时考虑协议透传、功能完整性、usage 字段、流式一致性和可用性。样本少的高分不等于长期稳定,不同协议的 100 分也不代表同样强度的真伪证明。</p></div></details>
+<details class="ranking-methodology"><summary>排名和分数怎么看?</summary><div><p>综合分原样展示;排序时会按样本数向中性值收缩,避免少量偶然高分占据前列。榜单还应结合更新时间、协议透传、功能完整性、usage 字段和流式一致性阅读。</p></div></details>
 <section class="leaderboard-cta"><div><span>没找到你的中转站?</span><h2>用真实 API 请求生成一份可复核报告</h2></div><a class="btn btn-primary" href="/#quick-check">开始检测</a></section>
-<section class="hub-note public-ranking-note"><h2>使用边界</h2><p>点击域名会在新窗口打开外部站点。榜单用于快速筛查,不构成商业信用、价格或永久质量结论;风险榜站点请谨慎访问,并以最新实测报告为准。</p></section>
+<section class="hub-note public-ranking-note"><h2>使用边界</h2><p>点击域名会在新窗口打开外部站点;“关注”只保存在当前浏览器。榜单用于快速筛查,不构成商业信用、价格或永久质量结论;风险榜站点请谨慎访问,并以最新实测报告为准。</p></section>
+<div class="compare-selection-bar" id="compare-selection-bar" hidden><span><strong id="compare-selection-count">0</strong>/3 已选</span><div><button type="button" class="btn btn-ghost" id="compare-selection-clear">清空</button><a class="btn btn-primary" id="compare-selection-open" href="/compare" aria-disabled="true">开始对比</a></div></div>
 {% endblock %}

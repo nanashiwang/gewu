@@ -612,16 +612,27 @@
   const empty = document.getElementById('ranking-empty');
   let tone = 'all';
   let protocol = 'all';
+  let watchedOnly = false;
+
+  function watchedDomains() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem('gewu:watched-relays:v1') || '[]');
+      return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
+    } catch { return new Set(); }
+  }
 
   function apply() {
     const query = String(search?.value || '').trim().toLowerCase();
+    const watched = watchedDomains();
     let visible = 0;
     const sectionCounts = {red: 0, black: 0};
     rows.forEach((row) => {
+      const domain = String(row.dataset.domain || '');
       const protocols = String(row.dataset.protocols || '').split(/\s+/);
-      const show = (!query || String(row.dataset.domain || '').includes(query))
+      const show = (!query || domain.includes(query))
         && (tone === 'all' || row.dataset.tone === tone)
-        && (protocol === 'all' || protocols.includes(protocol));
+        && (protocol === 'all' || protocols.includes(protocol))
+        && (!watchedOnly || watched.has(domain));
       row.hidden = !show;
       if (show) { visible += 1; sectionCounts[row.dataset.tone] += 1; }
     });
@@ -650,5 +661,106 @@
       apply();
     });
   });
+  document.querySelectorAll('[data-rank-watch]').forEach((button) => {
+    button.addEventListener('click', () => {
+      watchedOnly = !watchedOnly;
+      button.classList.toggle('is-active', watchedOnly);
+      button.setAttribute('aria-pressed', watchedOnly ? 'true' : 'false');
+      apply();
+    });
+  });
+  window.addEventListener('gewu:watch-changed', apply);
   apply();
+})();
+
+// Local watchlist and session-scoped comparison. Domains are validated before
+// storage or URL construction; API keys and detector inputs are never stored.
+(() => {
+  const DOMAIN_RE = /^[a-z0-9](?:[a-z0-9.-]{1,251}[a-z0-9])$/;
+  const WATCH_KEY = 'gewu:watched-relays:v1';
+  const COMPARE_KEY = 'gewu:compare-relays:v1';
+  const normalize = (value) => {
+    const domain = String(value || '').trim().toLowerCase();
+    return domain.includes('.') && DOMAIN_RE.test(domain) ? domain : '';
+  };
+  const readSet = (storage, key) => {
+    try {
+      const parsed = JSON.parse(storage.getItem(key) || '[]');
+      return new Set((Array.isArray(parsed) ? parsed : []).map(normalize).filter(Boolean));
+    } catch { return new Set(); }
+  };
+  const writeSet = (storage, key, values) => {
+    try { storage.setItem(key, JSON.stringify(Array.from(values).slice(0, 50))); } catch { /* storage unavailable */ }
+  };
+
+  let watched = readSet(localStorage, WATCH_KEY);
+  const watchButtons = Array.from(document.querySelectorAll('[data-watch-domain]'));
+  function renderWatch() {
+    watchButtons.forEach((button) => {
+      const active = watched.has(normalize(button.dataset.watchDomain));
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      button.classList.toggle('is-active', active);
+      button.textContent = active ? '已关注' : '关注';
+    });
+  }
+  watchButtons.forEach((button) => button.addEventListener('click', () => {
+    const domain = normalize(button.dataset.watchDomain);
+    if (!domain) return;
+    if (watched.has(domain)) watched.delete(domain); else watched.add(domain);
+    writeSet(localStorage, WATCH_KEY, watched);
+    renderWatch();
+    window.dispatchEvent(new CustomEvent('gewu:watch-changed'));
+  }));
+  renderWatch();
+
+  let compared = new Set(Array.from(readSet(sessionStorage, COMPARE_KEY)).slice(0, 3));
+  const queryDomains = new URLSearchParams(location.search).get('domains');
+  if (location.pathname === '/compare' && queryDomains) {
+    compared = new Set(queryDomains.split(',').map(normalize).filter(Boolean).slice(0, 3));
+    writeSet(sessionStorage, COMPARE_KEY, compared);
+  }
+  const compareButtons = Array.from(document.querySelectorAll('[data-compare-domain]'));
+  const removeButtons = Array.from(document.querySelectorAll('[data-compare-remove]'));
+  const bar = document.getElementById('compare-selection-bar');
+  const count = document.getElementById('compare-selection-count');
+  const open = document.getElementById('compare-selection-open');
+  const clear = document.getElementById('compare-selection-clear');
+  const compareUrl = () => `/compare?${new URLSearchParams({domains: Array.from(compared).join(',')})}`;
+  function renderCompare() {
+    compareButtons.forEach((button) => {
+      const active = compared.has(normalize(button.dataset.compareDomain));
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      button.classList.toggle('is-active', active);
+      button.textContent = active ? '已选' : '对比';
+    });
+    if (count) count.textContent = String(compared.size);
+    if (bar) bar.hidden = compared.size === 0;
+    if (open) {
+      open.href = compareUrl();
+      open.setAttribute('aria-disabled', compared.size < 2 ? 'true' : 'false');
+    }
+  }
+  compareButtons.forEach((button) => button.addEventListener('click', () => {
+    const domain = normalize(button.dataset.compareDomain);
+    if (!domain) return;
+    if (compared.has(domain)) compared.delete(domain);
+    else if (compared.size < 3) compared.add(domain);
+    writeSet(sessionStorage, COMPARE_KEY, compared);
+    renderCompare();
+  }));
+  removeButtons.forEach((button) => button.addEventListener('click', () => {
+    const domain = normalize(button.dataset.compareRemove);
+    compared.delete(domain);
+    writeSet(sessionStorage, COMPARE_KEY, compared);
+    location.href = compareUrl();
+  }));
+  clear?.addEventListener('click', () => {
+    compared.clear();
+    writeSet(sessionStorage, COMPARE_KEY, compared);
+    renderCompare();
+  });
+  open?.addEventListener('click', (event) => {
+    if (compared.size < 2) event.preventDefault();
+  });
+  renderCompare();
 })();
