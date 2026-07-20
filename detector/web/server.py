@@ -1115,14 +1115,6 @@ async def sitemap_xml() -> Response:
         line += f"<changefreq>{freq}</changefreq><priority>{prio}</priority></url>"
         lines.append(line)
 
-    snapshot = _public_ranking_snapshot()
-    for site in (*snapshot["red_sites"], *snapshot["black_sites"]):
-        lines.append(
-            f"  <url><loc>{xml_escape(brand.url(f'/leaderboard/{site.domain}'))}</loc>"
-            f"<lastmod>{site.last_checked}</lastmod>"
-            f"<changefreq>weekly</changefreq><priority>0.7</priority></url>"
-        )
-
     seen: set[str] = set()
     for dir_path in _SITEMAP_REPORT_DIRS:
         if not dir_path.is_dir():

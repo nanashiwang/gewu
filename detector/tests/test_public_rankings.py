@@ -254,11 +254,3 @@ def test_leaderboard_has_search_protocol_filters_and_methodology(monkeypatch):
     assert "\u4e2d\u8f6c\u7ad9\u600e\u4e48\u9009" in response.text
     assert 'id="compare-selection-bar"' in response.text
     assert "排序时会按样本数向中性值收缩" in response.text
-
-
-def test_sitemap_includes_public_ranking_detail_pages():
-    response = TestClient(app).get("/sitemap.xml")
-
-    assert response.status_code == 200
-    assert "/leaderboard/nan.meta-api.vip" in response.text
-    assert "/leaderboard/api.thinkai.tv" in response.text
