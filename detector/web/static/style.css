@@ -466,6 +466,53 @@ code {
   margin: 0;
   font-size: 17px;
 }
+.coverage-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 22px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--line);
+  box-shadow: var(--shadow);
+}
+.coverage-metric {
+  min-width: 0;
+  padding: 18px 16px 16px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(16, 185, 129, 0.09), transparent 44%),
+    var(--bg);
+  color: var(--text);
+  text-decoration: none;
+}
+.coverage-metric-primary {
+  background:
+    linear-gradient(135deg, rgba(16, 185, 129, 0.14), rgba(16, 185, 129, 0.03)),
+    var(--bg);
+}
+.coverage-metric strong {
+  display: block;
+  color: var(--text);
+  font-size: 30px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.coverage-metric span {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+a.coverage-metric:hover strong { color: var(--green); }
+.hub-hero .coverage-footnote {
+  margin-top: 10px;
+  font-size: 12px;
+  text-align: right;
+}
+.coverage-footnote a { color: var(--green-dark); }
 .protocol-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1542,6 +1589,10 @@ code {
 @media (max-width: 720px) {
   .features { grid-template-columns: 1fr; }
   .protocol-grid { grid-template-columns: 1fr; }
+  .coverage-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .coverage-metric { padding: 15px 14px; }
+  .coverage-metric strong { font-size: 26px; }
+  .hub-hero .coverage-footnote { text-align: left; line-height: 1.6; }
   .why-grid { grid-template-columns: 1fr; }
   .answer-capsule { font-size: 16px; }
   .why-gewu h2, .how-it-works h2 { font-size: 20px; }

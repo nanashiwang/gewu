@@ -230,9 +230,51 @@ def _gemini_model_choices() -> list[dict[str, str]]:
     return [{"id": s, "label": s} for s in model_choices()]
 
 
+_HOMEPAGE_METRICS_TTL_S = 60.0
+_homepage_metrics_cached_at = 0.0
+_homepage_metrics_cache: dict[str, int | str] | None = None
+
+
+def _compute_homepage_metrics() -> dict[str, int | str]:
+    """Merge curated rankings and live reports without double counting domains."""
+    counts = {
+        site.domain: site.report_count
+        for site in (*RED_RANKING, *BLACK_RANKING)
+    }
+    latest = UPDATED_AT
+    relays, _summary = leaderboard.aggregate()
+    for relay in relays:
+        counts[relay.domain] = max(counts.get(relay.domain, 0), relay.total_count)
+        if relay.last_checked:
+            latest = max(latest, relay.last_checked.date().isoformat())
+    return {
+        "site_count": len(counts),
+        "report_count": sum(counts.values()),
+        "site_count_label": f"{len(counts):,}",
+        "report_count_label": f"{sum(counts.values()):,}",
+        "updated_at": latest,
+    }
+
+
+def _homepage_metrics() -> dict[str, int | str]:
+    global _homepage_metrics_cached_at, _homepage_metrics_cache
+    now = time.monotonic()
+    if (
+        _homepage_metrics_cache is None
+        or now - _homepage_metrics_cached_at >= _HOMEPAGE_METRICS_TTL_S
+    ):
+        _homepage_metrics_cache = _compute_homepage_metrics()
+        _homepage_metrics_cached_at = now
+    return _homepage_metrics_cache
+
+
 @app.get("/", response_class=HTMLResponse)
 async def hub(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(request, "hub.html")
+    return templates.TemplateResponse(
+        request,
+        "hub.html",
+        {"coverage": _homepage_metrics()},
+    )
 
 
 @app.get("/claude", response_class=HTMLResponse)

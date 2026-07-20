@@ -63,7 +63,7 @@
       "name": "格物 会偷我的 API key 吗?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告仅保留脱敏形式(sk-y7xU••••••0h),原始 API key 不进入报告或日志,检测结果保留字段级证据。"
+        "text": "原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告不会保留密钥前缀、后缀或其他可识别片段,只保留与检测结论有关的字段级证据。"
       }
     },
     {
@@ -95,9 +95,25 @@
     <strong>1 分钟</strong>评估 Claude / GPT / Gemini 的协议透传质量和后端替换风险。
     无需注册、API key 不持久化、报告证据可复核。
   </p>
-  <p class="hub-meta">
-    已检测 <strong>3 个</strong>协议 · <strong>12 项</strong>独立维度 · <strong>30-75 秒</strong>出报告 · 报告 URL 可分享
-  </p>
+  <div class="coverage-metrics" aria-label="格物检测覆盖数据">
+    <a class="coverage-metric coverage-metric-primary" href="/leaderboard">
+      <strong>{{ coverage.site_count_label }}</strong>
+      <span>家中转站已覆盖</span>
+    </a>
+    <div class="coverage-metric">
+      <strong>{{ coverage.report_count_label }}</strong>
+      <span>次检测记录</span>
+    </div>
+    <div class="coverage-metric">
+      <strong>3</strong>
+      <span>类主流协议</span>
+    </div>
+    <div class="coverage-metric">
+      <strong>30-75</strong>
+      <span>秒生成报告</span>
+    </div>
+  </div>
+  <p class="coverage-footnote">按中转站域名去重统计 · 数据随检测记录自动更新 · <a href="/leaderboard">查看红黑榜</a></p>
 </section>
 
 <section class="account-entry" aria-labelledby="account-entry-title">

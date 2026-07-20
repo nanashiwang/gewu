@@ -68,3 +68,70 @@ def test_public_pages_do_not_expose_repository_entry_points():
         for hidden_term in ("源代码", "查看源码", "完全开源", "自托管", "AGPL-3.0"):
             assert hidden_term not in response.text
     assert app.openapi_url is None
+
+
+def test_homepage_metrics_merge_rankings_and_live_reports_without_double_counting(monkeypatch):
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+    from web import server
+
+    monkeypatch.setattr(
+        server,
+        "RED_RANKING",
+        (SimpleNamespace(domain="a.example", report_count=10),),
+    )
+    monkeypatch.setattr(
+        server,
+        "BLACK_RANKING",
+        (SimpleNamespace(domain="b.example", report_count=5),),
+    )
+    monkeypatch.setattr(server, "UPDATED_AT", "2026-07-19")
+    monkeypatch.setattr(
+        server.leaderboard,
+        "aggregate",
+        lambda: ([
+            SimpleNamespace(
+                domain="a.example",
+                total_count=12,
+                last_checked=datetime(2026, 7, 20, tzinfo=timezone.utc),
+            ),
+            SimpleNamespace(
+                domain="c.example",
+                total_count=2,
+                last_checked=datetime(2026, 7, 18, tzinfo=timezone.utc),
+            ),
+        ], {}),
+    )
+
+    metrics = server._compute_homepage_metrics()
+
+    assert metrics["site_count"] == 3
+    assert metrics["report_count"] == 19
+    assert metrics["site_count_label"] == "3"
+    assert metrics["report_count_label"] == "19"
+    assert metrics["updated_at"] == "2026-07-20"
+
+
+def test_homepage_renders_coverage_counts_and_truthful_key_policy(monkeypatch):
+    from web import server
+
+    monkeypatch.setattr(
+        server,
+        "_homepage_metrics",
+        lambda: {
+            "site_count": 73,
+            "report_count": 1927,
+            "site_count_label": "73",
+            "report_count_label": "1,927",
+            "updated_at": "2026-07-20",
+        },
+    )
+    response = TestClient(server.app).get("/")
+
+    assert response.status_code == 200
+    assert "73" in response.text
+    assert "1,927" in response.text
+    assert "家中转站已覆盖" in response.text
+    assert "次检测记录" in response.text
+    assert "sk-y7xU" not in response.text
+    assert "不会保留密钥前缀" in response.text
