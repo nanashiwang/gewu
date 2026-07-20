@@ -6,16 +6,13 @@ export function buildModelProfileWhere(params: URLSearchParams) {
   const modelVersion = boundedStringParam(params, 'modelVersion', 160)
   const provider = boundedStringParam(params, 'provider', 80)
   const profileStatus = params.get('status')?.trim()
+  // Payload treats `capabilities` as an opaque JSON field. Querying dotted paths here
+  // can make the Postgres adapter reject the whole public endpoint, so sample visibility
+  // remains enforced by isPublicModelProfile after the database query.
   const and: any[] = [
     profileStatus && ['observed', 'verified', 'stale'].includes(profileStatus)
       ? { profileStatus: { equals: profileStatus } }
       : { profileStatus: { in: ['observed', 'verified', 'stale'] } },
-    {
-      or: [
-        { 'capabilities.observedSamples': { greater_than: 0 } },
-        { 'capabilities.effectiveSamples': { greater_than: 0 } },
-      ],
-    },
   ]
   if (modelName) and.push({ modelName: { equals: modelName } })
   if (modelVersion) and.push({ modelVersion: { equals: modelVersion } })

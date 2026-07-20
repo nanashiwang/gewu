@@ -12,12 +12,6 @@ describe('modelProfilePublic — 公开模型画像输出', () => {
     expect(buildModelProfileWhere(params)).toEqual({
       and: [
         { profileStatus: { equals: 'verified' } },
-        {
-          or: [
-            { 'capabilities.observedSamples': { greater_than: 0 } },
-            { 'capabilities.effectiveSamples': { greater_than: 0 } },
-          ],
-        },
         { modelName: { equals: 'gpt-4.1-mini' } },
         { modelVersion: { equals: '2026-07-01' } },
         { provider: { equals: 'openai' } },
@@ -27,19 +21,12 @@ describe('modelProfilePublic — 公开模型画像输出', () => {
 
   it('默认不公开 deprecated 或零样本模型画像', () => {
     expect(buildModelProfileWhere(new URLSearchParams({ status: 'deprecated' }))).toEqual({
-      and: [
-        { profileStatus: { in: ['observed', 'verified', 'stale'] } },
-        {
-          or: [
-            { 'capabilities.observedSamples': { greater_than: 0 } },
-            { 'capabilities.effectiveSamples': { greater_than: 0 } },
-          ],
-        },
-      ],
+      and: [{ profileStatus: { in: ['observed', 'verified', 'stale'] } }],
     })
     expect(isPublicModelProfile({ profileStatus: 'verified', capabilities: { observedSamples: 1 } })).toBe(true)
     expect(isPublicModelProfile({ profileStatus: 'deprecated', capabilities: { observedSamples: 10 } })).toBe(false)
     expect(isPublicModelProfile({ profileStatus: 'observed', capabilities: { observedSamples: 0, effectiveSamples: 0 } })).toBe(false)
+    expect(JSON.stringify(buildModelProfileWhere(new URLSearchParams()))).not.toContain('capabilities.')
   })
 
   it('截断公开模型画像筛选中的超长字符串', () => {

@@ -4,7 +4,7 @@ import { rankModels, type ModelRankRow } from '@/lib/modelrank'
 import { comparePriceTransparency } from '@/lib/priceTransparency'
 import { MODEL_PRICES } from '@/lib/constants'
 import { formatLatency, formatPercent } from '@/lib/format'
-import { buildModelProfileWhere } from '@/lib/modelProfilePublic'
+import { buildModelProfileWhere, isPublicModelProfile } from '@/lib/modelProfilePublic'
 
 export const dynamic = 'force-dynamic'
 
@@ -109,15 +109,14 @@ export default async function ModelsPage({
       priceByModel.set(p.model, p)
     }
   }
+  const publicProfiles = (profileRes.docs as any[]).filter(isPublicModelProfile)
   const profileByModel = new Map<string, any>()
-  for (const p of profileRes.docs as any[]) {
+  for (const p of publicProfiles) {
     const key = p.modelName
     if (!key || profileByModel.has(key)) continue
     profileByModel.set(key, p)
   }
-  const allowedModels = new Set(
-    (profileRes.docs as any[]).map((p) => p.modelName).filter(Boolean),
-  )
+  const allowedModels = new Set(publicProfiles.map((p) => p.modelName).filter(Boolean))
   const rows: ModelRankRow[] = stats
     .filter((s) => {
       if (sp.modelName && s.model !== sp.modelName) return false
