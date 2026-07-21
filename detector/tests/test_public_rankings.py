@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
-from web.featured_pricing import FeaturedModelPrice, FeaturedPricing, parse_featured_pricing
+from web.market_pricing import MarketModelPrice, MarketPricing, parse_market_pricing
 from web.public_rankings import BLACK_RANKING, RED_RANKING, PublicRankingSite
 from web.server import app
 
@@ -146,73 +146,90 @@ def test_public_ranking_site_constrains_links_and_exposes_confidence():
     assert safe.detect_url.startswith("/openai?base_url=")
 
 
-def test_featured_pricing_parser_bounds_and_sanitizes_public_feed():
-    parsed = parse_featured_pricing({
-        "success": True,
-        "time_ratio_at": "2026-07-21T11:55:04+08:00",
-        "vendors": [{"id": 1, "name": "OpenAI"}],
-        "group_ratio": {"default": 1, "bad": float("inf"), "negative": -1},
-        "data": [
-            {
-                "model_name": " gpt-test ", "vendor_id": 1,
-                "quota_type": 1, "model_price": 0.03,
-                "model_ratio": 2.5, "completion_ratio": 4,
-                "cache_ratio": 0.1, "enable_groups": ["default", "default"],
-                "supported_endpoint_types": ["openai"],
-            },
-            {"model_name": "gpt-test", "vendor_id": 1, "model_ratio": 999},
-            {"model_name": "", "model_ratio": 1},
-        ],
-    })
-
-    assert len(parsed.models) == 1
-    assert parsed.models[0].model == "gpt-test"
-    assert parsed.models[0].billing_label == "按次"
-    assert parsed.models[0].model_price == 0.03
-    assert parsed.models[0].groups == ("default",)
-    assert parsed.group_ratios == (("default", 1.0),)
+def _market_payload(method, rows):
+    return {"code": 0, "data": {"list": rows, "total": len(rows)}}
 
 
-def test_featured_pricing_parser_rejects_ambiguous_quota_types():
-    parsed = parse_featured_pricing({
-        "success": True,
-        "data": [
-            {"model_name": "boolean-type", "quota_type": True},
-            {"model_name": "float-type", "quota_type": 1.0},
-            {"model_name": "string-type", "quota_type": "1"},
-        ],
-    })
+def test_market_pricing_parser_preserves_billing_variants_and_bounds_values():
+    payloads = {
+        method: _market_payload(method, []) for method in range(1, 5)
+    }
+    payloads[1] = _market_payload(1, [{
+        "sku_name": " gpt-test ", "company": "OpenAI", "pricing_method": 1,
+        "sku_tags": ["对话", "对话", "识图"],
+        "min_price_info": {
+            "min_price": 0.2, "input_price": 0.2, "output_price": 1.4,
+            "cache_read_price": 0,  # Oken uses zero for unavailable.
+        },
+        "official_price_info": {"input_price": 3.4, "output_price": float("inf")},
+        "best_discount": 0.0591, "manufacturer_num": 63,
+        "publish_at": "2026-07-09", "is_new": 1,
+    }])
+    payloads[2] = _market_payload(2, [
+        {
+            "sku_name": "gpt-test", "company": "OpenAI", "pricing_method": 2,
+            "min_price_info": {"min_price": -1}, "manufacturer_num": True,
+        },
+        {"sku_name": "bad-type", "company": "OpenAI", "pricing_method": True},
+    ])
 
-    assert {item.billing_key for item in parsed.models} == {"token"}
+    parsed = parse_market_pricing(payloads, captured_at="2026-07-21T14:00:00+08:00")
+
+    assert parsed.model_count == 1
+    assert parsed.variant_count == 2
+    assert {item.billing_key for item in parsed.prices} == {"usage", "count"}
+    usage = next(item for item in parsed.prices if item.billing_method == 1)
+    count = next(item for item in parsed.prices if item.billing_method == 2)
+    assert usage.abilities == ("对话", "识图")
+    assert usage.cache_read_price is None
+    assert usage.official_output_price is None
+    assert usage.provider_count == 63
+    assert count.minimum_price == -1
+    assert count.provider_count == 0
 
 
-def test_pricing_page_discloses_affiliation_and_keeps_ratio_separate(monkeypatch):
+def test_market_pricing_parser_requires_every_billing_feed():
+    payloads = {method: _market_payload(method, []) for method in range(1, 5)}
+    payloads.pop(4)
+
+    try:
+        parse_market_pricing(payloads, captured_at="2026-07-21T14:00:00+08:00")
+    except ValueError as error:
+        assert "billing feed 4" in str(error)
+    else:
+        raise AssertionError("partial market feeds must fail closed")
+
+
+def test_pricing_page_attributes_oken_and_keeps_quality_separate(monkeypatch):
     from web import server
 
     async def fake_pricing():
-        return FeaturedPricing(
-            models=(FeaturedModelPrice(
-                model="gpt-test", vendor="OpenAI", model_ratio=2.5,
-                completion_ratio=4, cache_ratio=0.1,
-                groups=("default",), endpoints=("openai",),
+        return MarketPricing(
+            prices=(MarketModelPrice(
+                model="gpt-test", company="OpenAI", billing_method=1,
+                abilities=("对话",), minimum_price=0.2, input_price=0.2,
+                output_price=1.4, cache_read_price=0.02, best_discount=0.06,
+                official_input_price=3.4, official_output_price=20,
+                provider_count=63, published_at="2026-07-09",
             ),),
-            group_ratios=(("default", 1.0),),
             captured_at="2026-07-21T11:55:04+08:00",
         )
 
-    monkeypatch.setattr(server, "get_featured_pricing", fake_pricing)
+    monkeypatch.setattr(server, "get_market_pricing", fake_pricing)
     response = TestClient(server.app).get("/pricing")
 
     assert response.status_code == 200
-    assert "格物关联站点 · 推广信息" in response.text
-    assert "倍率不是人民币单价" in response.text
-    assert "不会改变质量榜名次" in response.text
+    assert "数据整理来源 www.oken.ai" in response.text
+    assert "最低价不代表线路可用" in response.text
+    assert "价格与质量相互独立" in response.text
     assert "gpt-test" in response.text
-    assert "2.5×" in response.text
+    assert "¥0.2" in response.text
     assert 'id="pricing-search"' in response.text
     assert 'data-pricing-vendor="openai"' in response.text
     assert 'id="pricing-billing"' in response.text
-    assert 'href="https://nan.meta-api.vip"' in response.text
+    assert 'id="pricing-ability"' in response.text
+    assert 'href="https://www.oken.ai/zh"' in response.text
+    assert "nan.meta-api.vip" not in response.text
 
 
 def test_pricing_page_fails_closed_without_reusing_unverified_prices(monkeypatch):
@@ -221,11 +238,11 @@ def test_pricing_page_fails_closed_without_reusing_unverified_prices(monkeypatch
     async def unavailable_pricing():
         return None
 
-    monkeypatch.setattr(server, "get_featured_pricing", unavailable_pricing)
+    monkeypatch.setattr(server, "get_market_pricing", unavailable_pricing)
     response = TestClient(server.app).get("/pricing")
 
     assert response.status_code == 200
-    assert "实时价格源暂不可用" in response.text
+    assert "公开价格源暂不可用" in response.text
     assert "没有用旧数据冒充当前价格" in response.text
     assert 'id="pricing-search"' not in response.text
 

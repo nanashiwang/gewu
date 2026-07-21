@@ -23,10 +23,11 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from . import jobs, leaderboard
 from .brand import brand
 from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
-from .featured_pricing import (
-    FEATURED_DOMAIN,
-    FEATURED_WEBSITE_URL,
-    get_featured_pricing,
+from .featured_pricing import FEATURED_DOMAIN, FEATURED_WEBSITE_URL
+from .market_pricing import (
+    OKEN_DOMAIN,
+    OKEN_WEBSITE_URL,
+    get_market_pricing,
 )
 from .image_report import render_report_jpg
 from .probe import probe_model_alive, probe_relay
@@ -431,9 +432,9 @@ async def pricing_page(request: Request) -> HTMLResponse:
         request,
         "pricing.html",
         {
-            "pricing": await get_featured_pricing(),
-            "featured_domain": FEATURED_DOMAIN,
-            "featured_website_url": FEATURED_WEBSITE_URL,
+            "pricing": await get_market_pricing(),
+            "pricing_source_domain": OKEN_DOMAIN,
+            "pricing_source_url": OKEN_WEBSITE_URL,
         },
     )
 

@@ -772,7 +772,7 @@
   if (!rows.length) return;
   const search = document.getElementById('pricing-search');
   const billing = document.getElementById('pricing-billing');
-  const endpoint = document.getElementById('pricing-endpoint');
+  const ability = document.getElementById('pricing-ability');
   const visibleCount = document.getElementById('pricing-visible-count');
   const empty = document.getElementById('pricing-empty');
   let vendor = 'all';
@@ -780,24 +780,24 @@
   function applyPricingFilters() {
     const query = String(search?.value || '').trim().toLowerCase();
     const billingValue = String(billing?.value || 'all');
-    const endpointValue = String(endpoint?.value || 'all');
+    const abilityValue = String(ability?.value || 'all').toLowerCase();
     let visible = 0;
     rows.forEach((row) => {
-      const endpoints = String(row.dataset.endpoints || '').split(/\s+/);
+      const abilities = String(row.dataset.abilities || '').split('|');
       const show = (!query || String(row.dataset.model || '').includes(query))
         && (vendor === 'all' || row.dataset.vendor === vendor)
         && (billingValue === 'all' || row.dataset.billing === billingValue)
-        && (endpointValue === 'all' || endpoints.includes(endpointValue));
+        && (abilityValue === 'all' || abilities.includes(abilityValue));
       row.hidden = !show;
       if (show) visible += 1;
     });
-    if (visibleCount) visibleCount.textContent = `${visible} 个模型`;
+    if (visibleCount) visibleCount.textContent = `${visible} 个计费版本`;
     if (empty) empty.hidden = visible !== 0;
   }
 
   search?.addEventListener('input', applyPricingFilters);
   billing?.addEventListener('change', applyPricingFilters);
-  endpoint?.addEventListener('change', applyPricingFilters);
+  ability?.addEventListener('change', applyPricingFilters);
   document.querySelectorAll('[data-pricing-vendor]').forEach((button) => {
     button.addEventListener('click', () => {
       vendor = button.dataset.pricingVendor || 'all';
