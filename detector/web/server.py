@@ -267,13 +267,23 @@ def _compute_public_ranking_snapshot() -> dict[str, object]:
             else UPDATED_AT
         )
         latest = max(latest, local_checked)
-        protocols = tuple(sorted(relay.by_protocol.keys()))
+        local_protocols = tuple(sorted(relay.by_protocol.keys()))
+        protocols = local_protocols
+        source_kind = "gewu_test"
         if current is not None:
-            protocols = tuple(sorted(set(current.protocols) | set(protocols)))
             use_local_score = local_checked >= current.last_checked
-            score = round(relay.overall_median) if use_local_score else current.score
-            last_checked = max(current.last_checked, local_checked)
-            report_count = max(current.report_count, relay.total_count)
+            if use_local_score:
+                score = round(relay.overall_median)
+                last_checked = local_checked
+                report_count = relay.total_count
+                protocols = local_protocols
+                source_kind = "gewu_test"
+            else:
+                score = current.score
+                last_checked = current.last_checked
+                report_count = current.report_count
+                protocols = current.protocols
+                source_kind = current.source_kind
         else:
             score = round(relay.overall_median)
             last_checked = local_checked
@@ -285,6 +295,7 @@ def _compute_public_ranking_snapshot() -> dict[str, object]:
             last_checked=last_checked,
             protocols=protocols,
             website_url=current.website_url if current is not None else None,
+            source_kind=source_kind,
         )
 
     red_sites = tuple(sorted(
@@ -301,6 +312,11 @@ def _compute_public_ranking_snapshot() -> dict[str, object]:
         key=lambda site: (site.score, -site.report_count, site.domain),
     ))
     total_reports = sum(site.report_count for site in sites.values())
+    first_party_sites = tuple(site for site in sites.values() if site.source_kind == "gewu_test")
+    external_sites = tuple(site for site in sites.values() if site.source_kind != "gewu_test")
+    first_party_updated_at = max(
+        (site.last_checked for site in first_party_sites), default="—"
+    )
     metrics: dict[str, int | str] = {
         "site_count": len(sites),
         "report_count": total_reports,
@@ -309,6 +325,12 @@ def _compute_public_ranking_snapshot() -> dict[str, object]:
         "site_count_label": f"{len(sites):,}",
         "report_count_label": f"{total_reports:,}",
         "updated_at": latest,
+        "first_party_site_count": len(first_party_sites),
+        "first_party_report_count": sum(site.report_count for site in first_party_sites),
+        "first_party_updated_at": first_party_updated_at,
+        "external_site_count": len(external_sites),
+        "external_report_count": sum(site.report_count for site in external_sites),
+        "external_updated_at": UPDATED_AT,
     }
     return {
         "red_sites": red_sites,

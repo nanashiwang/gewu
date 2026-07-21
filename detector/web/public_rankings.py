@@ -1,7 +1,7 @@
 ﻿"""Curated public red/black ranking shown by the detector website.
 
-Keep acquisition metadata out of this presentation model. Internal provenance and
-selection rules remain in the platform snapshot and are not rendered publicly.
+Every entry carries an explicit public provenance label. Third-party snapshots
+must never look like first-party Gewu tests merely because they share one table.
 """
 
 from __future__ import annotations
@@ -26,6 +26,15 @@ class PublicRankingSite:
     last_checked: str
     protocols: tuple[str, ...]
     website_url: str | None = None
+    source_kind: str = "external_snapshot"
+
+    @property
+    def source_label(self) -> str:
+        return "格物实测" if self.source_kind == "gewu_test" else "Veridrop 快照"
+
+    @property
+    def source_class(self) -> str:
+        return "first-party" if self.source_kind == "gewu_test" else "external"
 
     @property
     def protocols_label(self) -> str:
@@ -133,7 +142,10 @@ class PublicRankingSite:
 
 
 RED_RANKING = (
-    PublicRankingSite("nan.meta-api.vip", 96, 3, "2026-07-18", ("anthropic", "openai")),
+    PublicRankingSite(
+        "nan.meta-api.vip", 96, 3, "2026-07-18", ("anthropic", "openai"),
+        source_kind="gewu_test",
+    ),
     PublicRankingSite("codereel.pro", 94, 38, "2026-07-17", ("anthropic", "openai")),
     PublicRankingSite("api.yuboar.com", 94, 9, "2026-06-26", ("anthropic", "openai")),
     PublicRankingSite("ssnaiyun.com", 93, 30, "2026-07-13", ("anthropic", "openai")),

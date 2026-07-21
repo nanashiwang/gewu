@@ -715,7 +715,7 @@
 
   let compared = new Set(Array.from(readSet(sessionStorage, COMPARE_KEY)).slice(0, 3));
   const queryDomains = new URLSearchParams(location.search).get('domains');
-  if (location.pathname === '/compare' && queryDomains) {
+  if (location.pathname === '/leaderboard/compare' && queryDomains) {
     compared = new Set(queryDomains.split(',').map(normalize).filter(Boolean).slice(0, 3));
     writeSet(sessionStorage, COMPARE_KEY, compared);
   }
@@ -763,4 +763,49 @@
     if (compared.size < 2) event.preventDefault();
   });
   renderCompare();
+})();
+
+// Price workbench filters. The server renders the complete, validated public
+// feed; the browser only narrows presentation and never recalculates prices.
+(() => {
+  const rows = Array.from(document.querySelectorAll('[data-pricing-row]'));
+  if (!rows.length) return;
+  const search = document.getElementById('pricing-search');
+  const billing = document.getElementById('pricing-billing');
+  const endpoint = document.getElementById('pricing-endpoint');
+  const visibleCount = document.getElementById('pricing-visible-count');
+  const empty = document.getElementById('pricing-empty');
+  let vendor = 'all';
+
+  function applyPricingFilters() {
+    const query = String(search?.value || '').trim().toLowerCase();
+    const billingValue = String(billing?.value || 'all');
+    const endpointValue = String(endpoint?.value || 'all');
+    let visible = 0;
+    rows.forEach((row) => {
+      const endpoints = String(row.dataset.endpoints || '').split(/\s+/);
+      const show = (!query || String(row.dataset.model || '').includes(query))
+        && (vendor === 'all' || row.dataset.vendor === vendor)
+        && (billingValue === 'all' || row.dataset.billing === billingValue)
+        && (endpointValue === 'all' || endpoints.includes(endpointValue));
+      row.hidden = !show;
+      if (show) visible += 1;
+    });
+    if (visibleCount) visibleCount.textContent = `${visible} 个模型`;
+    if (empty) empty.hidden = visible !== 0;
+  }
+
+  search?.addEventListener('input', applyPricingFilters);
+  billing?.addEventListener('change', applyPricingFilters);
+  endpoint?.addEventListener('change', applyPricingFilters);
+  document.querySelectorAll('[data-pricing-vendor]').forEach((button) => {
+    button.addEventListener('click', () => {
+      vendor = button.dataset.pricingVendor || 'all';
+      document.querySelectorAll('[data-pricing-vendor]').forEach((item) => {
+        item.classList.toggle('is-active', item === button);
+      });
+      applyPricingFilters();
+    });
+  });
+  applyPricingFilters();
 })();

@@ -11,7 +11,7 @@
 <nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span class="breadcrumb-sep">›</span><a href="/leaderboard">质量榜</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">{{ domain }}</span></nav>
 <section class="relay-detail-hero">
   <div class="relay-detail-copy">
-    <div class="leaderboard-eyebrow"><i></i> {{ site.freshness_label }} · {{ site.confidence_label }}</div>
+    <div class="leaderboard-eyebrow"><i></i> {{ site.source_label }} · {{ site.freshness_label }} · {{ site.confidence_label }}</div>
     <h1>{{ domain }}<br><span>检测详情</span></h1>
     <p>{{ site.report_count }} 次检测形成当前综合分。先看样本可信度和更新时间,再结合协议与历史报告判断;分数不是永久保证。</p>
     <div class="relay-detail-actions">

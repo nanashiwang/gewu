@@ -25,7 +25,7 @@ def test_public_rankings_are_disjoint_sorted_and_have_unique_domains():
     )
 
 
-def test_leaderboard_renders_single_public_view_without_internal_provenance():
+def test_leaderboard_discloses_external_snapshot_and_first_party_sources():
     response = TestClient(app).get("/leaderboard")
 
     assert response.status_code == 200
@@ -51,7 +51,10 @@ def test_leaderboard_renders_single_public_view_without_internal_provenance():
     assert "格物关联站点 · 推广位" in response.text
     assert "该位置不加分、不改变名次" in response.text
     assert 'href="/pricing"' in response.text
-    for hidden_term in ("自营", "第三方", "Veridrop", "排除", "源榜", "前 10"):
+    assert "Veridrop 快照" in response.text
+    assert "格物实测" in response.text
+    assert "第三方快照站点" in response.text
+    for hidden_term in ("排除", "源榜", "前 10"):
         assert hidden_term not in response.text
 
 
@@ -152,6 +155,7 @@ def test_featured_pricing_parser_bounds_and_sanitizes_public_feed():
         "data": [
             {
                 "model_name": " gpt-test ", "vendor_id": 1,
+                "quota_type": 1, "model_price": 0.03,
                 "model_ratio": 2.5, "completion_ratio": 4,
                 "cache_ratio": 0.1, "enable_groups": ["default", "default"],
                 "supported_endpoint_types": ["openai"],
@@ -163,8 +167,23 @@ def test_featured_pricing_parser_bounds_and_sanitizes_public_feed():
 
     assert len(parsed.models) == 1
     assert parsed.models[0].model == "gpt-test"
+    assert parsed.models[0].billing_label == "按次"
+    assert parsed.models[0].model_price == 0.03
     assert parsed.models[0].groups == ("default",)
     assert parsed.group_ratios == (("default", 1.0),)
+
+
+def test_featured_pricing_parser_rejects_ambiguous_quota_types():
+    parsed = parse_featured_pricing({
+        "success": True,
+        "data": [
+            {"model_name": "boolean-type", "quota_type": True},
+            {"model_name": "float-type", "quota_type": 1.0},
+            {"model_name": "string-type", "quota_type": "1"},
+        ],
+    })
+
+    assert {item.billing_key for item in parsed.models} == {"token"}
 
 
 def test_pricing_page_discloses_affiliation_and_keeps_ratio_separate(monkeypatch):
@@ -190,6 +209,9 @@ def test_pricing_page_discloses_affiliation_and_keeps_ratio_separate(monkeypatch
     assert "不会改变质量榜名次" in response.text
     assert "gpt-test" in response.text
     assert "2.5×" in response.text
+    assert 'id="pricing-search"' in response.text
+    assert 'data-pricing-vendor="openai"' in response.text
+    assert 'id="pricing-billing"' in response.text
     assert 'href="https://nan.meta-api.vip"' in response.text
 
 
@@ -205,7 +227,7 @@ def test_pricing_page_fails_closed_without_reusing_unverified_prices(monkeypatch
     assert response.status_code == 200
     assert "实时价格源暂不可用" in response.text
     assert "没有用旧数据冒充当前价格" in response.text
-    assert "公开模型表" not in response.text
+    assert 'id="pricing-search"' not in response.text
 
 
 def test_featured_placement_does_not_change_quality_order(monkeypatch):
@@ -252,7 +274,7 @@ def test_public_ranking_snapshot_merges_newer_live_reports_without_double_counti
     from web.public_rankings import PublicRankingSite
 
     monkeypatch.setattr(server, "RED_RANKING", (
-        PublicRankingSite("a.example", 80, 10, "2026-07-19", ("openai",)),
+        PublicRankingSite("a.example", 80, 20, "2026-07-19", ("openai",)),
     ))
     monkeypatch.setattr(server, "BLACK_RANKING", (
         PublicRankingSite("b.example", 40, 5, "2026-07-19", ("anthropic",)),
@@ -279,7 +301,12 @@ def test_public_ranking_snapshot_merges_newer_live_reports_without_double_counti
     assert metrics["site_count"] == 3
     assert metrics["report_count"] == 19
     assert metrics["updated_at"] == "2026-07-20"
+    assert metrics["first_party_site_count"] == 2
+    assert metrics["first_party_report_count"] == 14
+    assert metrics["external_site_count"] == 1
+    assert metrics["external_report_count"] == 5
     assert red["a.example"].score == 91
+    assert red["a.example"].source_label == "格物实测"
     assert red["a.example"].report_count == 12
     assert red["a.example"].protocols == ("gemini", "openai")
     assert black["c.example"].score == 60
@@ -324,6 +351,10 @@ def test_leaderboard_has_search_protocol_filters_and_methodology(monkeypatch):
             "red_count": 2, "black_count": 2,
             "site_count_label": "4", "report_count_label": "14",
             "updated_at": "2026-07-20",
+            "first_party_site_count": 1, "first_party_report_count": 3,
+            "first_party_updated_at": "2026-07-18",
+            "external_site_count": 3, "external_report_count": 11,
+            "external_updated_at": "2026-07-19",
         },
     })
     response = TestClient(server.app).get("/leaderboard")
@@ -332,7 +363,7 @@ def test_leaderboard_has_search_protocol_filters_and_methodology(monkeypatch):
     assert 'id="ranking-search"' in response.text
     assert 'data-rank-protocol="anthropic"' in response.text
     assert 'data-rank-tone="black"' in response.text
-    assert "\u6392\u540d\u548c\u5206\u6570\u600e\u4e48\u770b" in response.text
+    assert "\u6392\u540d\u3001\u5206\u6570\u548c\u6765\u6e90\u600e\u4e48\u770b" in response.text
     assert "\u4e2d\u8f6c\u7ad9\u600e\u4e48\u9009" in response.text
     assert 'id="compare-selection-bar"' in response.text
     assert "排序时会按样本数向中性值收缩" in response.text

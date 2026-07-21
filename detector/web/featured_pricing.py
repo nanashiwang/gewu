@@ -35,6 +35,16 @@ class FeaturedModelPrice:
     cache_ratio: float | None
     groups: tuple[str, ...]
     endpoints: tuple[str, ...]
+    quota_type: int = 0
+    model_price: float | None = None
+
+    @property
+    def billing_key(self) -> str:
+        return "request" if self.quota_type == 1 else "token"
+
+    @property
+    def billing_label(self) -> str:
+        return "按次" if self.quota_type == 1 else "按量"
 
 
 @dataclass(frozen=True)
@@ -43,6 +53,22 @@ class FeaturedPricing:
     group_ratios: tuple[tuple[str, float], ...]
     captured_at: str | None
     source_url: str = FEATURED_PRICING_URL
+
+    @property
+    def vendors(self) -> tuple[str, ...]:
+        return tuple(sorted({item.vendor for item in self.models}, key=str.lower))
+
+    @property
+    def endpoint_types(self) -> tuple[str, ...]:
+        return tuple(sorted({endpoint for item in self.models for endpoint in item.endpoints}))
+
+    @property
+    def token_model_count(self) -> int:
+        return sum(item.quota_type == 0 for item in self.models)
+
+    @property
+    def request_model_count(self) -> int:
+        return sum(item.quota_type == 1 for item in self.models)
 
 
 def _clean_text(value: Any, *, maximum: int = 100) -> str:
@@ -99,11 +125,19 @@ def parse_featured_pricing(payload: Any) -> FeaturedPricing:
         seen.add(model)
         vendor_id = item.get("vendor_id")
         vendor = vendors.get(vendor_id, "其他") if isinstance(vendor_id, int) else "其他"
+        raw_quota_type = item.get("quota_type")
+        quota_type = (
+            raw_quota_type
+            if type(raw_quota_type) is int and raw_quota_type in (0, 1)
+            else 0
+        )
         models.append(
             FeaturedModelPrice(
                 model=model,
                 vendor=vendor,
+                quota_type=quota_type,
                 model_ratio=_finite_nonnegative(item.get("model_ratio")),
+                model_price=_finite_nonnegative(item.get("model_price")),
                 completion_ratio=_finite_nonnegative(item.get("completion_ratio")),
                 cache_ratio=_finite_nonnegative(item.get("cache_ratio")),
                 groups=_string_tuple(item.get("enable_groups")),

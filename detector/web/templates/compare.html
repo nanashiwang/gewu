@@ -10,7 +10,7 @@
 <section class="compare-grid" style="--compare-count: {{ sites|length }}">
   {% for site in sites %}
   <article class="compare-card">
-    <div class="compare-card-head"><span class="confidence-badge confidence-{{ site.confidence_class }}">{{ site.confidence_label }}</span><button type="button" data-compare-remove="{{ site.domain }}" aria-label="移除 {{ site.domain }}">×</button></div>
+    <div class="compare-card-head"><span class="source-badge source-{{ site.source_class }}">{{ site.source_label }}</span><span class="confidence-badge confidence-{{ site.confidence_class }}">{{ site.confidence_label }}</span><button type="button" data-compare-remove="{{ site.domain }}" aria-label="移除 {{ site.domain }}">×</button></div>
     <h2><a href="/leaderboard/{{ site.domain }}">{{ site.domain }}</a></h2>
     <div class="compare-score"><strong>{{ site.score }}</strong><span>综合分</span></div>
     <dl><div><dt>排序参考</dt><dd>{{ "%.1f"|format(site.confidence_score) }}</dd></div><div><dt>检测次数</dt><dd>{{ site.report_count }}</dd></div><div><dt>最近检测</dt><dd>{{ site.last_checked }}</dd></div><div><dt>数据状态</dt><dd><span class="freshness-badge freshness-{{ site.freshness_class }}">{{ site.freshness_label }}</span></dd></div><div><dt>协议</dt><dd>{{ site.protocols_label }}</dd></div></dl>
