@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}模型与计费倍率 | 格物{% endblock %}
+{% block description %}查看格物关联站点公开的模型、计费倍率、可用分组和接口类型。商业信息与质量检测独立展示。{% endblock %}
+{% block canonical %}{{ brand.site_url }}/pricing{% endblock %}
+{% block og_url %}{{ brand.site_url }}/pricing{% endblock %}
+
+{% macro ratio(value) %}{% if value is not none %}{{ "%g"|format(value) }}×{% else %}—{% endif %}{% endmacro %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">价格透明</span></nav>
+
+<section class="pricing-hero">
+  <div>
+    <span class="public-ranking-kicker">DISCLOSED COMMERCIAL DATA</span>
+    <h1>模型与计费倍率</h1>
+    <p>先确认线路质量，再比较公开计费信息。这里的商业数据不会改变质量榜名次。</p>
+  </div>
+  <div class="pricing-disclosure">
+    <strong>格物关联站点 · 推广信息</strong>
+    <span>{{ featured_domain }}</span>
+    <p>以下内容由站点公开接口提供，格物负责转录展示，不代表独立价格背书。</p>
+  </div>
+</section>
+
+<section class="pricing-boundary" aria-label="计费说明">
+  <article><strong>倍率不是人民币单价</strong><p>最终费用还会受到账号分组、充值汇率和站点计费基准影响，请以下单页结算为准。</p></article>
+  <article><strong>质量与价格分开</strong><p>质量榜只看检测证据、样本量与时效；推广关系和低价都不能换取更高排名。</p></article>
+  <article><strong>购买前再核对</strong><p>模型和倍率可能随时变化，购买前请在目标站点确认余额兑换及退款规则。</p></article>
+</section>
+
+{% if pricing %}
+<section class="pricing-groups">
+  <div class="pricing-section-head"><div><span class="public-ranking-kicker">ACCOUNT GROUPS</span><h2>账号分组倍率</h2></div><span>{{ pricing.group_ratios|length }} 个分组</span></div>
+  <div class="pricing-group-grid">
+    {% for name, value in pricing.group_ratios %}<div><span>{{ name }}</span><strong>{{ ratio(value) }}</strong></div>{% endfor %}
+  </div>
+</section>
+
+<section class="pricing-models">
+  <div class="pricing-section-head"><div><span class="public-ranking-kicker">PUBLIC MODEL FEED</span><h2>公开模型表</h2></div><span>{{ pricing.models|length }} 个模型</span></div>
+  <div class="pricing-table-wrap">
+    <table class="pricing-table">
+      <thead><tr><th>模型</th><th>厂商</th><th>输入倍率</th><th>输出倍率</th><th>缓存读取</th><th>可用分组</th><th>接口</th></tr></thead>
+      <tbody>
+      {% for item in pricing.models %}
+        <tr>
+          <td><strong>{{ item.model }}</strong></td>
+          <td>{{ item.vendor }}</td>
+          <td>{{ ratio(item.model_ratio) }}</td>
+          <td>{{ ratio(item.completion_ratio) }}</td>
+          <td>{{ ratio(item.cache_ratio) }}</td>
+          <td>{{ item.groups|join(" / ") or "—" }}</td>
+          <td>{{ item.endpoints|join(" / ") or "—" }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="pricing-source">数据时间：{{ pricing.captured_at or "接口未提供" }} · <a href="{{ pricing.source_url }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer">查看公开数据源 ↗</a></p>
+</section>
+{% else %}
+<section class="pricing-unavailable" role="status">
+  <span>实时价格源暂不可用</span>
+  <h2>没有用旧数据冒充当前价格</h2>
+  <p>请稍后刷新，或直接前往站点核对。质量榜和已有检测报告不受影响。</p>
+</section>
+{% endif %}
+
+<section class="leaderboard-cta"><div><span>先验证，再购买</span><h2>用你准备购买的模型做一次真实检测</h2></div><div class="pricing-actions"><a class="btn btn-primary" href="/#quick-check">立即检测</a><a class="btn btn-ghost" href="{{ featured_website_url }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer">前往关联站点 ↗</a></div></section>
+{% endblock %}

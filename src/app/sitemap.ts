@@ -28,7 +28,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     /* DB 不可用时只返回静态路由 */
   }
 
-  const staticRoutes: MetadataRoute.Sitemap = ['', '/claude', '/openai', '/gemini', '/leaderboard', '/faq', '/skills', '/rank', '/bounties', '/docs'].map((p) => ({
+  const staticRoutes: MetadataRoute.Sitemap = ['', '/claude', '/openai', '/gemini', '/leaderboard', '/pricing', '/faq', '/skills', '/rank', '/bounties', '/docs'].map((p) => ({
     url: `${base}${p}`,
     changeFrequency: 'daily',
     priority: p === '' ? 1 : 0.7,

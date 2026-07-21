@@ -8,7 +8,7 @@
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage","name":{{ (domain ~ " 中转站检测详情")|tojson }},"url":{{ (brand.site_url ~ "/leaderboard/" ~ domain)|tojson }},"description":{{ (domain ~ " 综合分 " ~ site.score ~ "/100,共 " ~ site.report_count ~ " 次检测")|tojson }},"dateModified":{{ site.last_checked|tojson }}}</script>
 {% endblock %}
 {% block content %}
-<nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span class="breadcrumb-sep">›</span><a href="/leaderboard">红黑榜</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">{{ domain }}</span></nav>
+<nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span class="breadcrumb-sep">›</span><a href="/leaderboard">质量榜</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">{{ domain }}</span></nav>
 <section class="relay-detail-hero">
   <div class="relay-detail-copy">
     <div class="leaderboard-eyebrow"><i></i> {{ site.freshness_label }} · {{ site.confidence_label }}</div>

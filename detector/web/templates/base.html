@@ -14,7 +14,7 @@
   <meta name="twitter:card" content="summary_large_image" />
   {% block og_image %}{% endblock %}
   <link rel="canonical" href="{% block canonical %}{{ brand.url('/') }}{% endblock %}" />
-  <link rel="stylesheet" href="/static/style.css?v=20260720-4" />
+  <link rel="stylesheet" href="/static/style.css?v=20260721-1" />
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
   {% block head_extra %}{% endblock %}
   {% if brand.analytics_id %}
@@ -55,7 +55,8 @@
         <a href="/claude">Claude</a>
         <a href="/openai">OpenAI</a>
         <a href="/gemini">Gemini</a>
-        <a href="/leaderboard">红黑榜</a>
+        <a href="/leaderboard">质量榜</a>
+        <a href="/pricing">价格透明</a>
         <a href="/faq">常见问题</a>
         <a class="nav-login" href="/login">登录</a>
         <a class="nav-register" href="/register">注册</a>
@@ -89,7 +90,8 @@
           <li><a href="/claude">Claude 检测</a></li>
           <li><a href="/openai">OpenAI 检测</a></li>
           <li><a href="/gemini">Gemini 检测</a></li>
-          <li><a href="/leaderboard">中转站红黑榜</a></li>
+          <li><a href="/leaderboard">中转站质量榜</a></li>
+          <li><a href="/pricing">模型与计费倍率</a></li>
         </ul>
       </div>
       <div class="footer-col">
@@ -105,6 +107,6 @@
       © {{ brand.name }} · 独立测评 · 字段级穿透 · 结果可复核
     </p>
   </footer>
-  <script src="/static/app.js?v=20260720-4" defer></script>
+  <script src="/static/app.js?v=20260721-1" defer></script>
 </body>
 </html>

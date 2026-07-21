@@ -23,6 +23,11 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from . import jobs, leaderboard
 from .brand import brand
 from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
+from .featured_pricing import (
+    FEATURED_DOMAIN,
+    FEATURED_WEBSITE_URL,
+    get_featured_pricing,
+)
 from .image_report import render_report_jpg
 from .probe import probe_model_alive, probe_relay
 from .public_rankings import (
@@ -380,7 +385,7 @@ async def gemini_index(request: Request) -> HTMLResponse:
 
 @app.get("/leaderboard", response_class=HTMLResponse)
 async def leaderboard_page(request: Request) -> HTMLResponse:
-    """Render the single public red/black ranking surface."""
+    """Render the public quality ranking and risk watchlist."""
     snapshot = _public_ranking_snapshot()
     metrics = snapshot["metrics"]
     return templates.TemplateResponse(
@@ -391,6 +396,22 @@ async def leaderboard_page(request: Request) -> HTMLResponse:
             "black_sites": snapshot["black_sites"],
             "coverage": metrics,
             "updated_at": metrics["updated_at"],
+            "featured_domain": FEATURED_DOMAIN,
+            "featured_website_url": FEATURED_WEBSITE_URL,
+        },
+    )
+
+
+@app.get("/pricing", response_class=HTMLResponse)
+async def pricing_page(request: Request) -> HTMLResponse:
+    """Show disclosed commercial data without mixing it into quality scores."""
+    return templates.TemplateResponse(
+        request,
+        "pricing.html",
+        {
+            "pricing": await get_featured_pricing(),
+            "featured_domain": FEATURED_DOMAIN,
+            "featured_website_url": FEATURED_WEBSITE_URL,
         },
     )
 
@@ -988,7 +1009,7 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
         return templates.TemplateResponse(
             request, "running.html", {"job_id": job_id, "job": j},
         )
-    # Domain feeds the breadcrumb (首页 › 红黑榜 › {domain} › 报告).
+    # Domain feeds the breadcrumb (首页 › 质量榜 › {domain} › 报告).
     # Goes through is_valid_domain so a malformed base_url doesn't produce
     # a broken /leaderboard/{garbage} link.
     base_url = str(j.report.get("base_url") or "")
@@ -1062,6 +1083,7 @@ _STATIC_SITEMAP_URLS = [
     ("/openai",      "weekly",  "0.9",  "openai.html"),
     ("/gemini",      "weekly",  "0.9",  "gemini.html"),
     ("/leaderboard", "daily",   "0.85", "leaderboard.html"),
+    ("/pricing",     "daily",   "0.75", "pricing.html"),
     ("/faq",         "monthly", "0.8",  "faq.html"),
 ]
 

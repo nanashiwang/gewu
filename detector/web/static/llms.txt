@@ -10,6 +10,8 @@
 - [Claude 中转站检测]({{SITE_URL}}/claude): 11 项检测,核心是 thinking block 原始/篡改回放(25% 权重),并包含 Token 用量异常识别。
 - [OpenAI 中转站检测]({{SITE_URL}}/openai): 7 项检测,Chat Completions 协议合规 + usage 字段后端指纹识别。能识别中转站把 GPT 偷转给 Claude / Gemini 后端。
 - [Gemini 中转站检测]({{SITE_URL}}/gemini): 7 项检测,通过 OpenAI 兼容协议探测。适配 Gemini 3 thinking-by-default 模型的特殊处理。
+- [中转站质量榜与风险观察]({{SITE_URL}}/leaderboard): 按检测证据、样本量和时效筛选站点；商业推广不参与质量排序。
+- [模型与计费倍率]({{SITE_URL}}/pricing): 格物关联站点公开的模型和计费倍率，明确披露推广关系；倍率不等于人民币单价。
 - [常见问题]({{SITE_URL}}/faq): 35+ 问答,分 6 类:中转站基础、真伪识别、Claude / OpenAI / Gemini 各自特性、隐私安全、与竞品对比。
 - [检测报告]({{SITE_URL}}/r/): 任意检测的永久分享链接(HTML + JPG 双形态)。
 

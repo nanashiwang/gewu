@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi.testclient import TestClient
 
+from web.featured_pricing import FeaturedModelPrice, FeaturedPricing, parse_featured_pricing
 from web.public_rankings import BLACK_RANKING, RED_RANKING, PublicRankingSite
 from web.server import app
 
@@ -28,8 +29,9 @@ def test_leaderboard_renders_single_public_view_without_internal_provenance():
     response = TestClient(app).get("/leaderboard")
 
     assert response.status_code == 200
-    assert "红榜" in response.text
-    assert "黑榜" in response.text
+    assert "质量榜" in response.text
+    assert "风险观察" in response.text
+    assert "红黑榜" not in response.text
     assert "nan.meta-api.vip" in response.text
     assert "codexpp.com" in response.text
     assert "api.thinkai.tv" in response.text
@@ -46,6 +48,9 @@ def test_leaderboard_renders_single_public_view_without_internal_provenance():
     assert "高可信" in response.text
     assert "我的关注" in response.text
     assert "点击域名会在新窗口打开外部站点" in response.text
+    assert "格物关联站点 · 推广位" in response.text
+    assert "该位置不加分、不改变名次" in response.text
+    assert 'href="/pricing"' in response.text
     for hidden_term in ("自营", "第三方", "Veridrop", "排除", "源榜", "前 10"):
         assert hidden_term not in response.text
 
@@ -138,6 +143,83 @@ def test_public_ranking_site_constrains_links_and_exposes_confidence():
     assert safe.detect_url.startswith("/openai?base_url=")
 
 
+def test_featured_pricing_parser_bounds_and_sanitizes_public_feed():
+    parsed = parse_featured_pricing({
+        "success": True,
+        "time_ratio_at": "2026-07-21T11:55:04+08:00",
+        "vendors": [{"id": 1, "name": "OpenAI"}],
+        "group_ratio": {"default": 1, "bad": float("inf"), "negative": -1},
+        "data": [
+            {
+                "model_name": " gpt-test ", "vendor_id": 1,
+                "model_ratio": 2.5, "completion_ratio": 4,
+                "cache_ratio": 0.1, "enable_groups": ["default", "default"],
+                "supported_endpoint_types": ["openai"],
+            },
+            {"model_name": "gpt-test", "vendor_id": 1, "model_ratio": 999},
+            {"model_name": "", "model_ratio": 1},
+        ],
+    })
+
+    assert len(parsed.models) == 1
+    assert parsed.models[0].model == "gpt-test"
+    assert parsed.models[0].groups == ("default",)
+    assert parsed.group_ratios == (("default", 1.0),)
+
+
+def test_pricing_page_discloses_affiliation_and_keeps_ratio_separate(monkeypatch):
+    from web import server
+
+    async def fake_pricing():
+        return FeaturedPricing(
+            models=(FeaturedModelPrice(
+                model="gpt-test", vendor="OpenAI", model_ratio=2.5,
+                completion_ratio=4, cache_ratio=0.1,
+                groups=("default",), endpoints=("openai",),
+            ),),
+            group_ratios=(("default", 1.0),),
+            captured_at="2026-07-21T11:55:04+08:00",
+        )
+
+    monkeypatch.setattr(server, "get_featured_pricing", fake_pricing)
+    response = TestClient(server.app).get("/pricing")
+
+    assert response.status_code == 200
+    assert "格物关联站点 · 推广信息" in response.text
+    assert "倍率不是人民币单价" in response.text
+    assert "不会改变质量榜名次" in response.text
+    assert "gpt-test" in response.text
+    assert "2.5×" in response.text
+    assert 'href="https://nan.meta-api.vip"' in response.text
+
+
+def test_pricing_page_fails_closed_without_reusing_unverified_prices(monkeypatch):
+    from web import server
+
+    async def unavailable_pricing():
+        return None
+
+    monkeypatch.setattr(server, "get_featured_pricing", unavailable_pricing)
+    response = TestClient(server.app).get("/pricing")
+
+    assert response.status_code == 200
+    assert "实时价格源暂不可用" in response.text
+    assert "没有用旧数据冒充当前价格" in response.text
+    assert "公开模型表" not in response.text
+
+
+def test_featured_placement_does_not_change_quality_order(monkeypatch):
+    from web import server
+
+    monkeypatch.setattr(server.leaderboard, "aggregate", lambda: ([], {}))
+    quality_domains = [
+        site.domain for site in server._compute_public_ranking_snapshot()["red_sites"]
+    ]
+
+    assert quality_domains[0] == "api.loomcode.cn"
+    assert quality_domains.index("nan.meta-api.vip") > 0
+
+
 def test_homepage_exposes_optional_account_and_relay_management_entry():
     response = TestClient(app).get("/")
 
@@ -152,7 +234,7 @@ def test_public_pages_do_not_expose_repository_entry_points():
     client = TestClient(app)
     for path in (
         "/", "/faq", "/leaderboard", "/leaderboard/nan.meta-api.vip",
-        "/leaderboard/compare", "/claude", "/openai", "/gemini", "/llms.txt",
+        "/leaderboard/compare", "/pricing", "/claude", "/openai", "/gemini", "/llms.txt",
     ):
         response = client.get(path)
         assert response.status_code == 200

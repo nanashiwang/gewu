@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}AI API 中转站红黑榜 | 格物{% endblock %}
-{% block description %}格物 AI API 中转站红黑榜,查看综合分、检测次数、协议和最近检测时间。{% endblock %}
+{% block title %}AI API 中转站质量榜与风险观察 | 格物{% endblock %}
+{% block description %}格物 AI API 中转站质量榜与风险观察,查看综合分、检测次数、协议和最近检测时间。{% endblock %}
 {% block canonical %}{{ brand.site_url }}/leaderboard{% endblock %}
 {% block og_url %}{{ brand.site_url }}/leaderboard{% endblock %}
-{% block head_extra %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemList","name":"AI API 中转站红榜","numberOfItems":{{ red_sites|length }},"itemListElement":[{% for site in red_sites %}{"@type":"ListItem","position":{{ loop.index }},"name":{{ site.domain|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]}</script>{% endblock %}
+{% block head_extra %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"ItemList","name":"AI API 中转站质量榜","numberOfItems":{{ red_sites|length }},"itemListElement":[{% for site in red_sites %}{"@type":"ListItem","position":{{ loop.index }},"name":{{ site.domain|tojson }}}{% if not loop.last %},{% endif %}{% endfor %}]}</script>{% endblock %}
 
 {% macro badge(p) %}<span class="rank-protocol rank-protocol-{{ p }}">{% if p == "anthropic" %}Claude{% elif p == "openai" %}OpenAI{% elif p == "gemini" %}Gemini{% else %}{{ p }}{% endif %}</span>{% endmacro %}
 {% macro row(site, rank, tone) %}
@@ -22,25 +22,30 @@
 <section class="leaderboard-hero">
   <div class="leaderboard-eyebrow"><i></i> 持续更新的中转站质量视图</div>
   <div class="leaderboard-hero-grid">
-    <div><h1>AI API 中转站<br><span>红黑榜</span></h1><p>先看长期稳定性,再看最新检测。分数会随新报告更新,选择服务前建议用自己的 key 再实测一次。</p><div class="leaderboard-hero-actions"><a class="btn btn-primary" href="/#quick-check">立即检测</a><a class="btn btn-ghost" href="#ranking-browser">浏览榜单</a></div></div>
-    <div class="leaderboard-overview"><div><strong>{{ coverage.site_count_label }}</strong><span>家中转站</span></div><div><strong>{{ coverage.report_count_label }}</strong><span>次检测</span></div><div class="overview-red"><strong>{{ coverage.red_count }}</strong><span>红榜</span></div><div class="overview-black"><strong>{{ coverage.black_count }}</strong><span>风险榜</span></div><p>更新于 {{ updated_at }} · 域名去重</p></div>
+    <div><h1>AI API 中转站<br><span>质量与风险</span></h1><p>先看长期稳定性,再看最新检测。分数会随新报告更新,选择服务前建议用自己的 key 再实测一次。</p><div class="leaderboard-hero-actions"><a class="btn btn-primary" href="/#quick-check">立即检测</a><a class="btn btn-ghost" href="#ranking-browser">浏览榜单</a><a class="btn btn-ghost" href="/pricing">价格透明</a></div></div>
+    <div class="leaderboard-overview"><div><strong>{{ coverage.site_count_label }}</strong><span>家中转站</span></div><div><strong>{{ coverage.report_count_label }}</strong><span>次检测</span></div><div class="overview-red"><strong>{{ coverage.red_count }}</strong><span>质量榜</span></div><div class="overview-black"><strong>{{ coverage.black_count }}</strong><span>风险观察</span></div><p>更新于 {{ updated_at }} · 域名去重</p></div>
   </div>
 </section>
+
+<aside class="featured-relay" aria-labelledby="featured-relay-title">
+  <div class="featured-relay-copy"><span>格物关联站点 · 推广位</span><h2 id="featured-relay-title">{{ featured_domain }}</h2><p>商业推荐与检测排名相互独立；该位置不加分、不改变名次，质量结论仍以公开报告为准。</p></div>
+  <div class="featured-relay-actions"><a class="btn btn-primary" href="/pricing">查看模型与倍率</a><a class="btn btn-ghost" href="{{ featured_website_url }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer">访问站点 ↗</a></div>
+</aside>
 
 <section class="ranking-guide"><div class="ranking-guide-head"><span>HOW TO READ</span><h2>中转站怎么选?</h2></div><div class="ranking-guide-grid"><article><strong>01 · 先看样本</strong><p>分数接近时,检测次数更多、最近仍稳定的站点更值得优先复测。</p></article><article><strong>02 · 再看协议</strong><p>Claude / OpenAI / Gemini 的证据强度不同,不要用单一协议的高分代替全部线路判断。</p></article><article><strong>03 · 最后自测</strong><p>榜单是筛选工具,不是永久保证;购买前复测当前模型。</p></article></div></section>
 
 <section class="ranking-browser" id="ranking-browser"><div class="ranking-browser-head"><div><span class="public-ranking-kicker">RANKING EXPLORER</span><h2>搜索与筛选</h2></div><strong id="ranking-visible-count">{{ coverage.site_count }} 家可见</strong></div>
   <div class="ranking-toolbar"><label class="ranking-search"><span class="sr-only">搜索域名</span><input id="ranking-search" type="search" placeholder="搜索域名,例如 meta-api.vip" autocomplete="off"></label>
-    <div class="ranking-filter-group"><button class="ranking-filter is-active" type="button" data-rank-tone="all">全部</button><button class="ranking-filter" type="button" data-rank-tone="red">红榜</button><button class="ranking-filter" type="button" data-rank-tone="black">风险榜</button><button class="ranking-filter" type="button" data-rank-watch="true">我的关注</button></div>
+    <div class="ranking-filter-group"><button class="ranking-filter is-active" type="button" data-rank-tone="all">全部</button><button class="ranking-filter" type="button" data-rank-tone="red">质量榜</button><button class="ranking-filter" type="button" data-rank-tone="black">风险观察</button><button class="ranking-filter" type="button" data-rank-watch="true">我的关注</button></div>
     <div class="ranking-filter-group"><button class="ranking-filter is-active" type="button" data-rank-protocol="all">全协议</button><button class="ranking-filter" type="button" data-rank-protocol="anthropic">Claude</button><button class="ranking-filter" type="button" data-rank-protocol="openai">OpenAI</button><button class="ranking-filter" type="button" data-rank-protocol="gemini">Gemini</button></div>
   </div>
 </section>
 
-<section class="public-ranking-section" data-ranking-section="red"><div class="public-ranking-heading public-ranking-heading-red"><div><span class="public-ranking-kicker">RED LIST</span><h2>红榜</h2></div><strong><span data-section-count="red">{{ red_sites|length }}</span> 家</strong></div><div class="public-ranking-list">{% for site in red_sites %}{{ row(site, loop.index, "red") }}{% endfor %}</div></section>
-<section class="public-ranking-section" data-ranking-section="black"><div class="public-ranking-heading public-ranking-heading-black"><div><span class="public-ranking-kicker">RISK LIST</span><h2>风险榜</h2></div><strong><span data-section-count="black">{{ black_sites|length }}</span> 家</strong></div><div class="public-ranking-list">{% for site in black_sites %}{{ row(site, loop.index, "black") }}{% endfor %}</div></section>
+<section class="public-ranking-section" data-ranking-section="red"><div class="public-ranking-heading public-ranking-heading-red"><div><span class="public-ranking-kicker">QUALITY LIST</span><h2>质量榜</h2></div><strong><span data-section-count="red">{{ red_sites|length }}</span> 家</strong></div><div class="public-ranking-list">{% for site in red_sites %}{{ row(site, loop.index, "red") }}{% endfor %}</div></section>
+<section class="public-ranking-section" data-ranking-section="black"><div class="public-ranking-heading public-ranking-heading-black"><div><span class="public-ranking-kicker">RISK WATCH</span><h2>风险观察</h2></div><strong><span data-section-count="black">{{ black_sites|length }}</span> 家</strong></div><div class="public-ranking-list">{% for site in black_sites %}{{ row(site, loop.index, "black") }}{% endfor %}</div></section>
 <p class="ranking-empty" id="ranking-empty" hidden>没有匹配的中转站,请换个域名或筛选条件。</p>
 <details class="ranking-methodology"><summary>排名和分数怎么看?</summary><div><p>综合分原样展示;排序时会按样本数向中性值收缩,避免少量偶然高分占据前列。榜单还应结合更新时间、协议透传、功能完整性、usage 字段和流式一致性阅读。</p></div></details>
 <section class="leaderboard-cta"><div><span>没找到你的中转站?</span><h2>用真实 API 请求生成一份可复核报告</h2></div><a class="btn btn-primary" href="/#quick-check">开始检测</a></section>
-<section class="hub-note public-ranking-note"><h2>使用边界</h2><p>点击域名会在新窗口打开外部站点;“关注”只保存在当前浏览器。榜单用于快速筛查,不构成商业信用、价格或永久质量结论;风险榜站点请谨慎访问,并以最新实测报告为准。</p></section>
+<section class="hub-note public-ranking-note"><h2>使用边界</h2><p>点击域名会在新窗口打开外部站点;“关注”只保存在当前浏览器。榜单用于快速筛查,不构成商业信用、价格或永久质量结论;风险观察中的站点请谨慎访问,并以最新实测报告为准。</p></section>
 <div class="compare-selection-bar" id="compare-selection-bar" hidden><span><strong id="compare-selection-count">0</strong>/3 已选</span><div><button type="button" class="btn btn-ghost" id="compare-selection-clear">清空</button><a class="btn btn-primary" id="compare-selection-open" href="/leaderboard/compare" aria-disabled="true">开始对比</a></div></div>
 {% endblock %}

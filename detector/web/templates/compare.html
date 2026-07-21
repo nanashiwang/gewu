@@ -4,7 +4,7 @@
 {% block canonical %}{{ brand.site_url }}/leaderboard/compare{% endblock %}
 {% block head_extra %}<meta name="robots" content="noindex,follow">{% endblock %}
 {% block content %}
-<nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span class="breadcrumb-sep">›</span><a href="/leaderboard">红黑榜</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">中转站对比</span></nav>
+<nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span class="breadcrumb-sep">›</span><a href="/leaderboard">质量榜</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">中转站对比</span></nav>
 <section class="compare-hero"><span class="public-ranking-kicker">SIDE BY SIDE</span><h1>中转站对比</h1><p>最多比较 3 家。先比较可信度和新鲜度,再看原始分数;没有经过检测的价格或服务承诺不会出现在这里。</p><a class="btn btn-ghost" href="/leaderboard#ranking-browser">返回榜单选择</a></section>
 {% if sites %}
 <section class="compare-grid" style="--compare-count: {{ sites|length }}">

@@ -22,13 +22,13 @@
 {% endblock %}
 
 {% block content %}
-{# Breadcrumb: 首页 › 红黑榜 › {domain} › 报告 #{job_id}.
+{# Breadcrumb: 首页 › 质量榜 › {domain} › 报告 #{job_id}.
    When the report's base_url didn't yield a valid domain (legacy reports,
    garbled URLs), drop the {domain} crumb and link straight to /leaderboard. #}
 <nav class="breadcrumb" aria-label="面包屑">
   <a href="/">首页</a>
   <span class="breadcrumb-sep">›</span>
-  <a href="/leaderboard">红黑榜</a>
+  <a href="/leaderboard">质量榜</a>
   {% if breadcrumb_domain %}
     <span class="breadcrumb-sep">›</span>
     <a href="/leaderboard/{{ breadcrumb_domain }}">{{ breadcrumb_domain }}</a>
