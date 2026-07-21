@@ -1,105 +1,100 @@
 {% extends "base.html" %}
-{% block title %}模型价格工作台 | 格物{% endblock %}
-{% block description %}搜索和筛选格物关联站点公开的模型、计费倍率、按次价格、可用分组和接口类型。价格信息与质量检测独立展示。{% endblock %}
+{% block title %}AI 模型价格大全 | 格物{% endblock %}
+{% block description %}聚合公开的 AI 模型价格，按厂商、计费方式和能力筛选输入、输出、缓存与按次价格。价格参考与格物质量检测相互独立。{% endblock %}
 {% block canonical %}{{ brand.site_url }}/pricing{% endblock %}
 {% block og_url %}{{ brand.site_url }}/pricing{% endblock %}
 
-{% macro ratio(value) %}{% if value is not none %}{{ "%g"|format(value) }}×{% else %}—{% endif %}{% endmacro %}
-{% macro price(value) %}{% if value is not none %}{{ "%g"|format(value) }} / 次{% else %}—{% endif %}{% endmacro %}
+{% macro yuan(value) %}{% if value == -1 %}免费{% elif value is not none %}¥{{ "%g"|format(value) }}{% else %}—{% endif %}{% endmacro %}
+{% macro discount(value) %}{% if value is not none %}{{ "%.2f"|format(value)|trim('0')|trim('.') }} 折{% else %}—{% endif %}{% endmacro %}
 
 {% block content %}
-<nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">价格透明</span></nav>
+<nav class="breadcrumb" aria-label="面包屑"><a href="/">首页</a><span class="breadcrumb-sep">›</span><span class="breadcrumb-current">模型价格</span></nav>
 
 <section class="pricing-hero pricing-reference-hero">
   <div class="pricing-hero-copy">
-    <span class="public-ranking-kicker">MODEL PRICE WORKBENCH</span>
-    <h1>全模型价格<br><span>一张表看清</span></h1>
-    <p>按厂商、计费方式和接口快速筛选模型。这里展示公开计费值，不把低价包装成质量结论。</p>
+    <span class="public-ranking-kicker">AI MODEL PRICE INDEX</span>
+    <h1>全网模型价格<br><span>一张表看清</span></h1>
+    <p>集中查询主流模型的公开最低价、输入输出价与计费方式。价格只回答“多少钱”，质量、稳定性和是否推荐仍由格物检测回答。</p>
     <div class="pricing-hero-actions">
       <a class="btn btn-primary" href="#model-pricing">开始查价</a>
-      <a class="btn btn-ghost" href="/leaderboard">先看质量榜</a>
+      <a class="btn btn-ghost" href="/leaderboard">查看质量榜</a>
     </div>
   </div>
   <aside class="pricing-source-card" aria-label="价格数据概览">
-    <div class="pricing-live-line"><i></i><span>公开接口已连接</span></div>
+    <div class="pricing-live-line"><i></i><span>{{ "公开价格源已连接" if pricing else "公开价格源暂不可用" }}</span></div>
     {% if pricing %}
     <div class="pricing-source-metrics">
-      <div><strong>{{ pricing.models|length }}</strong><span>个模型</span></div>
-      <div><strong>{{ pricing.vendors|length }}</strong><span>家厂商</span></div>
-      <div><strong>{{ pricing.endpoint_types|length }}</strong><span>类接口</span></div>
+      <div><strong>{{ pricing.model_count }}</strong><span>个去重模型</span></div>
+      <div><strong>{{ pricing.variant_count }}</strong><span>个计费版本</span></div>
+      <div><strong>{{ pricing.companies|length }}</strong><span>家模型厂商</span></div>
     </div>
-    <p>数据时间<br><strong>{{ pricing.captured_at or "接口未提供" }}</strong></p>
+    <p>格物读取时间<br><strong>{{ pricing.captured_at }}</strong></p>
     {% else %}
-    <div class="pricing-source-metrics"><div><strong>—</strong><span>价格源暂不可用</span></div></div>
+    <div class="pricing-source-metrics"><div><strong>—</strong><span>未展示缓存旧价</span></div></div>
     {% endif %}
   </aside>
 </section>
 
 <section class="pricing-disclosure-bar">
-  <div><span>数据来源</span><strong>{{ featured_domain }} 公开价格接口</strong></div>
-  <p>格物关联站点 · 推广信息。价格数据与质量排名相互独立，不会改变质量榜名次。</p>
-  <a href="{{ featured_website_url }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer">前往站点核对 ↗</a>
+  <div><span>市场价格参考</span><strong>数据整理来源 {{ pricing_source_domain }}</strong></div>
+  <p>格物仅转录公开的模型与价格事实；最低价不代表线路可用、稳定或获得格物推荐。</p>
+  <a href="{{ pricing_source_url }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer">前往 Oken 核对 ↗</a>
 </section>
 
-<section class="pricing-boundary" aria-label="计费说明">
-  <article><strong>倍率不是人民币单价</strong><p>最终费用还受分组倍率、充值汇率和站点计费基准影响，请以下单结算为准。</p></article>
-  <article><strong>两种计费方式</strong><p>“按量”展示输入、输出及缓存倍率；“按次”展示接口提供的单次计费值。</p></article>
-  <article><strong>购买前先复测</strong><p>价格和可用模型会变化。购买前先核对当前价格，再用自己的 key 检测目标线路。</p></article>
+<section class="pricing-boundary" aria-label="价格使用说明">
+  <article><strong>人民币价格，不是格物售价</strong><p>按量价格统一按每百万 Tokens 展示。数据来自公开聚合，最终价格请以供应平台结算页为准。</p></article>
+  <article><strong>四种计费方式分开看</strong><p>同一模型可能同时按量、按次、视频尺寸或音视频时长计费，因此会有多个计费版本。</p></article>
+  <article><strong>价格与质量相互独立</strong><p>供应商数量和最低价不等于可用性。购买前请核对平台规则，再用自己的 key 检测目标线路。</p></article>
 </section>
 
 {% if pricing %}
-<section class="pricing-groups">
-  <div class="pricing-section-head"><div><span class="public-ranking-kicker">ACCOUNT GROUPS</span><h2>账号分组倍率</h2></div><span>{{ pricing.group_ratios|length }} 个分组</span></div>
-  <div class="pricing-group-grid">
-    {% for name, value in pricing.group_ratios %}<div><span>{{ name }}</span><strong>{{ ratio(value) }}</strong></div>{% endfor %}
-  </div>
-</section>
-
 <section class="pricing-models" id="model-pricing">
   <div class="pricing-section-head pricing-workbench-head">
-    <div><span class="public-ranking-kicker">PUBLIC MODEL FEED</span><h2>模型价格工作台</h2><p>{{ pricing.token_model_count }} 个按量模型 · {{ pricing.request_model_count }} 个按次模型</p></div>
-    <strong id="pricing-visible-count">{{ pricing.models|length }} 个模型</strong>
+    <div><span class="public-ranking-kicker">PUBLIC MARKET REFERENCE</span><h2>模型价格工作台</h2><p>{{ pricing.model_count }} 个模型 · {{ pricing.variant_count }} 个计费版本 · 页面每 5 分钟重新读取</p></div>
+    <strong id="pricing-visible-count">{{ pricing.variant_count }} 个计费版本</strong>
   </div>
 
   <div class="pricing-toolbar" aria-label="模型筛选">
-    <label class="pricing-search"><span class="sr-only">搜索模型</span><input id="pricing-search" type="search" placeholder="搜索模型名称，例如 gpt、claude、gemini" autocomplete="off"></label>
+    <label class="pricing-search"><span class="sr-only">搜索模型</span><input id="pricing-search" type="search" placeholder="搜索模型或厂商，例如 gpt、claude、gemini" autocomplete="off"></label>
     <div class="pricing-vendor-tabs" role="group" aria-label="模型厂商">
-      <button class="pricing-filter is-active" type="button" data-pricing-vendor="all">全部 <span>{{ pricing.models|length }}</span></button>
-      {% for vendor in pricing.vendors %}<button class="pricing-filter" type="button" data-pricing-vendor="{{ vendor|lower }}">{{ vendor }}</button>{% endfor %}
+      <button class="pricing-filter is-active" type="button" data-pricing-vendor="all">全部 <span>{{ pricing.variant_count }}</span></button>
+      {% for company in pricing.companies %}<button class="pricing-filter" type="button" data-pricing-vendor="{{ company|lower }}">{{ company }}</button>{% endfor %}
     </div>
     <div class="pricing-selects">
-      <label><span>计费方式</span><select id="pricing-billing"><option value="all">全部</option><option value="token">按量</option><option value="request">按次</option></select></label>
-      <label><span>接口类型</span><select id="pricing-endpoint"><option value="all">全部</option>{% for endpoint in pricing.endpoint_types %}<option value="{{ endpoint|lower }}">{{ endpoint }}</option>{% endfor %}</select></label>
+      <label><span>计费方式</span><select id="pricing-billing"><option value="all">全部计费</option>{% for key, label, count in pricing.billing_counts %}{% if count %}<option value="{{ key }}">{{ label }}（{{ count }}）</option>{% endif %}{% endfor %}</select></label>
+      <label><span>模型能力</span><select id="pricing-ability"><option value="all">全部能力</option>{% for ability in pricing.abilities %}<option value="{{ ability|lower }}">{{ ability }}</option>{% endfor %}</select></label>
     </div>
   </div>
 
   <div class="pricing-table-wrap">
-    <table class="pricing-table">
-      <thead><tr><th>模型名称</th><th>厂商</th><th>计费</th><th>输入 / 模型倍率</th><th>输出倍率</th><th>缓存读取</th><th>可用分组</th><th>接口</th></tr></thead>
+    <table class="pricing-table pricing-market-table">
+      <thead><tr><th>模型</th><th>厂商</th><th>能力</th><th>计费</th><th>最低 / 输入价</th><th>输出价</th><th>缓存读取</th><th>最低折扣</th><th>供应商</th><th>发布日期</th></tr></thead>
       <tbody>
-      {% for item in pricing.models %}
-        <tr data-pricing-row data-model="{{ item.model|lower }}" data-vendor="{{ item.vendor|lower }}" data-billing="{{ item.billing_key }}" data-endpoints="{{ item.endpoints|join(' ')|lower }}">
-          <td><div class="pricing-model-name"><span class="pricing-vendor-mark">{{ item.vendor[:1] }}</span><strong>{{ item.model }}</strong></div></td>
-          <td>{{ item.vendor }}</td>
+      {% for item in pricing.prices %}
+        <tr data-pricing-row data-model="{{ item.model|lower }} {{ item.company|lower }}" data-vendor="{{ item.company|lower }}" data-billing="{{ item.billing_key }}" data-abilities="{{ item.abilities|join('|')|lower }}">
+          <td><div class="pricing-model-name"><span class="pricing-vendor-mark">{{ item.company[:1] }}</span><strong>{{ item.model }}</strong>{% if item.is_new %}<em>NEW</em>{% elif item.is_hot %}<em>HOT</em>{% endif %}</div></td>
+          <td>{{ item.company }}</td>
+          <td><div class="pricing-tags">{% for ability in item.abilities %}<span>{{ ability }}</span>{% else %}—{% endfor %}</div></td>
           <td><span class="pricing-billing pricing-billing-{{ item.billing_key }}">{{ item.billing_label }}</span></td>
-          <td>{% if item.quota_type == 1 %}<strong>{{ price(item.model_price) }}</strong>{% else %}<strong>{{ ratio(item.model_ratio) }}</strong>{% endif %}</td>
-          <td>{{ ratio(item.completion_ratio) if item.quota_type == 0 else "—" }}</td>
-          <td>{{ ratio(item.cache_ratio) if item.quota_type == 0 and item.cache_ratio else "—" }}</td>
-          <td><div class="pricing-tags">{% for group in item.groups %}<span>{{ group }}</span>{% else %}—{% endfor %}</div></td>
-          <td><div class="pricing-tags pricing-endpoints">{% for endpoint in item.endpoints %}<span>{{ endpoint }}</span>{% else %}—{% endfor %}</div></td>
+          <td><strong>{{ yuan(item.display_price) }}</strong><small>{% if item.billing_method == 1 %}/ 百万 Tokens{% elif item.billing_method == 2 %}/ 次{% else %}源站计费单位{% endif %}</small></td>
+          <td>{{ yuan(item.output_price) }}{% if item.output_price is not none %}<small>/ 百万 Tokens</small>{% endif %}</td>
+          <td>{{ yuan(item.cache_read_price) }}{% if item.cache_read_price is not none %}<small>/ 百万 Tokens</small>{% endif %}</td>
+          <td><span class="pricing-discount">{{ discount(item.best_discount) }}</span></td>
+          <td><strong>{{ item.provider_count if item.provider_count else "—" }}</strong></td>
+          <td>{{ item.published_at or "—" }}</td>
         </tr>
       {% endfor %}
       </tbody>
     </table>
-    <p class="pricing-empty" id="pricing-empty" hidden>没有匹配的模型，请调整搜索词或筛选条件。</p>
+    <p class="pricing-empty" id="pricing-empty" hidden>没有匹配的计费版本，请调整搜索词或筛选条件。</p>
   </div>
-  <p class="pricing-source">数据时间：{{ pricing.captured_at or "接口未提供" }} · 页面每 5 分钟重新读取公开接口 · <a href="{{ pricing.source_url }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer">查看公开数据源 ↗</a></p>
+  <p class="pricing-source">格物读取时间：{{ pricing.captured_at }} · 来源为 Oken 汇总的公开平台信息，不保证完整、实时或无误 · <a href="{{ pricing.source_url }}" target="_blank" rel="noopener noreferrer nofollow external" referrerpolicy="no-referrer">查看原始价格页 ↗</a></p>
 </section>
 {% else %}
 <section class="pricing-unavailable" role="status">
-  <span>实时价格源暂不可用</span>
+  <span>公开价格源暂不可用</span>
   <h2>没有用旧数据冒充当前价格</h2>
-  <p>请稍后刷新，或直接前往站点核对。质量榜和已有检测报告不受影响。</p>
+  <p>请稍后刷新，或直接前往 <a href="{{ pricing_source_url }}" target="_blank" rel="noopener noreferrer nofollow external">Oken</a> 核对。格物质量榜和已有检测报告不受影响。</p>
 </section>
 {% endif %}
 

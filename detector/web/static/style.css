@@ -2337,14 +2337,23 @@ a.coverage-metric:hover strong { color: var(--green); }
 .pricing-model-name { display: flex; align-items: center; gap: 9px; min-width: 180px; }
 .pricing-vendor-mark { display: grid; flex: 0 0 auto; width: 27px; height: 27px; place-items: center; border: 1px solid #dfe5e2; border-radius: 50%; background: #f8fafc; color: #334155; font-size: 10px; font-weight: 850; }
 .pricing-model-name strong { overflow-wrap: anywhere; font-size: 11px; }
+.pricing-model-name em { padding: 2px 5px; border-radius: 4px; background: #dcfce7; color: #047857; font-size: 7px; font-style: normal; font-weight: 900; letter-spacing: .04em; }
 .pricing-billing { display: inline-flex; padding: 3px 7px; border-radius: 999px; font-size: 9px; font-weight: 800; }
 .pricing-billing-token { background: #ecfdf5; color: #047857; }
 .pricing-billing-request { background: #fff7ed; color: #c2410c; }
+.pricing-billing-usage { background: #ecfdf5; color: #047857; }
+.pricing-billing-count { background: #fff7ed; color: #c2410c; }
+.pricing-billing-video_size { background: #eff6ff; color: #1d4ed8; }
+.pricing-billing-av_duration { background: #faf5ff; color: #7e22ce; }
 .pricing-tags { display: flex; flex-wrap: wrap; gap: 4px; min-width: 105px; }
 .pricing-tags span { padding: 3px 6px; border-radius: 4px; background: #f1f5f9; color: #64748b; font-size: 9px; white-space: nowrap; }
 .pricing-endpoints span { background: #eef2ff; color: #4338ca; }
 .pricing-empty { margin: 0; padding: 34px; color: var(--muted); text-align: center; }
 .pricing-source { color: var(--muted); font-size: 11px; text-align: right; }
+.pricing-market-table { min-width: 1160px; }
+.pricing-market-table td:nth-child(n+5) { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pricing-market-table td small { display: block; margin-top: 3px; color: #94a3b8; font-size: 8px; font-weight: 500; }
+.pricing-discount { color: #dc2626; font-weight: 800; }
 .pricing-unavailable { margin: 28px 0; padding: 28px; border: 1px dashed #f59e0b; border-radius: 13px; background: #fffbeb; }
 .pricing-unavailable > span { color: #92400e; font-size: 10px; font-weight: 850; letter-spacing: .09em; }
 .pricing-unavailable h2 { margin: 7px 0; }
