@@ -163,20 +163,13 @@ def _date(value: Any) -> str | None:
     return text
 
 
-def _price_order(item: MarketModelPrice) -> tuple[int, float, str, str]:
-    """Compare prices only inside the same billing unit."""
-    value = item.display_price
-    comparable_price = 0.0 if value == -1 else value if value is not None else math.inf
-    return (
-        item.billing_method,
-        comparable_price,
-        item.company.casefold(),
-        item.model.casefold(),
-    )
-
-
 def parse_market_pricing(payloads: dict[int, Any], *, captured_at: str) -> MarketPricing:
-    """Validate all four billing feeds and return bounded display records."""
+    """Validate all billing feeds while preserving Oken's directory order.
+
+    Oken's default model table is curated rather than globally price-sorted.
+    Each billing feed therefore keeps its upstream order; optional price/date
+    sorting is a presentation concern and must never compare unlike units.
+    """
     prices: list[MarketModelPrice] = []
     seen: set[tuple[str, int]] = set()
 
@@ -238,7 +231,7 @@ def parse_market_pricing(payloads: dict[int, Any], *, captured_at: str) -> Marke
     if not captured:
         raise ValueError("captured_at is required")
     return MarketPricing(
-        prices=tuple(sorted(prices, key=_price_order)),
+        prices=tuple(prices),
         captured_at=captured,
     )
 

@@ -765,17 +765,54 @@
   renderCompare();
 })();
 
-// Price workbench filters. The server renders the complete, validated public
-// feed; the browser only narrows presentation and never recalculates prices.
+// Price workbench filters and explicit presentation sorting. The server keeps
+// Oken's directory order; the browser never recalculates or mixes price units.
 (() => {
   const rows = Array.from(document.querySelectorAll('[data-pricing-row]'));
   if (!rows.length) return;
   const search = document.getElementById('pricing-search');
   const billing = document.getElementById('pricing-billing');
   const ability = document.getElementById('pricing-ability');
+  const sort = document.getElementById('pricing-sort');
   const visibleCount = document.getElementById('pricing-visible-count');
   const empty = document.getElementById('pricing-empty');
+  const tableBody = rows[0].parentElement;
   let vendor = 'all';
+
+  function sourceOrder(row) {
+    return Number.parseInt(row.dataset.sourceOrder || '', 10) || 0;
+  }
+
+  function priceValue(row, key) {
+    const raw = String(row.dataset[key] || '');
+    if (!raw) return Number.POSITIVE_INFINITY;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) return Number.POSITIVE_INFINITY;
+    return value === -1 ? Number.NEGATIVE_INFINITY : value;
+  }
+
+  function applyPricingSort() {
+    if (!tableBody) return;
+    const mode = String(sort?.value || 'source');
+    const billingOrder = ['usage', 'count', 'video_size', 'av_duration'];
+    const ordered = [...rows].sort((left, right) => {
+      let result = 0;
+      if (mode === 'price-asc') {
+        // Keep unlike units in separate groups when "all billing" is shown.
+        result = billingOrder.indexOf(left.dataset.billing) - billingOrder.indexOf(right.dataset.billing);
+        if (result) return result;
+        result = priceValue(left, 'price') - priceValue(right, 'price');
+      } else if (mode === 'output-asc') {
+        result = billingOrder.indexOf(left.dataset.billing) - billingOrder.indexOf(right.dataset.billing);
+        if (result) return result;
+        result = priceValue(left, 'outputPrice') - priceValue(right, 'outputPrice');
+      } else if (mode === 'published-desc') {
+        result = String(right.dataset.published || '').localeCompare(String(left.dataset.published || ''));
+      }
+      return result || sourceOrder(left) - sourceOrder(right);
+    });
+    ordered.forEach((row) => tableBody.appendChild(row));
+  }
 
   function applyPricingFilters() {
     const query = String(search?.value || '').trim().toLowerCase();
@@ -798,6 +835,7 @@
   search?.addEventListener('input', applyPricingFilters);
   billing?.addEventListener('change', applyPricingFilters);
   ability?.addEventListener('change', applyPricingFilters);
+  sort?.addEventListener('change', applyPricingSort);
   document.querySelectorAll('[data-pricing-vendor]').forEach((button) => {
     button.addEventListener('click', () => {
       vendor = button.dataset.pricingVendor || 'all';
@@ -807,5 +845,6 @@
       applyPricingFilters();
     });
   });
+  applyPricingSort();
   applyPricingFilters();
 })();

@@ -188,7 +188,9 @@ def test_market_pricing_parser_preserves_billing_variants_and_bounds_values():
 
     assert parsed.model_count == 2
     assert parsed.variant_count == 3
-    assert [item.model for item in parsed.prices] == ["gpt-cheap", "gpt-test", "gpt-test"]
+    # Preserve each Oken feed's curated directory order. Price sorting is an
+    # explicit UI choice and must not replace the upstream default order.
+    assert [item.model for item in parsed.prices] == ["gpt-test", "gpt-cheap", "gpt-test"]
     assert {item.billing_key for item in parsed.prices} == {"usage", "count"}
     usage = next(
         item for item in parsed.prices
@@ -243,6 +245,9 @@ def test_pricing_page_attributes_oken_and_keeps_quality_separate(monkeypatch):
     assert 'data-pricing-vendor="openai"' in response.text
     assert 'id="pricing-billing"' in response.text
     assert 'id="pricing-ability"' in response.text
+    assert 'id="pricing-sort"' in response.text
+    assert '<option value="usage" selected>' in response.text
+    assert "OKEN MODEL ORDER" in response.text
     assert 'href="https://www.oken.ai/zh"' in response.text
     assert "nan.meta-api.vip" not in response.text
 
