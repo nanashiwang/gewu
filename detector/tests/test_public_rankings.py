@@ -217,7 +217,7 @@ def test_market_pricing_parser_requires_every_billing_feed():
         raise AssertionError("partial market feeds must fail closed")
 
 
-def test_pricing_page_attributes_oken_and_keeps_quality_separate(monkeypatch):
+def test_pricing_page_hides_upstream_name_and_keeps_quality_separate(monkeypatch):
     from web import server
 
     async def fake_pricing():
@@ -236,7 +236,7 @@ def test_pricing_page_attributes_oken_and_keeps_quality_separate(monkeypatch):
     response = TestClient(server.app).get("/pricing")
 
     assert response.status_code == 200
-    assert "数据整理来源 www.oken.ai" in response.text
+    assert "公开平台价格汇总" in response.text
     assert "最低价不代表线路可用" in response.text
     assert "价格与质量相互独立" in response.text
     assert "gpt-test" in response.text
@@ -247,8 +247,9 @@ def test_pricing_page_attributes_oken_and_keeps_quality_separate(monkeypatch):
     assert 'id="pricing-ability"' in response.text
     assert 'id="pricing-sort"' in response.text
     assert '<option value="usage" selected>' in response.text
-    assert "OKEN MODEL ORDER" in response.text
-    assert 'href="https://www.oken.ai/zh"' in response.text
+    assert "MARKET MODEL INDEX" in response.text
+    assert "Oken" not in response.text
+    assert "oken.ai" not in response.text.lower()
     assert "nan.meta-api.vip" not in response.text
 
 
@@ -265,6 +266,8 @@ def test_pricing_page_fails_closed_without_reusing_unverified_prices(monkeypatch
     assert "公开价格源暂不可用" in response.text
     assert "没有用旧数据冒充当前价格" in response.text
     assert 'id="pricing-search"' not in response.text
+    assert "Oken" not in response.text
+    assert "oken.ai" not in response.text.lower()
 
 
 def test_featured_placement_does_not_change_quality_order(monkeypatch):

@@ -766,7 +766,7 @@
 })();
 
 // Price workbench filters and explicit presentation sorting. The server keeps
-// Oken's directory order; the browser never recalculates or mixes price units.
+// the market directory order; the browser never recalculates or mixes units.
 (() => {
   const rows = Array.from(document.querySelectorAll('[data-pricing-row]'));
   if (!rows.length) return;

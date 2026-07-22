@@ -2296,11 +2296,10 @@ a.coverage-metric:hover strong { color: var(--green); }
 .pricing-source-metrics span { display: block; margin-top: 7px; color: var(--muted); font-size: 10px; }
 .pricing-source-card > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.7; }
 .pricing-source-card > p strong { color: var(--text); font-size: 11px; }
-.pricing-disclosure-bar { display: grid; grid-template-columns: auto 1fr auto; gap: 24px; align-items: center; margin: 14px 0 24px; padding: 14px 18px; border: 1px solid #c7f0df; border-radius: 11px; background: #f4fcf8; }
+.pricing-disclosure-bar { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center; margin: 14px 0 24px; padding: 14px 18px; border: 1px solid #c7f0df; border-radius: 11px; background: #f4fcf8; }
 .pricing-disclosure-bar div span { display: block; color: var(--green-dark); font-size: 9px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
 .pricing-disclosure-bar div strong { display: block; margin-top: 3px; font-size: 12px; }
 .pricing-disclosure-bar p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
-.pricing-disclosure-bar > a { font-size: 11px; font-weight: 750; white-space: nowrap; }
 .pricing-boundary { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin: 24px 0; }
 .pricing-boundary article { padding: 17px; border: 1px solid var(--line); border-radius: 11px; background: #fff; }
 .pricing-boundary strong { font-size: 13px; }

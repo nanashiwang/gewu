@@ -24,11 +24,7 @@ from . import jobs, leaderboard
 from .brand import brand
 from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
 from .featured_pricing import FEATURED_DOMAIN, FEATURED_WEBSITE_URL
-from .market_pricing import (
-    OKEN_DOMAIN,
-    OKEN_WEBSITE_URL,
-    get_market_pricing,
-)
+from .market_pricing import get_market_pricing
 from .image_report import render_report_jpg
 from .probe import probe_model_alive, probe_relay
 from .public_rankings import (
@@ -438,8 +434,6 @@ async def pricing_page(request: Request) -> HTMLResponse:
         "pricing.html",
         {
             "pricing": await get_market_pricing(),
-            "pricing_source_domain": OKEN_DOMAIN,
-            "pricing_source_url": OKEN_WEBSITE_URL,
         },
     )
 
