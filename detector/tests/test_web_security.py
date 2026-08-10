@@ -382,8 +382,11 @@ def test_raw_result_json_requires_internal_token_and_omits_key_mask(monkeypatch)
 
 
 def test_server_side_detector_client_sends_internal_token():
-    source = (
+    source_path = (
         Path(__file__).resolve().parents[2] / "src" / "lib" / "relayDetection.ts"
-    ).read_text(encoding="utf-8")
+    )
+    if not source_path.is_file():
+        pytest.skip("Next.js integration source is not part of standalone detector deploys")
+    source = source_path.read_text(encoding="utf-8")
     assert "X-Gewu-Internal-Token" in source
     assert "process.env.GEWU_INTERNAL_API_TOKEN" in source
