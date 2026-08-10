@@ -82,6 +82,19 @@
   </div>
 </section>
 
+{% set ranking = report.ranking_evidence or {} %}
+{% if ranking.eligible and ranking.review_status == 'approved' %}
+<section class="card alert-card">
+  <strong>公共榜单证据：</strong>
+  本报告已审核入榜；来源、检测器版本和基线版本可在对应站点的榜单详情页复核。
+</section>
+{% else %}
+<section class="card alert-card">
+  <strong>用户自测报告：</strong>
+  本报告可分享，但不会自动参与公共榜单评分或改变站点排名。
+</section>
+{% endif %}
+
 {% if report.run_error %}
 <section class="card alert-card">
   <strong>检测无效:</strong>

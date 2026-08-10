@@ -11,6 +11,18 @@ import pytest
 from web import leaderboard
 
 
+def _approved_evidence() -> dict:
+    return {
+        "eligible": True,
+        "source": "manual_review",
+        "review_status": "approved",
+        "detector_version": "test-build",
+        "baseline_version": "test-baseline#sha256:123456789abc",
+        "reviewed_at": "2026-04-27T00:00:00Z",
+        "reviewer": "reviewer-1",
+    }
+
+
 @pytest.fixture
 def fake_reports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Stage 4 reports across 2 domains, multiple protocols."""
@@ -30,7 +42,9 @@ def fake_reports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             "results": [
                 {"name": "thinking_signature", "status": "pass"},
                 {"name": "pdf", "status": "pass"},
+                {"name": "identity", "status": "pass"},
             ],
+            "ranking_evidence": _approved_evidence(),
         }),
         ("aaa2.json", proto_dir, {
             "base_url": "https://relay-a.example.com",
@@ -39,7 +53,11 @@ def fake_reports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             "total_score": 72.0,
             "verdict": "passed",
             "timestamp": "2026-04-20T10:00:00Z",
-            "results": [{"name": "pdf", "status": "fail"}],
+            "results": [
+                {"name": "identity", "status": "pass"},
+                {"name": "pdf", "status": "fail"},
+            ],
+            "ranking_evidence": _approved_evidence(),
         }),
         ("bbb1.json", openai_dir, {
             "base_url": "https://relay-a.example.com/v1",
@@ -49,9 +67,11 @@ def fake_reports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             "verdict": "marginal",
             "timestamp": "2026-04-25T10:00:00Z",
             "results": [
+                {"name": "basic_request", "status": "pass"},
                 {"name": "token_billing", "status": "fail"},
                 {"name": "function_calling", "status": "fail"},
             ],
+            "ranking_evidence": _approved_evidence(),
         }),
         ("ccc1.json", proto_dir, {
             "base_url": "https://relay-b.example.com",
@@ -60,7 +80,11 @@ def fake_reports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
             "total_score": 95.0,
             "verdict": "passed",
             "timestamp": "2026-04-26T10:00:00Z",
-            "results": [{"name": "thinking_signature", "status": "pass"}],
+            "results": [
+                {"name": "identity", "status": "pass"},
+                {"name": "thinking_signature", "status": "pass"},
+            ],
+            "ranking_evidence": _approved_evidence(),
         }),
     ]
     for name, d, body in reports:

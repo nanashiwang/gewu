@@ -417,7 +417,10 @@ python3 scripts/smoke_web.py https://<your-domain>
 ### 定时质量监控
 
 `monitor-once` 每次只执行一轮检测，将报告原子写入
-`GEWU_JOBS_DIR/<protocol>/`，现有历史页和 leaderboard 会直接读取。
+`GEWU_JOBS_DIR/<protocol>/`。定时监测会附带榜单来源和审核元数据；
+leaderboard 仍会独立排除运行错误、鉴权失败或核心探针未完成的报告。
+网页和普通 CLI 自测报告保持可分享，但不会自动进入榜单。人工审核、
+站点所有者验证、申诉和撤下流程见 `docs/RANKING_GOVERNANCE.md`。
 目标配置不接收明文 key 参数；systemd 使用隔离 credential 文件。
 
 ```bash

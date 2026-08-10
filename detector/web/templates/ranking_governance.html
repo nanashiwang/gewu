@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}榜单治理与申诉 · 格物{% endblock %}
+{% block description %}格物公益检测榜单的证据准入、审核、复测和撤下规则。{% endblock %}
+{% block canonical %}{{ brand.url('/ranking-governance') }}{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <p class="eyebrow">PUBLIC INTEREST GOVERNANCE</p>
+  <h1>榜单治理与申诉</h1>
+  <p class="lead">用户自测报告可以分享，但不会自动影响公共排名。榜单只使用来源明确、完成核心探针且经过审核的证据。</p>
+</section>
+
+<section class="card">
+  <h2>什么证据可以进入榜单</h2>
+  <ul>
+    <li>格物运营方使用受控配置执行的定时监测；</li>
+    <li>运营方人工复核并批准的完整检测；</li>
+    <li>完成域名所有权验证后，由站点所有者申请复测并经审核的报告。</li>
+  </ul>
+  <p>运行错误、鉴权失败、核心探针未完成、来源或审核信息缺失的报告一律不计分。旧报告不会因历史上曾公开而自动获得资格。</p>
+</section>
+
+<section class="card">
+  <h2>如何申请复测或申诉</h2>
+  <ol>
+    <li>准备涉及的域名、榜单页面和报告编号；不要提交 API Key。</li>
+    <li>如主张站点所有权，请准备 DNS TXT 或 <code>/.well-known/</code> 文件验证。</li>
+    <li>在项目公开 Issue 中提交复测申请：<a href="https://github.com/nanashiwang/gewu/issues/new" target="_blank" rel="noopener noreferrer nofollow external">创建申诉或复测 Issue ↗</a>。</li>
+    <li>运营方复核后重新检测；证据无效时立即撤下，成立时以新证据更新榜单。</li>
+  </ol>
+  <p>申诉、复测和撤下不收费，不因购买、赞助或商业关系改变结论。</p>
+</section>
+
+<section class="card">
+  <h2>公开审计字段</h2>
+  <p>每条格物榜单证据公开检测时间、证据来源、审核状态、检测器版本和基线版本，并保留可进入的字段级报告。</p>
+</section>
+{% endblock %}

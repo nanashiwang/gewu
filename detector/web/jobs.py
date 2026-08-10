@@ -33,6 +33,7 @@ from relay_detector.scorer import (
     fatal_run_error,
     summary_text,
 )
+from relay_detector.ranking import unreviewed_ranking_evidence
 from .security import REDACTED, redact_secret, redact_text
 
 
@@ -319,6 +320,9 @@ async def _run(
                 performance=outcome.performance,
                 summary=summary,
                 run_error=run_error,
+                ranking_evidence=unreviewed_ranking_evidence(
+                    report_protocol, model, Mode(mode)
+                ),
                 self_reported_identity=self_id,
                 detected_non_anthropic_brands=brands,
             )

@@ -1,7 +1,7 @@
-"""中转站质量榜与风险观察:聚合所有公开检测报告,按域名分组排序。
+"""中转站质量榜与风险观察:聚合经过审核的可信检测证据。
 
-每份 /r/{job_id} 报告都是公开可分享的;leaderboard 只是把它们按 base_url 的
-域名聚合起来,展示每个中转站被多少人测过、平均分多少、最近一次什么 verdict。
+每份 /r/{job_id} 报告仍可独立分享,但用户自测不会自动影响公共榜单。
+只有运营方监测、人工审核或站点所有者验证且完成核心探针的报告才会聚合。
 
 SEO 价值:用户搜「XX 中转站怎么样」时,leaderboard 页面包含该域名 + 评分
 摘要,可以直接命中长尾搜索。详细报告通过链接跳到具体的 /r/{job_id}。
@@ -20,6 +20,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+
+from relay_detector.ranking import (
+    RANKING_SOURCE_LABELS,
+    assess_ranking_eligibility,
+)
 
 
 _JOBS_DIR = Path(
@@ -226,6 +231,9 @@ def aggregate() -> tuple[list[RelayStats], dict[str, int]]:
             report = _load_report(json_path)
             if not report:
                 continue
+            eligible, _reason = assess_ranking_eligibility(report)
+            if not eligible:
+                continue
             domain = _extract_domain(report.get("base_url", ""))
             if not domain:
                 continue
@@ -294,6 +302,11 @@ class JobEntry:
     verdict: str
     timestamp: datetime | None
     failed_count: int
+    evidence_source: str
+    review_status: str
+    detector_version: str
+    baseline_version: str
+    reviewed_at: datetime | None
 
     @property
     def date_str(self) -> str:
@@ -305,6 +318,14 @@ class JobEntry:
         if self.score >= 70: return "good"
         if self.score >= 50: return "warn"
         return "fail"
+
+    @property
+    def source_label(self) -> str:
+        return RANKING_SOURCE_LABELS.get(self.evidence_source, self.evidence_source)
+
+    @property
+    def review_label(self) -> str:
+        return "已审核" if self.review_status == "approved" else self.review_status
 
 
 def aggregate_one(domain: str) -> tuple[RelayStats, list[JobEntry]] | None:
@@ -332,6 +353,9 @@ def aggregate_one(domain: str) -> tuple[RelayStats, list[JobEntry]] | None:
             report = _load_report(json_path)
             if not report:
                 continue
+            eligible, _reason = assess_ranking_eligibility(report)
+            if not eligible:
+                continue
             if _extract_domain(report.get("base_url", "")) != domain:
                 continue
 
@@ -348,6 +372,8 @@ def aggregate_one(domain: str) -> tuple[RelayStats, list[JobEntry]] | None:
                     pass
             job_id = json_path.stem
             model = str(report.get("target_model") or "")
+            evidence = report.get("ranking_evidence") or {}
+            reviewed_at = _parse_timestamp(evidence.get("reviewed_at"))
 
             results = report.get("results") or []
             failed_count = sum(
@@ -381,6 +407,11 @@ def aggregate_one(domain: str) -> tuple[RelayStats, list[JobEntry]] | None:
                 verdict=verdict,
                 timestamp=ts,
                 failed_count=failed_count,
+                evidence_source=str(evidence.get("source") or ""),
+                review_status=str(evidence.get("review_status") or ""),
+                detector_version=str(evidence.get("detector_version") or ""),
+                baseline_version=str(evidence.get("baseline_version") or "not_available"),
+                reviewed_at=reviewed_at,
             ))
 
     if not history:
