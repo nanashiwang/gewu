@@ -123,7 +123,9 @@ EXCLUDES=(
   --exclude='dist/'
   --exclude='report*.json'
   --exclude='web_data/'          # persistent web job reports on remote
+  --exclude='private_monitor/'   # private scheduled-monitor evidence on remote
   --exclude='.cache/'
+  --exclude='.deployed-commit'   # server-local deployment marker
   --exclude='.DS_Store'
   # .env is host-specific: local points at one relay for dev, remote points
   # at whatever you're testing right now. Never let one overwrite the other.
