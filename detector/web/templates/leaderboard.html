@@ -22,7 +22,7 @@
 <section class="leaderboard-hero">
   <div class="leaderboard-eyebrow"><i></i> 第三方榜单快照与格物实测分开标注</div>
   <div class="leaderboard-hero-grid">
-    <div><h1>AI API 中转站<br><span>质量与风险</span></h1><p>大部分条目来自 Veridrop 公开榜单快照；只有带“格物实测”标记的记录来自格物检测器。两类来源不会冒充彼此。</p><div class="leaderboard-hero-actions"><a class="btn btn-primary" href="/#quick-check">立即检测</a><a class="btn btn-ghost" href="#ranking-browser">浏览榜单</a><a class="btn btn-ghost" href="/pricing">模型价格</a></div></div>
+    <div><h1>AI API 中转站<br><span>质量与风险</span></h1><p>大部分条目来自 Veridrop 公开榜单快照；只有带“格物实测”标记的记录来自格物检测器。用户自测不会自动影响榜单，格物实测仅接纳运营方监测、人工审核或站点所有者验证后的有效证据。</p><div class="leaderboard-hero-actions"><a class="btn btn-primary" href="/#quick-check">立即检测</a><a class="btn btn-ghost" href="#ranking-browser">浏览榜单</a><a class="btn btn-ghost" href="/ranking-governance">榜单治理</a><a class="btn btn-ghost" href="/pricing">模型价格</a></div></div>
     <div class="leaderboard-overview source-overview"><div><strong>{{ coverage.external_site_count }}</strong><span>第三方快照站点</span><small>Veridrop · {{ coverage.external_updated_at }}</small></div><div><strong>{{ coverage.first_party_site_count }}</strong><span>格物实测站点</span><small>{{ coverage.first_party_report_count }} 次记录 · {{ coverage.first_party_updated_at }}</small></div><div class="overview-red"><strong>{{ coverage.red_count }}</strong><span>质量榜</span></div><div class="overview-black"><strong>{{ coverage.black_count }}</strong><span>风险观察</span></div><p>总计 {{ coverage.site_count_label }} 个域名 · 来源以每行标记为准</p></div>
   </div>
 </section>

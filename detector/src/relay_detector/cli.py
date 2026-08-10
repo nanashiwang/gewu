@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,9 +24,16 @@ from .models import (
     Mode,
     PerformanceMetrics,
     Protocol,
+    RankingEvidence,
     mask_api_key,
 )
 from .monitor import monitor_output_path, normalize_target_id, resolve_monitor_api_key
+from .ranking import (
+    approved_ranking_evidence,
+    revoke_report_approval,
+    unreviewed_ranking_evidence,
+    update_report_approval,
+)
 from .report import Report
 from .runner import Runner
 from .scorer import compute_total, effective_verdict, fatal_run_error, summary_text
@@ -48,6 +56,49 @@ console = Console()
 def version() -> None:
     """Print the version and exit."""
     console.print(f"gewu {__version__}")
+
+
+@app.command(name="approve-ranking-report")
+def approve_ranking_report(
+    report_path: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    source: str = typer.Option(..., "--source", help="manual_review or site_owner_verified"),
+    reviewer: str = typer.Option(..., "--reviewer", help="Operator/reviewer identifier."),
+    verification_reference: Optional[str] = typer.Option(
+        None,
+        "--verification-reference",
+        help="Ticket, ownership proof or other audit reference.",
+    ),
+) -> None:
+    """Approve a completed report for public ranking after validation."""
+    if source not in {"manual_review", "site_owner_verified"}:
+        console.print("[red]source must be manual_review or site_owner_verified[/red]")
+        raise typer.Exit(2)
+    try:
+        update_report_approval(
+            report_path,
+            source=source,
+            reviewer=reviewer,
+            verification_reference=verification_reference,
+        )
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        console.print(f"[red]approval failed:[/red] {error}")
+        raise typer.Exit(1) from error
+    console.print(f"[green]approved for ranking:[/green] {report_path}")
+
+
+@app.command(name="revoke-ranking-report")
+def revoke_ranking_report(
+    report_path: Path = typer.Argument(..., exists=True, dir_okay=False, readable=True),
+    reviewer: str = typer.Option(..., "--reviewer", help="Operator/reviewer identifier."),
+    reason: str = typer.Option(..., "--reason", help="Public audit reason for removal."),
+) -> None:
+    """Remove a report from public rankings without deleting its evidence."""
+    try:
+        revoke_report_approval(report_path, reviewer=reviewer, reason=reason)
+    except (OSError, ValueError, json.JSONDecodeError) as error:
+        console.print(f"[red]revocation failed:[/red] {error}")
+        raise typer.Exit(1) from error
+    console.print(f"[yellow]revoked from ranking:[/yellow] {report_path}")
 
 
 def _load_dotenv(path: Path) -> None:
@@ -368,7 +419,22 @@ def monitor_once(
 
     path = monitor_output_path(output_root, proto, safe_target_id)
     report = asyncio.run(
-        _run_detect(proto, base_url, api_key, model, config, path)
+        _run_detect(
+            proto,
+            base_url,
+            api_key,
+            model,
+            config,
+            path,
+            ranking_evidence=approved_ranking_evidence(
+                proto,
+                model,
+                mode,
+                source="operator_monitor",
+                reviewer=f"systemd-monitor:{safe_target_id}",
+                verification_reference=safe_target_id,
+            ),
+        )
     )
     console.print(
         f"[dim]monitor target={safe_target_id} verdict={report.verdict} "
@@ -447,6 +513,7 @@ async def _run_detect(
     model: str,
     config: ExecutionConfig,
     output_path: Optional[Path],
+    ranking_evidence: RankingEvidence | None = None,
 ) -> DetectionReport:
     masked = mask_api_key(api_key)
     console.print(
@@ -525,6 +592,9 @@ async def _run_detect(
         performance=outcome.performance,
         summary=summary,
         run_error=run_error,
+        ranking_evidence=ranking_evidence or unreviewed_ranking_evidence(
+            protocol, model, config.mode
+        ),
         self_reported_identity=self_id,
         detected_non_anthropic_brands=detected_brands,
     )

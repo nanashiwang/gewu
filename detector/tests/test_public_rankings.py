@@ -106,8 +106,8 @@ def test_ranking_detail_renders_local_trend_and_report_history(monkeypatch):
     )
     relay = RelayStats(domain=site.domain, by_protocol={"openai": protocol})
     history = [
-        JobEntry("job-new", "openai", "gpt-test", 92, "passed", datetime(2026, 7, 20, tzinfo=timezone.utc), 0),
-        JobEntry("job-old", "openai", "gpt-test", 80, "marginal", datetime(2026, 7, 19, tzinfo=timezone.utc), 1),
+        JobEntry("job-new", "openai", "gpt-test", 92, "passed", datetime(2026, 7, 20, tzinfo=timezone.utc), 0, "operator_monitor", "approved", "test-build", "baseline-a", datetime(2026, 7, 20, tzinfo=timezone.utc)),
+        JobEntry("job-old", "openai", "gpt-test", 80, "marginal", datetime(2026, 7, 19, tzinfo=timezone.utc), 1, "manual_review", "approved", "test-build", "baseline-a", datetime(2026, 7, 19, tzinfo=timezone.utc)),
     ]
     monkeypatch.setattr(server, "_public_ranking_snapshot", lambda: {
         "red_sites": (site,), "black_sites": (),
@@ -122,6 +122,10 @@ def test_ranking_detail_renders_local_trend_and_report_history(monkeypatch):
     assert "可复核检测历史" in response.text
     assert 'href="/r/job-new"' in response.text
     assert "usage" in response.text
+    assert "运营方定时监测" in response.text
+    assert "人工审核" in response.text
+    assert "test-build" in response.text
+    assert "baseline-a" in response.text
 
 def test_compare_page_limits_deduplicates_and_validates_domains():
     response = TestClient(app).get(

@@ -16,6 +16,18 @@ import pytest
 from web import leaderboard
 
 
+def _approved_evidence() -> dict:
+    return {
+        "eligible": True,
+        "source": "operator_monitor",
+        "review_status": "approved",
+        "detector_version": "test-build",
+        "baseline_version": "test-baseline#sha256:123456789abc",
+        "reviewed_at": "2026-05-01T00:00:00Z",
+        "reviewer": "test-monitor",
+    }
+
+
 def _stage_reports(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -35,7 +47,8 @@ def _stage_reports(
                 "total_score": s,
                 "verdict": "passed",
                 "timestamp": f"2026-05-{(job_id % 28) + 1:02d}T10:00:00Z",
-                "results": [],
+                "results": [{"name": "identity", "status": "pass"}],
+                "ranking_evidence": _approved_evidence(),
             }))
     monkeypatch.setattr(leaderboard, "REPORT_DIRS", [proto_dir])
 
@@ -99,3 +112,48 @@ def test_aggregate_ordering_is_ranked_first(
     )
     assert summary["ranked_relays"] == 1
     assert summary["total_relays"] == 2
+
+
+def test_unreviewed_and_invalid_reports_cannot_pollute_ranking(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    proto_dir = tmp_path / "anthropic"
+    proto_dir.mkdir()
+    common = {
+        "base_url": "https://victim.example.com/v1",
+        "protocol": "anthropic",
+        "target_model": "claude-haiku-4-5",
+        "mode": "quick",
+        "total_score": 0,
+        "verdict": "failed",
+        "timestamp": "2026-05-20T10:00:00Z",
+        "results": [{"name": "identity", "status": "pass"}],
+    }
+    (proto_dir / "legacy.json").write_text(json.dumps(common))
+    (proto_dir / "user.json").write_text(json.dumps({
+        **common,
+        "ranking_evidence": {
+            **_approved_evidence(),
+            "source": "user_submission",
+        },
+    }))
+    (proto_dir / "auth.json").write_text(json.dumps({
+        **common,
+        "ranking_evidence": _approved_evidence(),
+        "results": [{
+            "name": "identity",
+            "status": "fail",
+            "error": "HTTP 401 invalid API key",
+        }],
+    }))
+    (proto_dir / "runerror.json").write_text(json.dumps({
+        **common,
+        "ranking_evidence": _approved_evidence(),
+        "run_error": "检测无效",
+    }))
+    monkeypatch.setattr(leaderboard, "REPORT_DIRS", [proto_dir])
+
+    relays, summary = leaderboard.aggregate()
+
+    assert relays == []
+    assert summary == {"total_reports": 0, "total_relays": 0, "ranked_relays": 0}

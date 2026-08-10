@@ -333,6 +333,7 @@ def test_result_page_labels_score_as_quality_not_probability(monkeypatch):
     assert "91" in response.text
     assert "/100" in response.text
     assert "协议质量分,不是模型真伪概率" in response.text
+    assert "不会自动参与公共榜单评分" in response.text
     assert "91%" not in response.text
 
 

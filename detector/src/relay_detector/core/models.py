@@ -104,6 +104,26 @@ class PerformanceMetrics(BaseModel):
     backoff_events: int = 0
 
 
+class RankingEvidence(BaseModel):
+    """Governance metadata controlling whether a report may affect rankings.
+
+    Individual reports remain shareable.  This metadata is a separate trust
+    boundary: only explicitly approved, attributable evidence may be consumed
+    by the public leaderboard.
+    """
+
+    schema_version: int = 1
+    eligible: bool = False
+    source: str = "user_submission"
+    review_status: str = "unreviewed"
+    detector_version: str = ""
+    baseline_version: str = "not_available"
+    reviewed_at: datetime | None = None
+    reviewer: str | None = None
+    verification_reference: str | None = None
+    review_note: str | None = None
+
+
 class DetectionReport(BaseModel):
     # Defaults preserve compatibility with historical Claude-only reports.
     protocol: Protocol = Protocol.ANTHROPIC
@@ -121,6 +141,7 @@ class DetectionReport(BaseModel):
     performance: PerformanceMetrics = Field(default_factory=PerformanceMetrics)
     summary: str = ""
     run_error: str | None = None
+    ranking_evidence: RankingEvidence = Field(default_factory=RankingEvidence)
     # Top-level shortcut to the model's self-reported identity (raw text from
     # IdentityDetector). Surfaced here so callers don't need to dig into
     # results[0].details.response_text — and so compare() can put the

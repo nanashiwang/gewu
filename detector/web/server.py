@@ -454,6 +454,12 @@ async def pricing_page(request: Request) -> HTMLResponse:
     )
 
 
+@app.get("/ranking-governance", response_class=HTMLResponse)
+async def ranking_governance_page(request: Request) -> HTMLResponse:
+    """Explain ranking eligibility, review and no-cost appeal rules."""
+    return templates.TemplateResponse(request, "ranking_governance.html", {})
+
+
 @app.get("/leaderboard/compare", response_class=HTMLResponse)
 async def compare_page(request: Request) -> HTMLResponse:
     """Compare up to three validated public ranking entries."""
@@ -1121,6 +1127,7 @@ _STATIC_SITEMAP_URLS = [
     ("/openai",      "weekly",  "0.9",  "openai.html"),
     ("/gemini",      "weekly",  "0.9",  "gemini.html"),
     ("/leaderboard", "daily",   "0.85", "leaderboard.html"),
+    ("/ranking-governance", "monthly", "0.65", "ranking_governance.html"),
     ("/pricing",     "daily",   "0.75", "pricing.html"),
     ("/faq",         "monthly", "0.8",  "faq.html"),
 ]

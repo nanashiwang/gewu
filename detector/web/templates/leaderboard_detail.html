@@ -59,7 +59,18 @@
 <section class="lb-detail-issues"><h2>历史中较常出现的扣分项</h2><p class="lb-detail-hint">只统计已有报告,不能代表未来一定发生。</p><ul class="lb-issues-list">{% for name, count in failed_summary %}<li><code>{{ name }}</code><span class="lb-issues-count">{{ count }} 次</span></li>{% endfor %}</ul></section>
 {% endif %}
 {% if history %}
-<section class="lb-detail-history"><div class="relay-section-head"><div><span class="public-ranking-kicker">EVIDENCE</span><h2>可复核检测历史 · {{ history|length }} 份</h2></div><p>每一行都可进入字段级报告。</p></div><div class="lb-history-table-wrap"><table class="lb-history-table"><thead><tr><th>日期</th><th>协议</th><th>测试模型</th><th class="num">分数</th><th>判定</th><th class="num">扣分项</th><th>报告</th></tr></thead><tbody>{% for item in history %}<tr><td>{{ item.date_str }}</td><td>{{ protocol_labels.get(item.protocol, item.protocol) }}</td><td><code>{{ item.model or "—" }}</code></td><td class="num"><span class="lb-history-score lb-history-score-{{ item.badge_class }}">{{ "%.0f"|format(item.score) }}</span></td><td>{{ verdict_labels.get(item.verdict, item.verdict) }}</td><td class="num">{{ item.failed_count }}</td><td><a href="/r/{{ item.job_id }}">查看 →</a></td></tr>{% endfor %}</tbody></table></div></section>
+<section class="lb-detail-history">
+  <div class="relay-section-head">
+    <div><span class="public-ranking-kicker">EVIDENCE</span><h2>可复核检测历史 · {{ history|length }} 份</h2></div>
+    <p>仅展示已审核且完成核心探针的榜单证据，每一行均可进入字段级报告。</p>
+  </div>
+  <div class="lb-history-table-wrap">
+    <table class="lb-history-table">
+      <thead><tr><th>日期</th><th>证据来源</th><th>审核</th><th>检测器</th><th>基线</th><th>协议</th><th>测试模型</th><th class="num">分数</th><th>判定</th><th class="num">扣分项</th><th>报告</th></tr></thead>
+      <tbody>{% for item in history %}<tr><td>{{ item.date_str }}</td><td>{{ item.source_label }}</td><td>{{ item.review_label }}</td><td><code>{{ item.detector_version }}</code></td><td><code>{{ item.baseline_version }}</code></td><td>{{ protocol_labels.get(item.protocol, item.protocol) }}</td><td><code>{{ item.model or "—" }}</code></td><td class="num"><span class="lb-history-score lb-history-score-{{ item.badge_class }}">{{ "%.0f"|format(item.score) }}</span></td><td>{{ verdict_labels.get(item.verdict, item.verdict) }}</td><td class="num">{{ item.failed_count }}</td><td><a href="/r/{{ item.job_id }}">查看 →</a></td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>
 {% else %}
 <section class="relay-evidence-empty"><span>当前没有可公开展开的逐次报告</span><h2>不要只看榜单快照,建议现在复测</h2><p>复测会验证当前线路、模型和协议状态,比旧分数更接近你此刻的真实使用体验。</p><a class="btn btn-primary" href="{{ site.detect_url }}">立即复测</a></section>
 {% endif %}
