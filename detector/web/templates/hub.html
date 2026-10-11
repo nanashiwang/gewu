@@ -1,368 +1,123 @@
 {% extends "base.html" %}
-{% from "_pricing_table.html" import pricing_workbench with context %}
-
 {% block title %}AI API 公益检测与模型观测 | 格物{% endblock %}
-{% block description %}用真实 API 请求检查接口兼容性、能力与异常线索，按模型查看已审核观测，每项结论保留可复核证据。{% endblock %}
+{% block description %}免费检查 Claude、OpenAI、Gemini 接口的可用性、能力与协议异常，查看可复核的检测证据。{% endblock %}
 {% block og_title %}AI API 公益检测与模型观测 | 格物{% endblock %}
-{% block og_description %}用真实请求检查接口兼容性、能力与异常线索，按模型查看可复核的检测证据。{% endblock %}
-
+{% block og_description %}选择模型，检测接口，查看证据。格物提供公益检测与历史报告查询。{% endblock %}
+{% block body_class %}home-simple{% endblock %}
 {% block head_extra %}
+<link rel="stylesheet" href="/static/home.css?v=20261011-3" />
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   "name": "格物",
-  "alternateName": ["格物 中转站检测", "AI API 中转站检测工具", "Claude relay verifier"],
   "applicationCategory": "DeveloperApplication",
-  "applicationSubCategory": "API Verification Tool",
   "operatingSystem": "Web Browser",
-  "url": "{{ brand.site_url }}/",
-  "browserRequirements": "Requires JavaScript and a modern browser",
-  "offers": {
-    "@type": "Offer",
-    "price": "0",
-    "priceCurrency": "USD",
-    "availability": "https://schema.org/InStock"
-  },
-  "featureList": [
-    "Claude thinking block 原始/篡改回放验证",
-    "OpenAI Chat Completions 8 项协议检测",
-    "Gemini OpenAI 兼容协议 7 项检测",
-    "三协议自动跳转(选错协议一键切换)",
-    "提交前死模型预探测",
-    "报告可分享(HTML + JPG)",
-    "API key 不持久化",
-    "报告证据可复核"
-  ],
-  "creator": {"@type": "Organization", "name": "格物", "url": "{{ brand.site_url }}"},
-  "description": "格物通过 Claude thinking signature 等 10 项检测维度，验证 AI API 中转站是否真实透传 Claude 模型，识别用 Kiro / Amazon Q / 其他后端伪装的中转站。同时覆盖 OpenAI / Gemini 协议级检测。"
-}
-</script>
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "AI API 中转站是什么?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "中转站(relay,又叫「镜像」「代理」)是第三方搭建的 API 转发服务,把你的请求转给 OpenAI / Anthropic / Google 官方,再把响应原样返回给你。常见出现原因:国内无法直连官方域名、便宜的批发价、统一一个接口调多家模型。"
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "怎么知道我用的是真 Claude / GPT / Gemini 还是假的?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "三个方向：① 协议字段（id 前缀、object、finish_reason 是否符合协议规范）；② 能力表现（思维签名回放、PDF 识别、function calling 形状）；③ 用量字段（usage 是否有异常线索）。具体检测项目与耗时取决于协议、模型和检测模式，结论以本次实际完成的项目为准。"
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "格物 会偷我的 API key 吗?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "原始 API key 不进入 job、报告或日志,只在正在执行的任务局部作用域中短暂使用。报告不会保留密钥前缀、后缀或其他可识别片段,只保留与检测结论有关的字段级证据。"
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "检测要花钱吗?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "格物 自己免费。但检测会发真实 API 请求,产生上游 token 消耗:Haiku 约 $0.012,Sonnet 约 $0.05,Opus 约 $0.20,GPT-4o-mini 约 $0.005。这部分是中转站收的钱,不经 格物。"
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "中转站常见的「作假」手段有哪些?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "5 种常见:① 用 Kiro / Amazon Q / Bedrock 跑 Claude 替身;② 用 Claude 后端跑 GPT 请求;③ 把 GPT-4o 偷换成 GPT-4o-mini 省成本;④ 剥离 thinking、PDF 多模态等高级能力;⑤ 注入额外 system prompt 改写身份回答。格物 对这 5 种都有针对性检测。"
-      }
-    }
-  ]
+  "url": {{ brand.url('/') | tojson }},
+  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+  "description": "公益检测 Claude、OpenAI、Gemini 接口，检查可用性、能力与协议异常。检测会消耗用户的上游 API 额度，分数不作为模型身份证明。"
 }
 </script>
 {% endblock %}
 
-{% macro protocol_logo(protocol) %}
-<span class="protocol-brand-icon protocol-brand-{{ protocol }}" aria-hidden="true">
-  {% if protocol == "anthropic" %}
-  <svg viewBox="0 0 24 24"><path d="M5 20 12 4l7 16"/><path d="M8 14h8"/></svg>
-  {% elif protocol == "openai" %}
-  <svg viewBox="0 0 24 24"><path d="M12 4.2a4.1 4.1 0 0 1 7 3 4.1 4.1 0 0 1 .1 7.1 4.1 4.1 0 0 1-3.7 6.1 4.1 4.1 0 0 1-6.3-1.2 4.1 4.1 0 0 1-4.7-5.7A4.1 4.1 0 0 1 6 6.7 4.1 4.1 0 0 1 12 4.2Z"/><path d="m8.2 8.2 7.6 4.4-7.4 4.2V8.3l7.4 4.3"/></svg>
-  {% else %}
-  <svg viewBox="0 0 24 24"><path d="M12 3c.8 5.5 3.5 8.2 9 9-5.5.8-8.2 3.5-9 9-.8-5.5-3.5-8.2-9-9 5.5-.8 8.2-3.5 9-9Z"/></svg>
-  {% endif %}
-</span>
-{% endmacro %}
-
-{% macro protocol_name(protocol) %}{% if protocol == "anthropic" %}Claude{% elif protocol == "openai" %}OpenAI{% elif protocol == "gemini" %}Gemini{% else %}{{ protocol }}{% endif %}{% endmacro %}
-
 {% block content %}
-<section class="hub-hero">
-  <div class="hub-hero-grid">
-    <div class="hub-hero-copy">
-      <span class="live-status"><i aria-hidden="true"></i>实时检测开放 · 结果可复核</span>
-      <h1>接口是否好用<br><span>让证据来回答</span></h1>
-      <p class="answer-capsule">
-        公益检测 Claude / OpenAI / Gemini 接口：检查能否调用、能力是否完整、是否存在协议异常。检测分数不是模型身份证明。
-      </p>
+<header class="home-heading">
+  <h1>AI 接口检测 <span>公益工具</span></h1>
+  <p>检查接口是否可用、能力是否完整，让每项结论都有证据。</p>
+</header>
 
-      <div class="history-search-panel">
-        <div class="history-search-head">
-          <span>LOOKUP HISTORY</span>
-          <strong>查一个域名 · 免费秒出</strong>
-        </div>
-        <form class="history-search-form" id="history-search-form" role="search" novalidate>
-          <label class="sr-only" for="home-domain-search">搜索中转站域名</label>
-          <input id="home-domain-search" type="search" list="home-domain-options"
-                 placeholder="输入中转站域名" autocomplete="off" maxlength="253">
-          <button class="btn btn-primary" type="submit">查历史报告</button>
-        </form>
-        <datalist id="home-domain-options">
-          {% for site in all_ranking_sites %}<option value="{{ site.domain }}">{% endfor %}
-        </datalist>
-        <p>可直接输入域名或粘贴 URL；有匹配记录时进入站内详情，不会跳转到外部网站。</p>
-        <p class="history-search-status" id="history-search-status" aria-live="polite"></p>
-      </div>
-    </div>
-
-    <form class="quick-check-panel" id="quick-check" novalidate>
-      <div class="quick-check-head">
-        <span>RUN A NEW CHECK</span>
-        <strong>开始检测 · 耗时取决于模型与模式</strong>
-      </div>
-      <fieldset class="quick-protocols">
-        <legend>接口协议</legend>
-        <label>
-          <input type="radio" name="protocol" value="claude" checked>
-          <span>{{ protocol_logo("anthropic") }}<span><strong>Claude</strong><small>{{ coverage.anthropic_site_count }} 家</small></span></span>
-        </label>
-        <label>
-          <input type="radio" name="protocol" value="openai">
-          <span>{{ protocol_logo("openai") }}<span><strong>OpenAI</strong><small>{{ coverage.openai_site_count }} 家</small></span></span>
-        </label>
-        <label>
-          <input type="radio" name="protocol" value="gemini">
-          <span>{{ protocol_logo("gemini") }}<span><strong>Gemini</strong><small>{{ coverage.gemini_site_count }} 家</small></span></span>
-        </label>
+<div class="home-tools">
+  <section class="home-check" aria-labelledby="quick-check-title">
+    <h2 id="quick-check-title">开始检测</h2>
+    <form id="quick-check" novalidate>
+      <fieldset class="home-protocols">
+        <legend class="sr-only">接口协议</legend>
+        {% for value, label in [("claude", "Claude"), ("openai", "OpenAI"), ("gemini", "Gemini")] %}
+        <label><input type="radio" name="protocol" value="{{ value }}" {% if loop.first %}checked{% endif %}><span>{{ label }}</span></label>
+        {% endfor %}
       </fieldset>
-      <label class="quick-model-label" for="quick-model">目标模型 <small>选择协议后，从列表中选择</small></label>
-      <select id="quick-model" name="model" class="quick-model-input" required
-              data-choices='{{ quick_models|tojson }}' aria-describedby="quick-model-hint">
-        <option value="" selected disabled>请选择目标模型</option>
-        {% for model in quick_models.claude %}<option value="{{ model.id }}">{{ model.label }}</option>{% endfor %}
-      </select>
-      <p class="quick-model-hint" id="quick-model-hint">这里是常用候选；下一步可读取你的接口所声明的模型列表。</p>
-      <label class="quick-url-label" for="quick-base-url">API Base URL</label>
-      <div class="quick-url-row">
-        <input id="quick-base-url" name="base_url" type="url" inputmode="url"
-               placeholder="https://relay.example.com/v1" autocomplete="url" maxlength="2048" required>
-        <button class="btn btn-primary" type="submit">下一步：填 API key</button>
+      <div class="home-check-fields">
+        <div class="home-field">
+          <label for="quick-model">目标模型</label>
+          <select id="quick-model" name="model" required data-choices='{{ quick_models|tojson }}' aria-describedby="quick-model-hint">
+            <option value="" selected disabled>请选择目标模型</option>
+            {% for model in quick_models.claude %}<option value="{{ model.id }}">{{ model.label }}</option>{% endfor %}
+          </select>
+          <p id="quick-model-hint">常用候选，下一步可读取接口模型列表。</p>
+        </div>
+        <div class="home-field">
+          <label for="quick-base-url">接口地址</label>
+          <input id="quick-base-url" name="base_url" type="url" inputmode="url" placeholder="https://relay.example.com/v1" autocomplete="url" maxlength="2048" required>
+          <p>填写服务商提供的 API Base URL。</p>
+        </div>
       </div>
-      <p class="quick-check-hint" id="quick-check-hint">首页不收集密钥。选好的模型会带到下一步，粘贴 API key 后确认即可。</p>
-      <p class="quick-check-error" id="quick-check-error" role="alert" hidden></p>
+      <div class="home-check-action">
+        <button class="btn btn-primary" type="submit">下一步</button>
+        <p>首页不收集密钥，下一步填写 API key。</p>
+      </div>
+      <p id="quick-check-error" class="home-form-error" role="alert" hidden></p>
     </form>
-  </div>
-</section>
+  </section>
 
-<section class="ranking-guide">
-  <div class="ranking-guide-head"><span>CHOOSE YOUR CHECK</span><h2>这次你想确认什么？</h2></div>
-  <div class="ranking-guide-grid">
-    <article><strong>接口能否使用</strong><p>先做快速检查，确认鉴权、模型调用和协议响应；失败时从具体报错开始排查。</p><a href="#quick-check">开始快速检查 →</a></article>
-    <article><strong>能力是否符合预期</strong><p>在协议页选择标准或完整模式，查看工具调用、结构化输出等项目。未测能力不作保证。</p><a href="/openai">查看能力检测 →</a></article>
-    <article><strong>近期表现怎么样</strong><p>按模型与观测入口查看有效样本及七天记录。缺少样本会明确显示，不推算可用率。</p><a href="/leaderboard/monitor">查看模型观测 →</a></article>
-  </div>
-  <p>格物不收检测服务费；实际请求会消耗你的上游额度。建议使用限额专用 Key，从快速模式开始，复测前确认余额。</p>
-</section>
+  <section class="home-history" aria-labelledby="history-title">
+    <h2 id="history-title">查历史报告</h2>
+    <p>已有检测记录？输入域名直接查看。</p>
+    <form id="history-search-form" class="home-history-form" role="search" novalidate>
+      <label class="sr-only" for="home-domain-search">搜索中转站域名</label>
+      <input id="home-domain-search" type="search" list="home-domain-options" placeholder="输入域名或 URL" autocomplete="off" maxlength="253">
+      <button class="btn" type="submit">查询</button>
+    </form>
+    <datalist id="home-domain-options">
+      {% for site in all_ranking_sites %}<option value="{{ site.domain }}">{% endfor %}
+    </datalist>
+    <p id="history-search-status" class="home-history-status" aria-live="polite"></p>
+    <p class="home-history-meta">含历史参考：{{ coverage.site_count_label }} 个域名 · {{ coverage.report_count_label }} 次记录</p>
+    <a href="/leaderboard/monitor">按模型查看观测 →</a>
+  </section>
+</div>
 
-<details class="ranking-methodology"><summary>价格辅助参考 · 不参与检测结论</summary>
-{% if pricing and pricing.homepage_prices %}
-<section class="home-pricing" id="home-pricing" aria-labelledby="home-pricing-title">
-  <div class="home-pricing-head">
-    <div>
-      <span class="public-ranking-kicker">POPULAR MODEL PRICES</span>
-      <h2 id="home-pricing-title">热门模型价格 · 前 {{ pricing.homepage_prices|length }}</h2>
-      <p>只展示按量计费的热门模型，输入、输出价格统一按百万 Tokens；价格最低不等于线路真实可用。</p>
-    </div>
-    <a href="/pricing">查看全部 {{ pricing.model_count }} 个模型 →</a>
-  </div>
-  {{ pricing_workbench(pricing, pricing.homepage_prices, true) }}
-  <div class="home-pricing-footer">
-    <p>公开市场汇总价格 · 格物读取时间：{{ pricing.captured_at }} · 最终以供应平台结算页为准</p>
-    <strong>价格仅供参考，检测提供本次调用的证据。</strong>
-  </div>
-</section>
-{% else %}
-<section class="home-pricing home-pricing-unavailable" id="home-pricing" aria-labelledby="home-pricing-title">
-  <div class="home-pricing-head">
-    <div><span class="public-ranking-kicker">POPULAR MODEL PRICES</span><h2 id="home-pricing-title">热门模型价格暂不可用</h2><p>当前价格源没有通过完整校验，因此不使用旧价格冒充实时数据。</p></div>
-    <a href="/pricing">打开模型价格页 →</a>
-  </div>
-</section>
-{% endif %}
-</details>
+<p class="home-cost-note">格物不收检测服务费；新检测会消耗你的上游 API 额度。</p>
 
-<section class="home-ranking" id="home-ranking" aria-labelledby="home-ranking-title">
-  <div class="home-ranking-head">
-    <div>
-      <span class="public-ranking-kicker">CURRENT QUALITY RANKING</span>
-      <h2 id="home-ranking-title">近期有效检测 · {{ ranking_sites|length }} 个站点</h2>
-    </div>
-    <p>含历史参考共 {{ coverage.site_count_label }} 个域名 · {{ coverage.report_count_label }} 次记录 · 更新至 {{ coverage.updated_at }}</p>
+<section class="home-results" id="home-ranking" aria-labelledby="home-ranking-title">
+  <div class="home-section-heading">
+    <h2 id="home-ranking-title">近期检测</h2>
+    <a href="/leaderboard">查看完整榜单 →</a>
   </div>
-  <div class="home-ranking-table-wrap">
-    <table class="home-ranking-table">
-      <thead>
-        <tr>
-          <th scope="col">排名</th>
-          <th scope="col">中转站与来源</th>
-          <th scope="col"><abbr title="按综合分从高到低排序；同分时参考样本可信度和记录数">综合分</abbr></th>
-          <th scope="col"><abbr title="该域名现有记录覆盖的 API 协议，不代表所有模型都可用">协议覆盖</abbr></th>
-          <th scope="col"><abbr title="格物实测或第三方公开快照中最近一次记录日期">最近记录</abbr></th>
-          <th scope="col">证据</th>
-        </tr>
-      </thead>
+  {% if ranking_sites %}
+  <p class="home-section-note">近 30 天已审核的格物实测，按综合分排序；不同协议的分数不直接比较。</p>
+  <div class="home-results-scroll">
+    <table class="home-results-table">
+      <thead><tr><th scope="col">站点</th><th scope="col">综合分</th><th scope="col">协议</th><th scope="col">最近检测</th><th scope="col"><span class="sr-only">报告</span></th></tr></thead>
       <tbody>
         {% for site in ranking_sites %}
         <tr data-home-rank-row data-domain="{{ site.domain|lower }}">
-          <td class="home-rank-position">{{ loop.index }}</td>
-          <td class="home-rank-domain">
-            <a href="/leaderboard/{{ site.domain }}">{{ site.domain }}</a>
-            {% if site.source_class == "first-party" %}<span class="source-badge source-first-party">{{ site.source_label }}</span>{% else %}<small class="source-inline">{{ site.source_label }}</small>{% endif %}
-          </td>
-          <td class="home-rank-score"><strong>{{ site.score }}</strong><span>/100</span></td>
-          <td class="home-rank-protocols">
-            {% for protocol in site.protocols %}<span class="home-rank-protocol home-rank-protocol-{{ protocol }}">{{ protocol_logo(protocol) }}{{ protocol_name(protocol) }}</span>{% endfor %}
-          </td>
-          <td class="home-rank-date"><time datetime="{{ site.last_checked }}">{{ site.last_checked }}</time><small>{{ site.report_count }} 次记录</small></td>
-          <td class="home-rank-report"><a href="/leaderboard/{{ site.domain }}">{% if site.source_class == "first-party" %}查看报告{% else %}查看详情{% endif %} →</a></td>
+          <td><a href="/leaderboard/{{ site.domain }}">{{ site.domain }}</a><small>{{ site.source_label }} · {{ site.report_count }} 次记录</small></td>
+          <td><strong>{{ site.score }}</strong><small>/100</small></td>
+          <td>{% for protocol in site.protocols %}{{ "Claude" if protocol == "anthropic" else "OpenAI" if protocol == "openai" else "Gemini" if protocol == "gemini" else protocol }}{% if not loop.last %} / {% endif %}{% endfor %}</td>
+          <td><time datetime="{{ site.last_checked }}">{{ site.last_checked }}</time></td>
+          <td><a href="/leaderboard/{{ site.domain }}">查看 →</a></td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
-  {% if not ranking_sites %}<p class="card">暂无近 30 天可展示的高分证据。旧记录已移入历史参考，不以历史分数承诺当前质量。<a href="/leaderboard#historical-reference">查看历史参考 →</a></p>{% endif %}
-  <p class="home-ranking-empty" id="home-ranking-empty" hidden>首页前 {{ ranking_sites|length }} 名中没有匹配项；按回车可继续搜索完整榜单。</p>
-  <div class="home-ranking-footer">
-    <p>每行保留来源标记；第三方快照不会显示成格物实测。</p>
-    <a class="btn btn-ghost" href="/leaderboard">查看完整榜单</a>
+  {% else %}
+  <div class="home-results-empty">
+    <p>暂无近 30 天可展示的高分证据</p>
+    <span>历史记录仅供参考，不代表当前质量。</span>
+    <a href="/leaderboard#historical-reference">查看历史参考 →</a>
   </div>
+  {% endif %}
+  <p id="home-ranking-empty" class="home-section-note" hidden></p>
 </section>
 
-<!-- ============================== Trust Strip ============================== -->
-<section class="trust-strip" id="security-and-trust" aria-label="安全与信任">
-  <div class="trust-strip-head">
-    <h2>交 API key 前，你应该知道的三件事</h2>
-    <p>先查历史不需要密钥；只有主动跑新检测时，才会在协议页临时使用 API key。</p>
-  </div>
-  <div class="trust-cards">
-    <article class="trust-card">
-      <div class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5h6"/><path d="M9 3h6a2 2 0 0 1 2 2v1h2v15H5V6h2V5a2 2 0 0 1 2-2Z"/><path d="m8 13 2.5 2.5L16 10"/></svg></div>
-      <h3>评分依据清晰</h3>
-      <p>每项扣分都对应具体字段、协议信号和检测证据，不只给一个黑箱数字。</p>
-    </article>
-    <article class="trust-card">
-      <div class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 14v2"/></svg></div>
-      <h3>API key 不落盘</h3>
-      <p>原始密钥只在任务执行期间短暂使用；持久化前会递归脱敏上游反射内容。</p>
-    </article>
-    <article class="trust-card">
-      <div class="trust-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 19 6v5c0 4.7-2.8 8-7 10-4.2-2-7-5.3-7-10V6l7-3Z"/><path d="m9 12 2 2 4-4"/></svg></div>
-      <h3>边界默认关闭</h3>
-      <p>内网地址、非 HTTPS 目标、过大请求和未授权管理操作均默认拒绝。</p>
-    </article>
-  </div>
-</section>
-
-<section class="protocol-grid">
-  <article class="protocol-card protocol-card-primary">
-    <div class="protocol-top">
-      <span class="protocol-kicker">Claude</span>
-      <span class="tier-badge tier-crypto">签名回放验证</span>
-    </div>
-    <h2>Claude API 中转站检测</h2>
-    <p>
-      12 项检测，核心是 thinking block 原始/篡改回放：原始块必须被接受，篡改单个字符的对照块
-      必须被明确拒绝；Token 用量检查会额外识别 usage 异常风险。
-    </p>
-    <a class="btn btn-primary protocol-action" href="/claude">检测 Claude 中转站 →</a>
-  </article>
-
-  <article class="protocol-card">
-    <div class="protocol-top">
-      <span class="protocol-kicker">OpenAI</span>
-      <span class="tier-badge tier-behavioral">行为/协议级</span>
-    </div>
-    <h2>OpenAI 中转站检测</h2>
-    <p>
-      8 项检测覆盖 Chat Completions 协议合规、function calling、structured output、
-      流式一致性。能识别中转站把 GPT 请求偷偷转给 Claude / Gemini 后端的「换芯」行为。
-    </p>
-    <a class="btn btn-ghost protocol-action" href="/openai">检测 OpenAI 中转站 →</a>
-  </article>
-
-  <article class="protocol-card">
-    <div class="protocol-top">
-      <span class="protocol-kicker">Gemini</span>
-      <span class="tier-badge tier-protocol">协议级</span>
-    </div>
-    <h2>Gemini 中转站检测</h2>
-    <p>
-      7 项检测覆盖 Gemini OpenAI 兼容协议、function calling、structured output、流式一致性
-      和 usage 字段。适配 Gemini 3 thinking-by-default 模型的特殊处理。
-    </p>
-    <a class="btn btn-ghost protocol-action" href="/gemini">检测 Gemini 中转站 →</a>
-  </article>
-</section>
-
-<section class="how-it-works">
-  <h2>怎么用？三步查看检测证据</h2>
-  <ol class="how-steps">
-    <li>
-      <span class="how-num">1</span>
-      <div>
-        <h3>填中转站地址 + API key</h3>
-        <p>选择协议页（<a href="/claude">Claude</a> / <a href="/openai">OpenAI</a> / <a href="/gemini">Gemini</a>），粘贴 base_url 和 key，模型下拉会列出该 key 在中转站可用的模型。</p>
-      </div>
-    </li>
-    <li>
-      <span class="how-num">2</span>
-      <div>
-        <h3>点「开始检测」，查看实时进度</h3>
-        <p>具体项目与耗时取决于协议、模型和检测模式；实际请求消耗由你的 key 对应账户支付。</p>
-      </div>
-    </li>
-    <li>
-      <span class="how-num">3</span>
-      <div>
-        <h3>看报告，重点看风险项</h3>
-        <p>先看综合分和置信度，再展开字段级证据；Claude 重点看 thinking signature，OpenAI / Gemini 重点看协议与 usage 异源痕迹。</p>
-      </div>
-    </li>
-  </ol>
-</section>
-
-<section class="hub-note">
-  <h2>不同协议的 100 分含义不同</h2>
-  <p>
-    Claude 的 100 分包含 thinking block 的<strong>原始/篡改回放验证</strong>；OpenAI / Gemini 因为没有同类信号，验证强度只到<strong>行为级 / 协议级</strong>。每份报告页顶部都会明确标注本次检测属于哪一级，避免把协议兼容性或回放证据误读成绝对真伪证明。完整说明见 <a href="/faq">常见问题</a>。
-  </p>
-</section>
-
-<section class="account-entry" aria-labelledby="account-entry-title">
+<details class="home-notes" id="security-and-trust">
+  <summary>检测与隐私说明</summary>
   <div>
-    <span class="account-entry-kicker">账户与站点管理</span>
-    <h2 id="account-entry-title">注册后持续管理你的中转站</h2>
-    <p>普通检测无需注册；提交站点、验证域名、查看定时复测趋势和处理审核资料时才需要账户。</p>
+    <p><strong>检测范围：</strong>检查本次调用的能力和协议表现，检测分数不是模型身份证明，也不承诺后续可用率。</p>
+    <p><strong>密钥保护：</strong>API key 仅在检测任务执行期间临时使用，不进入报告或日志；不会保留密钥前缀、后缀或其他可识别片段。建议使用限额专用 Key。</p>
+    <p><strong>公共榜单：</strong>用户自测不自动进入榜单。公开结果仅采用符合要求的已审核证据，第三方快照单独作为历史参考。</p>
+    <a href="/faq">查看常见问题 →</a>
   </div>
-  <div class="account-entry-actions">
-    <a class="btn btn-primary" href="/register">创建账户</a>
-    <a class="btn btn-ghost" href="/login">已有账户，去登录</a>
-  </div>
-</section>
+</details>
 {% endblock %}

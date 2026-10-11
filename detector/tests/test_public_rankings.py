@@ -388,7 +388,7 @@ def test_featured_placement_does_not_change_quality_order(monkeypatch):
     )
 
 
-def test_homepage_exposes_optional_account_and_relay_management_entry(monkeypatch):
+def test_homepage_keeps_optional_account_links_without_registration_promotion(monkeypatch):
     from web import server
 
     async def fake_pricing():
@@ -400,50 +400,51 @@ def test_homepage_exposes_optional_account_and_relay_management_entry(monkeypatc
     assert response.status_code == 200
     assert 'href="/register"' in response.text
     assert 'href="/login"' in response.text
-    assert "创建账户" in response.text
-    assert "账户与站点管理" in response.text
+    assert response.text.count('href="/register"') == 1
+    assert response.text.count('href="/login"') == 1
+    assert "账户与站点管理" not in response.text
 
 
 def test_homepage_visual_and_interaction_contract(monkeypatch):
     from web import server
 
     async def fake_pricing():
-        return _sample_market_pricing()
+        raise AssertionError("Homepage must not wait on the external pricing feed")
 
     monkeypatch.setattr(server, "get_market_pricing", fake_pricing)
     client = TestClient(app)
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "接口是否好用" in response.text
+    assert "AI 接口检测" in response.text
     assert 'id="history-search-form"' in response.text
     assert 'id="home-domain-search"' in response.text
     assert 'id="quick-model"' in response.text
-    assert response.text.count("data-pricing-test-model") == 10
-    assert response.text.count("data-pricing-row") == 10
+    assert "data-pricing-row" not in response.text
+    assert 'href="/pricing"' in response.text
     assert "gpt-5.6-sol" in response.text
     assert "claude-fable-5" in response.text
-    assert "查看全部 12 个模型" in response.text
     assert response.text.count("data-home-rank-row") == 0
     assert "暂无近 30 天可展示的高分证据" in response.text
-    assert response.text.index('id="home-pricing"') < response.text.index(
+    assert response.text.index('id="quick-check"') < response.text.index(
         'id="home-ranking"'
     )
     assert response.text.index('id="home-ranking"') < response.text.index(
         'id="security-and-trust"'
     )
-    assert response.text.index("怎么用？三步查看检测证据") < response.text.index(
-        'class="account-entry"'
-    )
+    assert 'class="account-entry"' not in response.text
+    assert 'class="protocol-cards"' not in response.text
+    assert '<details class="home-notes" id="security-and-trust">' in response.text
+    assert "上游 API 额度" in response.text
     assert "查看完整榜单" in response.text
     assert "历史参考" in response.text
-    assert "格物实测" in response.text
+    assert "用户自测不自动进入榜单" in response.text
     assert all(icon not in response.text for icon in ("🔒", "📋", "🔐", "🛡️"))
 
     css = client.get("/static/style.css").text
     assert "--accent: #2f6d50" in css
     assert "--green:" not in css
-    assert ".quick-protocols input:focus-visible + span" in css
+    assert ".home-protocols input:focus-visible + span" in client.get("/static/home.css").text
     assert "@media (prefers-color-scheme: dark)" in css
     assert ".btn-block { width: 100%; }" in css
 

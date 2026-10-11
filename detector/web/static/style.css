@@ -144,6 +144,8 @@ code {
 }
 .site-nav a:hover::after,
 .site-nav a:focus-visible::after { transform: scaleX(1); }
+.site-nav a[aria-current="page"] { color: var(--accent-strong); font-weight: 600; }
+.site-nav a[aria-current="page"]::after { transform: scaleX(1); }
 
 /* GitHub button in nav — pill-shaped chip with the official mark + label.
  * Stronger visual weight than text links so it reads as "primary external
@@ -208,6 +210,10 @@ code {
   width: 100%;
 }
 
+.site-footer.footer-compact { padding: 0; text-align: left; }
+.footer-compact-inner { max-width: var(--page-max-width); margin: 0 auto; padding: 20px var(--page-gutter); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; color: var(--muted); font-size: 12px; }
+.footer-compact-inner nav { display: flex; gap: 20px; }
+.footer-compact-inner a { color: var(--muted); }
 .site-footer {
   /* 横向 padding 移到内部 p 上,跟 .container (max-width 960 + padding 24)
      完全同步。border-top 仍占满屏宽保留分隔线视觉。文字居中显示
