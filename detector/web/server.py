@@ -406,6 +406,11 @@ async def hub(request: Request) -> HTMLResponse:
             "ranking_sites": snapshot["red_sites"][:12],
             "all_ranking_sites": all_sites,
             "pricing": await get_market_pricing(),
+            "quick_models": {
+                "claude": _model_choices(),
+                "openai": _openai_model_choices(),
+                "gemini": _gemini_model_choices(),
+            },
         },
     )
 

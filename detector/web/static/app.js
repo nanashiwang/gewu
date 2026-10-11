@@ -63,70 +63,35 @@
 })();
 
 
-// Custom model-name combobox: type-to-filter + tap-to-select.
-// Replaces native <datalist> because iOS Safari / WeChat browser don't show
-// it reliably on mobile.
+// Native selects work with touch and keyboard without opening a text keyboard.
 (function () {
   const input = document.getElementById('model');
-  const list = document.getElementById('model-list');
-  if (!input || !list) return;
-  let items = Array.from(list.querySelectorAll('.combo-item'));
-
-  // De-emphasize non-matches instead of hiding them. Users repeatedly
-  // expected the dropdown to show ALL probed models even after typing a
-  // partial name (so they can compare options or pick a sibling). Hiding
-  // made the relay's full whitelist invisible — exactly the opposite of
-  // what /api/probe was meant to surface. Dimming preserves discoverability
-  // while still highlighting the current text query.
-  function filter(q) {
-    const ql = (q || '').toLowerCase().trim();
-    items.forEach((it) => {
-      const v = (it.getAttribute('data-value') || '').toLowerCase();
-      const match = ql === '' || v.includes(ql);
-      it.classList.toggle('no-match', !match);
-      it.hidden = false;
-    });
-    list.hidden = items.length === 0;
-  }
-
-  function bindItem(it) {
-    // pointerdown beats focus loss; preventDefault keeps input focused so
-    // mobile keyboard doesn't close before we set the value.
-    it.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      input.value = it.getAttribute('data-value');
-      list.hidden = true;
-      input.blur();
-    });
-  }
-  items.forEach(bindItem);
-
-  // Exposed so the probe layer can replace the suggestions with whatever
-  // the relay actually advertises. Falls back to the static template list
-  // if probe fails / relay doesn't expose /v1/models.
-  window.gewuSetModelChoices = function (values) {
-    list.innerHTML = '';
-    values.forEach((v) => {
-      const li = document.createElement('li');
-      li.className = 'combo-item';
-      li.setAttribute('data-value', v);
-      li.textContent = v;
-      list.appendChild(li);
-    });
-    items = Array.from(list.querySelectorAll('.combo-item'));
-    items.forEach(bindItem);
+  if (!input || input.tagName !== 'SELECT') return;
+  const defaults = Array.from(input.options).filter(option => option.value).map(option => ({value: option.value, label: option.textContent}));
+  window.gewuResetModelChoices = function () {
+    const previous = input.value;
+    const placeholder = new Option('请选择目标模型', '');
+    placeholder.disabled = true;
+    input.replaceChildren(placeholder, ...defaults.map(option => new Option(option.label, option.value)));
+    if (previous && !defaults.some(option => option.value === previous)) {
+      input.add(new Option(`${previous}（待接口确认）`, previous));
+    }
+    input.value = previous;
+    const hint = document.getElementById('model-choice-hint');
+    if (hint) hint.textContent = '地址或 Key 已更新；当前候选待接口确认，离开输入框后重新读取模型列表。';
   };
-
-  input.addEventListener('focus', () => filter(input.value));
-  input.addEventListener('input', () => filter(input.value));
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') list.hidden = true;
-  });
-
-  document.addEventListener('pointerdown', (e) => {
-    if (e.target === input || list.contains(e.target)) return;
-    list.hidden = true;
-  });
+  window.gewuSetModelChoices = function (values) {
+    const previous = input.value;
+    const choices = [...new Set(values.filter(v => typeof v === 'string' && v.trim() && v.length <= 200))];
+    const placeholder = new Option('请选择目标模型', '');
+    placeholder.disabled = true;
+    input.replaceChildren(placeholder, ...choices.map(v => new Option(v, v)));
+    input.value = choices.includes(previous) ? previous : '';
+    const hint = document.getElementById('model-choice-hint');
+    if (hint) hint.textContent = previous && !choices.includes(previous)
+      ? '接口未列出刚才选中的模型，请从列表重新选择；不会自动替换模型。'
+      : '列表来自当前接口声明；是否真正可调用，会在提交检测时确认。';
+  };
 })();
 
 
@@ -147,7 +112,6 @@
 
   const baseUrlInput = document.getElementById('base_url');
   const apiKeyInput = document.getElementById('api_key');
-  const modelInput = document.getElementById('model');
   if (!baseUrlInput || !apiKeyInput) return;
 
   // Inject pill container right after the api_key field's hint.
@@ -169,7 +133,7 @@
     if (!baseUrl || !apiKey || apiKey.length < 8) return;
     if (!/^https?:\/\//.test(baseUrl)) return;
 
-    const key = baseUrl + '|' + apiKey.length + ':' + apiKey.slice(-4);
+    const key = JSON.stringify([baseUrl, apiKey]); // In-memory only; distinct keys must re-probe.
     if (key === lastKey) return; // already probed this combo
     lastKey = key;
 
@@ -187,15 +151,18 @@
       r = await fetch('/api/probe', {method: 'POST', body: fd, signal: ctrl.signal});
       data = await r.json();
     } catch (e) {
+      if (inflight !== ctrl) return;
+      lastKey = null;
       if (e.name === 'AbortError') {
         setPill('warn', '⚪ 模型列表探测超时,不影响继续检测');
         return;
       }
-      setPill('warn', '⚪ 探测失败,但不影响检测继续 — 你填的模型会被直接尝试');
+      setPill('warn', '⚪ 探测失败,但不影响检测继续 — 将尝试你选中的模型');
       return;
     } finally {
       clearTimeout(probeTimeout);
     }
+    if (inflight !== ctrl) return;
     if (r.status === 429) {
       // Rate limited — surface clearly and keep submit enabled so the user
       // can still proceed (they're not blocked from detection itself).
@@ -226,6 +193,7 @@
     const total = data.raw_count || 0;
 
     if (myModels.length === 0) {
+      if (window.gewuSetModelChoices) window.gewuSetModelChoices([]);
       // The headline case: cross-protocol suggestion.
       const others = Object.keys(data.by_protocol || {})
         .filter((p) => p !== protocol && data.by_protocol[p].length > 0)
@@ -272,16 +240,7 @@
     // model.
     window.gewuBestByProtocol = data.best_by_protocol || {};
 
-    // If the user-typed model isn't in the list, auto-correct to the
-    // protocol-preferred default rather than whatever sorts first
-    // alphabetically. The backend computes "best" via each protocol's
-    // pick_default_model — for OpenAI that's gpt-4o-mini, for Gemini it's
-    // gemini-2.5-flash, etc. — so a /gemini → /openai handoff lands on a
-    // sensible model instead of e.g. gpt-3.5-turbo or some preview SKU.
-    const best = (data.best_by_protocol && data.best_by_protocol[protocol]) || myModels[0];
-    if (modelInput && modelInput.value.trim() && !myModels.includes(modelInput.value.trim())) {
-      modelInput.value = best;
-    }
+    // Keep a valid selection; otherwise require an explicit new choice.
   }
 
   function setPill(level, text) {
@@ -326,6 +285,16 @@
   // Trigger probe on api_key blur. Also re-probe when base_url changes
   // (after blur) so users editing both fields don't miss a re-check.
   apiKeyInput.addEventListener('blur', runProbe);
+  [apiKeyInput, baseUrlInput].forEach(input => input.addEventListener('input', () => {
+    const pending = inflight;
+    inflight = null;
+    if (pending) pending.abort();
+    lastKey = null;
+    window.gewuBestByProtocol = {};
+    if (window.gewuResetModelChoices) window.gewuResetModelChoices();
+    pill.hidden = true;
+    setSubmitEnabled(true);
+  }));
   baseUrlInput.addEventListener('blur', () => {
     lastKey = null; // base changed → invalidate dedup
     runProbe();
@@ -434,7 +403,12 @@
       swapBtn.textContent = `改用 ${recommended}`;
       swapBtn.addEventListener('click', () => {
         const modelInput = document.getElementById('model');
-        if (modelInput) modelInput.value = recommended;
+        if (modelInput) {
+          if (!Array.from(modelInput.options).some(option => option.value === recommended)) {
+            modelInput.add(new Option(recommended, recommended));
+          }
+          modelInput.value = recommended;
+        }
         errBox.hidden = true;
         errBox.classList.remove('form-warning-rich');
         const force = form.querySelector('input[name="force"]');
@@ -643,8 +617,23 @@
     const input = document.getElementById('quick-base-url');
     const modelInput = document.getElementById('quick-model');
     const error = document.getElementById('quick-check-error');
+    const choices = JSON.parse(modelInput?.dataset.choices || '{}');
+    launcher.querySelectorAll('input[name="protocol"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const placeholder = new Option('请选择目标模型', '');
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        modelInput.replaceChildren(placeholder, ...(choices[radio.value] || []).map(m => new Option(m.label, m.id)));
+        if (error) error.hidden = true;
+      });
+    });
     launcher.addEventListener('submit', (event) => {
       event.preventDefault();
+      if (!modelInput?.value) {
+        if (error) { error.textContent = '请先从列表中选择目标模型'; error.hidden = false; }
+        modelInput?.focus();
+        return;
+      }
       const value = String(input?.value || '').trim();
       const parsed = parseSafeBaseUrl(value);
       if (!parsed) {
@@ -686,6 +675,10 @@
         && candidateModel.length <= 120
         && !/[\u0000-\u001f\u007f]/.test(candidateModel)
       ) {
+        if (detectorModelInput.tagName === 'SELECT'
+          && !Array.from(detectorModelInput.options).some(option => option.value === candidateModel)) {
+          detectorModelInput.add(new Option(`${candidateModel}（带入，待接口确认）`, candidateModel));
+        }
         detectorModelInput.value = candidateModel;
       }
     }
@@ -989,9 +982,15 @@
         if (!quickCheck || !modelInput) return;
         const model = String(button.dataset.pricingTestModel || '').slice(0, 120);
         const protocol = String(button.dataset.pricingTestProtocol || 'openai');
-        modelInput.value = model;
         const radio = quickCheck.querySelector(`input[name="protocol"][value="${protocol}"]`);
-        if (radio) radio.checked = true;
+        if (radio) {
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', {bubbles: true}));
+        }
+        if (!Array.from(modelInput.options).some(option => option.value === model)) {
+          modelInput.add(new Option(`${model}（价格榜候选）`, model));
+        }
+        modelInput.value = model;
         quickCheck.classList.remove('is-prefilled');
         void quickCheck.offsetWidth;
         quickCheck.classList.add('is-prefilled');

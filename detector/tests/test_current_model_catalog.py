@@ -1,8 +1,9 @@
 """Regression tests for the current public model catalog shown in the UI."""
 
 from pathlib import Path
+from fastapi.testclient import TestClient
 
-from web.server import _model_choices
+from web.server import app, _model_choices
 
 
 TEMPLATES = Path(__file__).parents[1] / "web" / "templates"
@@ -17,15 +18,16 @@ def test_claude_dropdown_is_current_public_lineup():
     ]
 
 
-def test_frontend_defaults_to_each_provider_current_flagship():
+def test_frontend_offers_each_provider_catalog_without_auto_selection():
     expected = {
-        "index.html": 'value="claude-fable-5"',
-        "openai.html": 'value="gpt-5.6-sol"',
-        "gemini.html": 'value="gemini-3.5-flash"',
+        "/claude": 'value="claude-fable-5"',
+        "/openai": 'value="gpt-5.6-sol"',
+        "/gemini": 'value="gemini-3.5-flash"',
     }
-    for filename, marker in expected.items():
-        page = (TEMPLATES / filename).read_text(encoding="utf-8")
+    for route, marker in expected.items():
+        page = TestClient(app).get(route).text
         assert marker in page
+        assert '<option value="" selected disabled>' in page
 
 
 def test_openai_catalog_excludes_non_chat_specialized_variants():

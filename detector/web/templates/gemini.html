@@ -105,17 +105,7 @@
     <div class="field-row">
       <div class="field">
         <label for="model">目标模型</label>
-        <div class="combo">
-          <input type="text" id="model" name="model" required
-                 value="gemini-3.5-flash" autocomplete="off"
-                 placeholder="gemini-3.5-flash"
-                 maxlength="200" />
-          <ul class="combo-list" id="model-list" hidden>
-            {% for m in models %}
-            <li class="combo-item" data-value="{{ m.id }}">{{ m.label }}</li>
-            {% endfor %}
-          </ul>
-        </div>
+        {% include "_model_select.html" %}
       </div>
       <div class="field">
         <label for="mode">检测深度</label>

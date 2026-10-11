@@ -441,7 +441,7 @@ def test_homepage_visual_and_interaction_contract(monkeypatch):
     assert all(icon not in response.text for icon in ("🔒", "📋", "🔐", "🛡️"))
 
     css = client.get("/static/style.css").text
-    assert "--accent: #5b5bd6" in css
+    assert "--accent: #2f6d50" in css
     assert "--green:" not in css
     assert ".quick-protocols input:focus-visible + span" in css
     assert "@media (prefers-color-scheme: dark)" in css
