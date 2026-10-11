@@ -1,14 +1,15 @@
 {% extends "base.html" %}
 {% block body_class %}page-detect{% endblock %}
 
-{% block title %}OpenAI API 中转站检测 · 协议透传与适配层风险 | 格物{% endblock %}
-{% block description %}免费检测 OpenAI / GPT 中转站的协议透传质量 — 通过 8 项 Chat Completions 检测和 usage 异源字段识别,评估能力完整度与适配层风险。{% endblock %}
-{% block og_title %}OpenAI 中转站检测 · 协议合规与后端适配风险{% endblock %}
-{% block og_description %}8 项检测 + usage 字段指纹识别 GPT 替身。免费、不留 key、可分享报告。{% endblock %}
+{% block title %}OpenAI 兼容接口检测 · 多厂商文本模型 | 格物{% endblock %}
+{% block description %}公益检测 OpenAI 兼容接口。按厂商选择文本模型，GPT 按能力运行协议检测，其他厂商提供基础请求与流式一致性检测。检测范围与证据可复核，不作为模型身份证明。{% endblock %}
+{% block og_title %}OpenAI 兼容接口检测 · 多厂商文本模型{% endblock %}
+{% block og_description %}按厂商与型号选择检测，明确展示实际检测范围。公益、不持久化 Key、结果可复核。{% endblock %}
 {% block canonical %}{{ brand.site_url }}/openai{% endblock %}
 {% block og_url %}{{ brand.site_url }}/openai{% endblock %}
 
 {% block head_extra %}
+{% if vendor.id == 'openai' %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -56,12 +57,13 @@
     {"@type": "HowToStep", "name": "打开检测页", "text": "访问 {{ brand.site_url }}/openai"},
     {"@type": "HowToStep", "name": "填中转站地址", "text": "填 OpenAI-compatible base_url,例如 https://api.example.com 或 https://api.example.com/v1"},
     {"@type": "HowToStep", "name": "粘贴 API key", "text": "粘贴你的 sk-... key,只用于本次检测"},
-    {"@type": "HowToStep", "name": "选模型 + 模式", "text": "推荐 gpt-5.6-sol;也可按成本选择 gpt-5.6-terra 或 gpt-5.6-luna,standard 模式约 40 秒"},
+    {"@type": "HowToStep", "name": "选模型 + 模式", "text": "从当前接口声明的模型中选择你实际使用的型号，再选择检测深度；候选目录的官方来源与核对日期可查"},
     {"@type": "HowToStep", "name": "开始检测", "text": "点开始检测，等待 30–75 秒拿到报告"},
     {"@type": "HowToStep", "name": "看 usage 字段指纹", "text": "重点看 protocol detector 是否报 usage_contains_claude_fields / usage_source_non_openai 等 critical issue — 它强烈提示异源适配或非标准扩展,但不单独证明实际后端模型"}
   ]
 }
 </script>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -157,7 +159,8 @@
 </section>
 {% include "_detect_aside.html" %}
 </div>
-<details class="detect-details"><summary>检测方法与常见问题</summary>
+<details class="detect-details"><summary>GPT 检测方法与常见问题</summary>
+<p class="hint">以下完整检测方法适用于 GPT。其他兼容厂商当前仅检查基础请求与流式一致性，以报告中实际运行的项目为准。</p>
 <section class="features">
   <div class="feature">
     <h3>Chat Completions</h3>
