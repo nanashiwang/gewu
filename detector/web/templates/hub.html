@@ -5,7 +5,7 @@
 {% block og_description %}选择模型，检测接口，查看证据。格物提供公益检测与历史报告查询。{% endblock %}
 {% block body_class %}home-simple{% endblock %}
 {% block head_extra %}
-<link rel="stylesheet" href="/static/home.css?v=20261011-3" />
+<link rel="stylesheet" href="/static/home.css?v=20261011-4" />
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -22,13 +22,13 @@
 
 {% block content %}
 <header class="home-heading">
-  <h1>AI 接口检测 <span>公益工具</span></h1>
+  <div class="home-heading-title"><h1>AI 接口检测</h1><span class="public-service-badge">公益工具</span></div>
   <p>检查接口是否可用、能力是否完整，让每项结论都有证据。</p>
 </header>
 
 <div class="home-tools">
   <section class="home-check" aria-labelledby="quick-check-title">
-    <h2 id="quick-check-title">开始检测</h2>
+    <div class="home-panel-heading"><h2 id="quick-check-title">开始检测</h2><span>01 / 配置接口</span></div>
     <form id="quick-check" novalidate>
       <fieldset class="home-protocols">
         <legend class="sr-only">接口协议</legend>
@@ -39,29 +39,30 @@
       <div class="home-check-fields">
         <div class="home-field">
           <label for="quick-model">目标模型</label>
-          <select id="quick-model" name="model" required data-choices='{{ quick_models|tojson }}' aria-describedby="quick-model-hint">
+          <select id="quick-model" name="model" required data-picker="search" data-choices='{{ quick_models|tojson }}' aria-describedby="quick-model-hint">
             <option value="" selected disabled>请选择目标模型</option>
             {% for model in quick_models.claude %}<option value="{{ model.id }}">{{ model.label }}</option>{% endfor %}
           </select>
-          <p id="quick-model-hint">常用候选，下一步可读取接口模型列表。</p>
+          <p id="quick-model-hint">从候选中选择，也可在下一步读取接口模型列表。</p>
         </div>
         <div class="home-field">
           <label for="quick-base-url">接口地址</label>
-          <input id="quick-base-url" name="base_url" type="url" inputmode="url" placeholder="https://relay.example.com/v1" autocomplete="url" maxlength="2048" required>
+          <input id="quick-base-url" name="base_url" type="url" inputmode="url" placeholder="https://api.example.com/v1" autocomplete="url" autocapitalize="none" spellcheck="false" maxlength="2048" required>
           <p>填写服务商提供的 API Base URL。</p>
         </div>
       </div>
       <div class="home-check-action">
-        <button class="btn btn-primary" type="submit">下一步</button>
-        <p>首页不收集密钥，下一步填写 API key。</p>
+        <button class="btn btn-primary" type="submit">下一步<span aria-hidden="true">→</span></button>
+        <p>首页不收集密钥，下一步填写 API Key。</p>
       </div>
       <p id="quick-check-error" class="home-form-error" role="alert" hidden></p>
     </form>
+    <p class="home-cost-note">格物不收检测服务费；新检测会消耗你的上游 API 额度。</p>
   </section>
 
   <section class="home-history" aria-labelledby="history-title">
-    <h2 id="history-title">查历史报告</h2>
-    <p>已有检测记录？输入域名直接查看。</p>
+    <div class="home-panel-heading"><h2 id="history-title">查历史报告</h2><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3h8l4 4v14H4V3h4m8 0v5h4M8 12h8m-8 4h5"/></svg></div>
+    <p>输入中转站域名，查看已有检测证据。</p>
     <form id="history-search-form" class="home-history-form" role="search" novalidate>
       <label class="sr-only" for="home-domain-search">搜索中转站域名</label>
       <input id="home-domain-search" type="search" list="home-domain-options" placeholder="输入域名或 URL" autocomplete="off" maxlength="253">
@@ -71,12 +72,14 @@
       {% for site in all_ranking_sites %}<option value="{{ site.domain }}">{% endfor %}
     </datalist>
     <p id="history-search-status" class="home-history-status" aria-live="polite"></p>
-    <p class="home-history-meta">含历史参考：{{ coverage.site_count_label }} 个域名 · {{ coverage.report_count_label }} 次记录</p>
-    <a href="/leaderboard/monitor">按模型查看观测 →</a>
+    <div class="home-history-summary">
+      <div class="home-history-metrics"><div><strong>{{ coverage.site_count_label }}</strong><span>收录域名</span></div><div><strong>{{ coverage.report_count_label }}</strong><span>历史记录</span></div></div>
+      <p class="home-history-meta">包含历史参考，不代表当前服务质量。</p>
+    </div>
+    <a class="home-observation-link" href="/leaderboard/monitor"><span>按模型查看观测<small>分模型、模式与版本查看证据</small></span><span aria-hidden="true">↗</span></a>
   </section>
 </div>
 
-<p class="home-cost-note">格物不收检测服务费；新检测会消耗你的上游 API 额度。</p>
 
 <section class="home-results" id="home-ranking" aria-labelledby="home-ranking-title">
   <div class="home-section-heading">
@@ -103,8 +106,8 @@
   </div>
   {% else %}
   <div class="home-results-empty">
-    <p>暂无近 30 天可展示的高分证据</p>
-    <span>历史记录仅供参考，不代表当前质量。</span>
+    <span class="home-empty-icon" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM8 9h8m-8 4h5"/></svg></span>
+    <div><p>暂无近 30 天可展示的高分证据</p><span>只展示符合准入规则的报告，历史记录仅供参考。</span></div>
     <a href="/leaderboard#historical-reference">查看历史参考 →</a>
   </div>
   {% endif %}

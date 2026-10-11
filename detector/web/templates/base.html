@@ -14,8 +14,9 @@
   <meta name="twitter:card" content="summary_large_image" />
   {% block og_image %}{% endblock %}
   <link rel="canonical" href="{% block canonical %}{{ brand.url('/') }}{% endblock %}" />
-  <link rel="stylesheet" href="/static/style.css?v=20261011-3" />
-  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/static/style.css?v=20261011-4" />
+  <link rel="stylesheet" href="/static/interface.css?v=20261011-4" />
+  <link rel="icon" href="/static/favicon.svg?v=20261011-4" type="image/svg+xml" />
   {% block head_extra %}{% endblock %}
   {% if brand.analytics_id %}
   <script async src="https://www.googletagmanager.com/gtag/js?id={{ brand.analytics_id | e }}"></script>
@@ -28,17 +29,12 @@
   {% endif %}
 </head>
 <body class="{% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main-content">跳到主要内容</a>
   <header class="site-header">
     <div class="site-header-inner">
-      <a class="brand" href="/">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 32 32" focusable="false">
-            <path d="M4 4h10v4H8v6H4V4Zm14 0h10v10h-4V8h-6V4ZM4 18h4v6h6v4H4V18Zm20 0h4v10H18v-4h6v-6Z"/>
-            <circle class="brand-mark-cutout" cx="16" cy="16" r="6"/>
-            <circle class="brand-mark-aperture" cx="16" cy="16" r="6"/>
-          </svg>
-        </span>
-        <span>{{ brand.name }}</span>
+      <a class="brand" href="/" aria-label="{{ brand.name }}首页">
+        <img class="brand-symbol" src="/static/favicon.svg?v=20261011-4" width="36" height="36" alt="" />
+        <span class="brand-wordmark">{{ brand.name }}<small>有据可验</small></span>
       </a>
       <button
         class="nav-toggle"
@@ -50,7 +46,7 @@
         <span class="nav-toggle-bar"></span>
         <span class="nav-toggle-bar"></span>
       </button>
-      <nav class="site-nav" id="site-nav">
+      <nav class="site-nav" id="site-nav" aria-label="主导航">
         {% set path = request.url.path %}
         <a href="/" {% if path in ["/", "/claude", "/openai", "/gemini"] %}aria-current="page"{% endif %}>检测</a>
         <a href="/leaderboard" {% if path.startswith("/leaderboard") and path != "/leaderboard/monitor" %}aria-current="page"{% endif %}>质量榜</a>
@@ -62,7 +58,7 @@
       </nav>
     </div>
   </header>
-  <main class="container">
+  <main class="container" id="main-content" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
   <footer class="site-footer footer-compact">
@@ -71,6 +67,7 @@
       <nav aria-label="页脚"><a href="/#security-and-trust">检测与隐私</a><a href="/faq">常见问题</a></nav>
     </div>
   </footer>
-  <script src="/static/app.js?v=20261011-3" defer></script>
+  <script src="/static/app.js?v=20261011-4" defer></script>
+  <script src="/static/select.js?v=20261011-4" defer></script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block body_class %}page-detect{% endblock %}
 
 {% block title %}Gemini API 中转站检测 · OpenAI 兼容协议鉴定 | 格物{% endblock %}
 {% block description %}免费检测 Gemini API 中转站协议合规 — 通过 OpenAI 兼容路径(/v1/chat/completions)探测 7 项维度:协议规范、function calling、structured output、流式一致性、usage 字段、模型可用性。适配 Gemini 3 thinking-by-default 模型。{% endblock %}
@@ -66,7 +67,7 @@
 {% endblock %}
 
 {% block content %}
-
+<a class="detect-back" href="/">← 返回检测首页</a>
 <section class="hero">
   <h1>Gemini API 中转站检测</h1>
   <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
@@ -84,8 +85,9 @@
   第三方中转站通常在 <code>/v1</code> 暴露同样的协议。
 </section>
 
+<div class="detect-layout">
 <section class="card form-card">
-  <form id="detect-form" data-endpoint="/api/detect/gemini" autocomplete="off">
+  <form id="detect-form" data-endpoint="/api/detect/gemini" method="post" action="/api/detect/gemini" autocomplete="off">
     <div class="field">
       <label for="base_url">中转站接口地址</label>
       <input type="url" id="base_url" name="base_url" required
@@ -109,7 +111,7 @@
       </div>
       <div class="field">
         <label for="mode">检测深度</label>
-        <select id="mode" name="mode">
+        <select id="mode" name="mode" data-picker>
           <option value="quick">快速 (~15 秒,3 项)</option>
           <option value="standard" selected>标准 (~45 秒,7 项)</option>
           <option value="full">完整 (~70 秒,全 7 项)</option>
@@ -124,7 +126,9 @@
     <div class="form-error" id="form-error" role="alert" aria-live="assertive" hidden></div>
   </form>
 </section>
-
+{% include "_detect_aside.html" %}
+</div>
+<details class="detect-details"><summary>检测方法与常见问题</summary>
 <section class="features">
   <div class="feature">
     <h3>OpenAI 兼容协议</h3>
@@ -184,5 +188,6 @@
   </p>
 </section>
 
+</details>
 {# app.js loaded globally by base.html #}
 {% endblock %}

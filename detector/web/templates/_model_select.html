@@ -1,4 +1,4 @@
-<select id="model" name="model" required aria-describedby="model-choice-hint">
+<select id="model" name="model" required data-picker="search" aria-describedby="model-choice-hint">
   <option value="" selected disabled>请选择目标模型</option>
   {% for m in models %}<option value="{{ m.id }}">{{ m.label }}</option>{% endfor %}
 </select>

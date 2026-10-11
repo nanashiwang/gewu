@@ -12,7 +12,7 @@
 <section class="pricing-hero pricing-reference-hero">
   <div class="pricing-hero-copy">
     <span class="public-ranking-kicker">AI MODEL PRICE INDEX</span>
-    <h1>全网模型价格<br><span>一张表看清</span></h1>
+    <h1>模型价格</h1>
     <p>集中查询主流模型的公开最低价、输入输出价与计费方式。价格只回答“多少钱”，质量、稳定性和是否推荐仍由格物检测回答。</p>
     <div class="pricing-hero-actions">
       <a class="btn btn-primary" href="#model-pricing">开始查价</a>
@@ -39,12 +39,13 @@
   <p>格物仅转录公开的模型与价格事实；最低价不代表线路可用、稳定或获得格物推荐。</p>
 </section>
 
+<details class="info-disclosure"><summary>价格来源与使用说明</summary>
 <section class="pricing-boundary" aria-label="价格使用说明">
   <article><strong>人民币价格，不是格物售价</strong><p>按量价格统一按每百万 Tokens 展示。数据来自公开聚合，最终价格请以供应平台结算页为准。</p></article>
   <article><strong>四种计费方式分开看</strong><p>同一模型可能同时按量、按次、视频尺寸或音视频时长计费，因此会有多个计费版本。</p></article>
   <article><strong>价格与质量相互独立</strong><p>供应商数量和最低价不等于可用性。购买前请核对平台规则，再用自己的 key 检测目标线路。</p></article>
 </section>
-
+</details>
 {% if pricing %}
 <section class="pricing-models" id="model-pricing">
   <div class="pricing-section-head pricing-workbench-head">
