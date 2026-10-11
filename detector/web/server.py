@@ -403,9 +403,8 @@ async def hub(request: Request) -> HTMLResponse:
         "hub.html",
         {
             "coverage": _homepage_metrics(),
-            "ranking_sites": snapshot["red_sites"][:12],
+            "ranking_sites": snapshot["red_sites"][:6],
             "all_ranking_sites": all_sites,
-            "pricing": await get_market_pricing(),
             "quick_models": {
                 "claude": _model_choices(),
                 "openai": _openai_model_choices(),
