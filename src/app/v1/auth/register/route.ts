@@ -13,6 +13,7 @@ import { resolveRuntimeEnv } from '@/lib/deploymentSettings'
 import { registerCreateErrorMessage, validateRegisterInput } from '@/lib/registerValidation'
 import { normalizeRegisterBody, readAuthFormBody, readAuthJsonBody } from '@/lib/authRequest'
 import { internalApiUrl } from '@/lib/internalApiUrl'
+import { ACCOUNT_HOME } from '@/lib/accountNavigation'
 
 function isFormRegisterRequest(request: Request): boolean {
   const contentType = request.headers.get('content-type') || ''
@@ -47,10 +48,13 @@ async function formSuccess(request: Request, email: string, password: string): P
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
-  })
-  if (!loginRes.ok) return formFailure('注册成功但自动登录失败，请去登录')
+  }).catch(() => null)
+  if (!loginRes?.ok) {
+    const params = new URLSearchParams({ error: '账号已创建，自动登录未完成。请登录，无需重新注册。' })
+    return new Response(null, { status: 303, headers: { Location: `/login?${params.toString()}` } })
+  }
 
-  const headers = new Headers({ Location: '/console' })
+  const headers = new Headers({ Location: ACCOUNT_HOME })
   appendForwardedCookies(headers, loginRes.headers)
   return new Response(null, { status: 303, headers })
 }

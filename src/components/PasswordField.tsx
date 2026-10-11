@@ -11,6 +11,8 @@ export function PasswordField({
   placeholder,
   autoComplete,
   required = false,
+  minLength,
+  describedBy,
 }: {
   id: string
   name: string
@@ -20,6 +22,8 @@ export function PasswordField({
   placeholder?: string
   autoComplete?: string
   required?: boolean
+  minLength?: number
+  describedBy?: string
 }) {
   const [visible, setVisible] = useState(false)
   const buttonLabel = visible ? '隐藏密码' : '显示密码'
@@ -39,7 +43,9 @@ export function PasswordField({
           placeholder={placeholder}
           autoComplete={autoComplete}
           required={required}
-          className="w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 pr-11 text-sm outline-none focus:border-[var(--accent)]"
+          minLength={minLength}
+          aria-describedby={describedBy}
+          className="password-input w-full rounded-md border border-[var(--border)] bg-[var(--panel-2)] px-3 py-2 pr-11 text-sm outline-none focus:border-[var(--accent)]"
         />
         <button
           type="button"
@@ -48,7 +54,7 @@ export function PasswordField({
           title={buttonLabel}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => setVisible((v) => !v)}
-          className="absolute inset-y-0 right-2 inline-flex w-8 items-center justify-center text-[var(--muted)] transition hover:text-[var(--foreground)] focus:outline-none"
+          className="password-toggle absolute inset-y-0 right-2 inline-flex w-8 items-center justify-center text-[var(--muted)] transition hover:text-[var(--text)]"
         >
           {visible ? <EyeOffIcon /> : <EyeIcon />}
         </button>
@@ -59,7 +65,16 @@ export function PasswordField({
 
 function EyeIcon() {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -68,7 +83,16 @@ function EyeIcon() {
 
 function EyeOffIcon() {
   return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <path d="M3 3l18 18" />
       <path d="M10.6 10.6A2 2 0 0 0 13.4 13.4" />
       <path d="M9.5 5.3A10 10 0 0 1 12 5c6 0 9.5 7 9.5 7a17 17 0 0 1-2.2 3.1" />

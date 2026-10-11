@@ -2,9 +2,10 @@
 
 import type { FormEvent } from 'react'
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { PasswordField } from './PasswordField'
+import { AuthPage } from './AuthPage'
+import { ACCOUNT_HOME } from '@/lib/accountNavigation'
 
 export function LoginForm({ initialError }: { initialError?: string }) {
   const router = useRouter()
@@ -36,18 +37,26 @@ export function LoginForm({ initialError }: { initialError?: string }) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setError(data?.error || data?.errors?.[0]?.message || data?.message || '登录失败，请检查账号和密码')
+        setError(
+          data?.error ||
+            data?.errors?.[0]?.message ||
+            data?.message ||
+            '登录失败，请检查账号和密码',
+        )
         return
       }
 
-      const meRes = await fetch('/api/users/me', { credentials: 'include', cache: 'no-store' })
+      const meRes = await fetch('/api/users/me', {
+        credentials: 'include',
+        cache: 'no-store',
+      })
       const me = await meRes.json().catch(() => ({}))
       if (!meRes.ok || !me?.user) {
         setError('登录成功但会话未建立，请刷新页面后重试')
         return
       }
 
-      router.replace('/console')
+      router.replace(ACCOUNT_HOME)
       router.refresh()
     } catch (e: any) {
       setError(e?.message || '网络异常，登录失败')
@@ -57,33 +66,27 @@ export function LoginForm({ initialError }: { initialError?: string }) {
   }
 
   return (
-    <div className="mx-auto max-w-sm py-8">
-      <h1 className="mb-1 text-xl font-semibold">登录 格物</h1>
-      <p className="mb-6 text-sm text-[var(--muted)]">
-        还没有账号？
-        <Link href="/register" className="ml-1 text-[var(--accent)]">
-          邀请码注册
-        </Link>
-      </p>
+    <AuthPage mode="login">
       <form
         method="post"
         action="/v1/auth/login"
         onSubmit={onSubmit}
-        className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--panel)] p-6"
+        className="auth-form"
+        aria-busy={loading}
       >
         {error && (
-          <div role="alert" className="rounded-md border border-[var(--danger)]/30 bg-[var(--danger)]/10 px-3 py-2 text-sm text-[var(--danger)]">
+          <div role="alert" className="auth-error">
             {error}
           </div>
         )}
         <Field
           id="login-identifier"
           name="identifier"
-          label="邮箱 / 用户名"
+          label="用户名或邮箱"
           type="text"
           value={identifier}
           onChange={setIdentifier}
-          placeholder="you@example.com 或用户名"
+          placeholder="输入用户名或邮箱"
           autoComplete="username"
           required
         />
@@ -97,15 +100,11 @@ export function LoginForm({ initialError }: { initialError?: string }) {
           autoComplete="current-password"
           required
         />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded-md bg-[var(--accent)] px-4 py-2.5 font-medium text-white disabled:opacity-50"
-        >
+        <button type="submit" disabled={loading} className="auth-primary">
           {loading ? '登录中…' : '登录'}
         </button>
       </form>
-    </div>
+    </AuthPage>
   )
 }
 

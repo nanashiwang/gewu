@@ -69,4 +69,22 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_SERVER_URL: https://gewu.uk
         run: npm run build
+      - name: Package Linux release
+        if: github.ref == 'refs/heads/main'
+        run: |
+          cp -r .next/static .next/standalone/.next/static
+          cp -r docs .next/standalone/docs
+          mkdir -p .next/standalone/scripts
+          cp scripts/relay-cron.mjs .next/standalone/scripts/relay-cron.mjs
+          printf '%s\n' "$GITHUB_SHA" > .next/standalone/.deployed-commit
+          tar -czf gewu-platform-linux.tar.gz -C .next/standalone .
+      - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
+        with:
+          name: gewu-platform-${{ github.sha }}
+          path: gewu-platform-linux.tar.gz
+          retention-days: 7

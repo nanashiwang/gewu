@@ -4,6 +4,7 @@ import { normalizeLoginBody, readAuthFormBody, readAuthJsonBody } from '@/lib/au
 import { loginIdentifierKind, normalizeLoginIdentifier } from '@/lib/loginIdentifier'
 import { loginErrorMessage } from '@/lib/loginErrors'
 import { internalApiUrl } from '@/lib/internalApiUrl'
+import { ACCOUNT_HOME } from '@/lib/accountNavigation'
 
 function isFormLoginRequest(request: Request): boolean {
   const contentType = request.headers.get('content-type') || ''
@@ -32,7 +33,7 @@ function formFailure(message: string): Response {
 }
 
 function formSuccess(sourceHeaders: Headers): Response {
-  const headers = new Headers({ Location: '/console' })
+  const headers = new Headers({ Location: ACCOUNT_HOME })
   appendForwardedCookies(headers, sourceHeaders)
   return new Response(null, { status: 303, headers })
 }
