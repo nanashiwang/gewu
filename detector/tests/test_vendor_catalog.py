@@ -19,7 +19,7 @@ from web.server import app, _protocol_from_model
 
 @pytest.mark.parametrize("vendor", VENDORS, ids=lambda v: v["id"])
 def test_every_vendor_is_selectable_with_source_and_valid_chat_ids(vendor):
-    page = TestClient(app).get("/models")
+    page = TestClient(app).get("/leaderboard/models")
     assert page.status_code == 200
     assert vendor["source"] in page.text
     for model in vendor["models"]:
@@ -28,6 +28,16 @@ def test_every_vendor_is_selectable_with_source_and_valid_chat_ids(vendor):
         assert model in page.text
     form = TestClient(app).get(f'/{vendor["route"]}?vendor={vendor["id"]}').text
     assert f'value="{vendor["models"][0]}"' in form
+
+
+def test_catalog_links_stay_inside_detector_proxy_namespace():
+    client = TestClient(app)
+    for path in ("/", "/claude", "/openai", "/gemini"):
+        html = client.get(path).text
+        assert 'href="/leaderboard/models"' in html
+        assert 'href="/models"' not in html
+    assert client.get("/models").status_code == 404
+    assert "/leaderboard/models</loc>" in client.get("/sitemap.xml").text
 
 
 def test_stale_catalog_exposes_review_warning_instead_of_claiming_latest():

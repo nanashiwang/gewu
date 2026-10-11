@@ -424,7 +424,7 @@ async def openai_index(request: Request) -> HTMLResponse:
     )
 
 
-@app.get("/models", response_class=HTMLResponse)
+@app.get("/leaderboard/models", response_class=HTMLResponse)
 async def models_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "models.html", {"catalog": catalog_view()})
 
@@ -1157,7 +1157,7 @@ _STATIC_SITEMAP_URLS = [
     ("/claude",      "weekly",  "0.9",  "index.html"),
     ("/openai",      "weekly",  "0.9",  "openai.html"),
     ("/gemini",      "weekly",  "0.9",  "gemini.html"),
-    ("/models",      "weekly",  "0.8",  "models.html"),
+    ("/leaderboard/models", "weekly", "0.8", "models.html"),
     ("/leaderboard", "daily",   "0.85", "leaderboard.html"),
     ("/leaderboard/monitor", "daily", "0.85", "monitor.html"),
     ("/ranking-governance", "monthly", "0.65", "ranking_governance.html"),

@@ -3,4 +3,4 @@
   {% for m in models %}<option value="{{ m.id }}">{{ m.label }}</option>{% endfor %}
 </select>
 <p class="hint" id="model-choice-hint" aria-live="polite">从常用候选中选择；填写地址和 Key 后，会按接口声明刷新列表。声明可用不代表实际调用一定成功。</p>
-<p class="hint"><a href="/models">官方来源与检测范围</a> · 核对于 {{ model_catalog().verified_on }}{% if model_catalog().stale %} · 目录待复核，请以接口列表为准{% endif %}</p>
+<p class="hint"><a href="/leaderboard/models">官方来源与检测范围</a> · 核对于 {{ model_catalog().verified_on }}{% if model_catalog().stale %} · 目录待复核，请以接口列表为准{% endif %}</p>
