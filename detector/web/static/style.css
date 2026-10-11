@@ -2852,6 +2852,9 @@ a.coverage-metric:hover strong { color: var(--accent); }
 
   .btn.btn-primary { background: var(--accent); color: #14281b; }
   .btn.btn-primary:hover { background: var(--accent-strong); }
+  .nav-register { color: #14281b !important; }
+  .lb-page-current, .lb-page-current:hover,
+  .pricing-test-btn:hover, .pricing-test-btn:focus-visible { color: #14281b; }
 
   .site-header,
   .site-nav,
