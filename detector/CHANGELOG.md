@@ -14,7 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/) and the
 - 禁止固定快照绕过证据审核自称格物实测，拒绝无时区、未来时间和不安全地址。
 - 新增模型观测、UTC 七天样本状态和分组报告入口；未知线路和无数据明确标注，不推算可用率。
 - 首页突出检测用途与费用边界，价格折叠为辅助信息；移除榜单推广位，报告强化证据解释。
-- 暂不新增元衡生态关联，不自动开启收费检测。
+- 保持检测站独立运行，不自动开启收费检测。
 
 ### Added
 - Caddy structured access logs(JSON 格式,含 Cf-Connecting-Ip / Referer / User-Agent)
