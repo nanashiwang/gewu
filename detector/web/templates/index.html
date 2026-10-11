@@ -96,18 +96,7 @@
     <div class="field-row">
       <div class="field">
         <label for="model">目标模型</label>
-        <div class="combo">
-          <input type="text" id="model" name="model" required
-                 value="claude-fable-5" autocomplete="off"
-                 placeholder="claude-fable-5"
-                 maxlength="200" />
-          <ul class="combo-list" id="model-list" hidden>
-            {% for m in models %}
-            <li class="combo-item" data-value="{{ m.id }}">{{ m.label }}</li>
-            {% endfor %}
-          </ul>
-        </div>
-        <p class="hint">点击/聚焦可见预设模型;若中转站用 <code>claude-fable-5-thinking</code> 等自定义名,直接输入即可。</p>
+        {% include "_model_select.html" %}
       </div>
       <div class="field">
         <label for="mode">检测深度</label>

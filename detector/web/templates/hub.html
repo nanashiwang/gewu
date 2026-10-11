@@ -151,16 +151,20 @@
           <span>{{ protocol_logo("gemini") }}<span><strong>Gemini</strong><small>{{ coverage.gemini_site_count }} 家</small></span></span>
         </label>
       </fieldset>
-      <label class="quick-model-label" for="quick-model">目标模型 <small>可从下方价格榜一键带入</small></label>
-      <input id="quick-model" name="model" class="quick-model-input" type="text"
-             placeholder="例如 gpt-5.6-sol" autocomplete="off" maxlength="120">
+      <label class="quick-model-label" for="quick-model">目标模型 <small>选择协议后，从列表中选择</small></label>
+      <select id="quick-model" name="model" class="quick-model-input" required
+              data-choices='{{ quick_models|tojson }}' aria-describedby="quick-model-hint">
+        <option value="" selected disabled>请选择目标模型</option>
+        {% for model in quick_models.claude %}<option value="{{ model.id }}">{{ model.label }}</option>{% endfor %}
+      </select>
+      <p class="quick-model-hint" id="quick-model-hint">这里是常用候选；下一步可读取你的接口所声明的模型列表。</p>
       <label class="quick-url-label" for="quick-base-url">API Base URL</label>
       <div class="quick-url-row">
         <input id="quick-base-url" name="base_url" type="url" inputmode="url"
                placeholder="https://relay.example.com/v1" autocomplete="url" maxlength="2048" required>
         <button class="btn btn-primary" type="submit">下一步：填 API key</button>
       </div>
-      <p class="quick-check-hint" id="quick-check-hint">首页不收集密钥。下一步会进入对应协议页，再粘贴 API key 并选择模型。</p>
+      <p class="quick-check-hint" id="quick-check-hint">首页不收集密钥。选好的模型会带到下一步，粘贴 API key 后确认即可。</p>
       <p class="quick-check-error" id="quick-check-error" role="alert" hidden></p>
     </form>
   </div>
