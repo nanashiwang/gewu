@@ -13,7 +13,8 @@
   <div class="relay-detail-copy">
     <div class="leaderboard-eyebrow"><i></i> {{ site.source_label }} · {{ site.freshness_label }} · {{ site.confidence_label }}</div>
     <h1>{{ domain }}<br><span>检测详情</span></h1>
-    <p>{{ site.report_count }} 次检测形成当前综合分。先看样本可信度和更新时间,再结合协议与历史报告判断;分数不是永久保证。</p>
+    <p>{{ site.report_count }} 次记录 · {% if site.is_current %}近 30 天有效证据{% else %}历史参考，不参与当前排名{% endif %}。分数仅覆盖已测样本，不能代表整个站点、其他账号或模型。</p>
+    <a href="/leaderboard/monitor?query={{ domain|urlencode }}">按模型与入口查看观测 →</a>
     <div class="relay-detail-actions">
       <a class="btn btn-primary" href="{{ site.detect_url }}">检测此站</a>
       {% if site.registration_url %}<a class="btn btn-ghost" href="{{ site.registration_url }}" target="_blank" rel="noopener noreferrer nofollow sponsored external" referrerpolicy="no-referrer">通过邀请链接注册 ↗</a>{% endif %}
@@ -41,14 +42,6 @@
     {% endfor %}
   </div>
 </section>
-{% if trend|length >= 2 %}
-<section class="relay-trend-section">
-  <div class="relay-section-head"><div><span class="public-ranking-kicker">RECENT TREND</span><h2>最近 {{ trend|length }} 次检测趋势</h2></div><p>仅展示已有逐次报告,不对缺失日期进行推算。</p></div>
-  <div class="relay-trend-chart" role="img" aria-label="{{ domain }} 最近检测分数趋势">
-    {% for item in trend %}<a href="/r/{{ item.job_id }}" class="relay-trend-point" style="--score: {{ item.score|round|int }}" title="{{ item.date_str }} · {{ item.score|round|int }} 分"><span>{{ item.score|round|int }}</span><i></i><small>{{ item.date_str[5:] }}</small></a>{% endfor %}
-  </div>
-</section>
-{% endif %}
 {% if relay %}
 <section class="lb-detail-summary">
   <div class="lb-detail-score lb-score-{{ relay.verdict_class }}"><span class="lb-detail-score-num">{{ "%.0f"|format(relay.overall_median) }}</span><span class="lb-detail-score-label">逐次报告中位分</span></div>

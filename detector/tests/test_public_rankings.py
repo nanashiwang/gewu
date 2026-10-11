@@ -39,29 +39,23 @@ def test_leaderboard_discloses_external_snapshot_and_first_party_sources():
     assert "质量榜" in response.text
     assert "风险观察" in response.text
     assert "红黑榜" not in response.text
-    assert "nan.meta-api.vip" in response.text
+    assert "nan.meta-api.vip" not in response.text
     assert "codexpp.com" in response.text
     assert "api.thinkai.tv" in response.text
     assert "api.loomcode.cn" not in response.text
     assert "api.example.com" not in response.text
     assert 'href="/login"' in response.text
     assert 'href="/register"' in response.text
-    assert 'href="https://cn.meta-api.vip/i/Eu48"' in response.text
+    assert 'href="https://cn.meta-api.vip/i/Eu48"' not in response.text
     assert 'href="/leaderboard/api.thinkai.tv"' in response.text
     assert 'href="https://api.thinkai.tv"' not in response.text
-    assert 'target="_blank"' in response.text
-    assert 'rel="noopener noreferrer nofollow sponsored external"' in response.text
-    assert 'referrerpolicy="no-referrer"' in response.text
-    assert 'data-watch-domain="nan.meta-api.vip"' in response.text
-    assert 'data-compare-domain="nan.meta-api.vip"' in response.text
-    assert "高可信" in response.text
+    assert "历史参考" in response.text
+    assert 'href="/leaderboard/monitor"' in response.text
     assert "我的关注" in response.text
     assert "点击域名只进入格物站内详情" in response.text
     assert "质量榜按综合分从高到低排列" in response.text
-    assert "格物关联站点 · 推广位" in response.text
-    assert "该位置不加分、不改变名次" in response.text
-    assert "格物运营方可能获得返利" in response.text
-    assert "通过邀请链接注册" in response.text
+    assert "格物关联站点 · 推广位" not in response.text
+    assert "暂无近 30 天有效排名" in response.text
     assert 'href="/pricing"' in response.text
     assert "Veridrop 快照" in response.text
     assert "格物实测" in response.text
@@ -72,15 +66,16 @@ def test_leaderboard_discloses_external_snapshot_and_first_party_sources():
 
 def test_ranking_detail_renders_decision_page_and_unknown_domain_is_404():
     client = TestClient(app)
-    response = client.get("/leaderboard/nan.meta-api.vip")
+    response = client.get("/leaderboard/codereel.pro")
 
     assert response.status_code == 200
     assert "检测详情" in response.text
     assert "样本可信度" in response.text
     assert "检测此站" in response.text
     assert "打开域名" not in response.text
-    assert 'data-watch-domain="nan.meta-api.vip"' in response.text
-    assert 'data-compare-domain="nan.meta-api.vip"' in response.text
+    assert 'data-watch-domain="codereel.pro"' in response.text
+    assert 'data-compare-domain="codereel.pro"' in response.text
+    assert client.get("/leaderboard/nan.meta-api.vip").status_code == 404
     assert client.get("/leaderboard/not-listed.example").status_code == 404
 
 
@@ -118,7 +113,8 @@ def test_ranking_detail_renders_local_trend_and_report_history(monkeypatch):
     response = TestClient(server.app).get("/leaderboard/relay.example.com")
 
     assert response.status_code == 200
-    assert "最近 2 次检测趋势" in response.text
+    assert "按模型与入口查看观测" in response.text
+    assert "relay-trend-chart" not in response.text
     assert "可复核检测历史" in response.text
     assert 'href="/r/job-new"' in response.text
     assert "usage" in response.text
@@ -129,12 +125,12 @@ def test_ranking_detail_renders_local_trend_and_report_history(monkeypatch):
 
 def test_compare_page_limits_deduplicates_and_validates_domains():
     response = TestClient(app).get(
-        "/leaderboard/compare?domains=nan.meta-api.vip,codereel.pro,nan.meta-api.vip,evil.example"
+        "/leaderboard/compare?domains=api.thinkai.tv,codereel.pro,api.thinkai.tv,evil.example"
     )
 
     assert response.status_code == 200
     assert response.text.count('class="compare-card"') == 2
-    assert "nan.meta-api.vip" in response.text
+    assert "api.thinkai.tv" in response.text
     assert "codereel.pro" in response.text
     assert "evil.example" not in response.text
     assert "打开域名" not in response.text
@@ -382,7 +378,7 @@ def test_pricing_page_fails_closed_without_reusing_unverified_prices(monkeypatch
 def test_featured_placement_does_not_change_quality_order(monkeypatch):
     from web import server
 
-    monkeypatch.setattr(server.leaderboard, "aggregate", lambda: ([], {}))
+    monkeypatch.setattr(server.leaderboard, "aggregate", lambda **kwargs: ([], {}))
     quality_sites = server._compute_public_ranking_snapshot()["red_sites"]
     quality_domains = [site.domain for site in quality_sites]
 
@@ -419,7 +415,7 @@ def test_homepage_visual_and_interaction_contract(monkeypatch):
     response = client.get("/")
 
     assert response.status_code == 200
-    assert "全网比价 +" in response.text
+    assert "接口是否好用" in response.text
     assert 'id="history-search-form"' in response.text
     assert 'id="home-domain-search"' in response.text
     assert 'id="quick-model"' in response.text
@@ -428,18 +424,19 @@ def test_homepage_visual_and_interaction_contract(monkeypatch):
     assert "gpt-5.6-sol" in response.text
     assert "claude-fable-5" in response.text
     assert "查看全部 12 个模型" in response.text
-    assert response.text.count("data-home-rank-row") == 12
+    assert response.text.count("data-home-rank-row") == 0
+    assert "暂无近 30 天可展示的高分证据" in response.text
     assert response.text.index('id="home-pricing"') < response.text.index(
         'id="home-ranking"'
     )
     assert response.text.index('id="home-ranking"') < response.text.index(
         'id="security-and-trust"'
     )
-    assert response.text.index("怎么用？三步，约 30–75 秒") < response.text.index(
+    assert response.text.index("怎么用？三步查看检测证据") < response.text.index(
         'class="account-entry"'
     )
     assert "查看完整榜单" in response.text
-    assert "Veridrop 快照" in response.text
+    assert "历史参考" in response.text
     assert "格物实测" in response.text
     assert all(icon not in response.text for icon in ("🔒", "📋", "🔐", "🛡️"))
 
@@ -467,7 +464,7 @@ def test_public_pages_do_not_expose_repository_entry_points(monkeypatch):
     monkeypatch.setattr(server, "get_market_pricing", fake_pricing)
     client = TestClient(app)
     for path in (
-        "/", "/faq", "/leaderboard", "/leaderboard/nan.meta-api.vip",
+        "/", "/faq", "/leaderboard", "/leaderboard/codereel.pro", "/leaderboard/monitor",
         "/leaderboard/compare", "/pricing", "/claude", "/openai", "/gemini", "/llms.txt",
     ):
         response = client.get(path)
@@ -492,7 +489,7 @@ def test_public_ranking_snapshot_merges_newer_live_reports_without_double_counti
         PublicRankingSite("b.example", 40, 5, "2026-07-19", ("anthropic",)),
     ))
     monkeypatch.setattr(server, "UPDATED_AT", "2026-07-19")
-    monkeypatch.setattr(server.leaderboard, "aggregate", lambda: ([
+    monkeypatch.setattr(server.leaderboard, "aggregate", lambda **kwargs: ([
         SimpleNamespace(
             domain="a.example", total_count=12, overall_median=91.0,
             by_protocol={"openai": object(), "gemini": object()},
@@ -507,8 +504,7 @@ def test_public_ranking_snapshot_merges_newer_live_reports_without_double_counti
 
     snapshot = server._compute_public_ranking_snapshot()
     metrics = snapshot["metrics"]
-    red = {site.domain: site for site in snapshot["red_sites"]}
-    black = {site.domain: site for site in snapshot["black_sites"]}
+    historical = {site.domain: site for site in snapshot["historical_sites"]}
 
     assert [site.score for site in snapshot["red_sites"]] == sorted(
         (site.score for site in snapshot["red_sites"]), reverse=True
@@ -523,11 +519,11 @@ def test_public_ranking_snapshot_merges_newer_live_reports_without_double_counti
     assert metrics["anthropic_site_count"] == 2
     assert metrics["openai_site_count"] == 1
     assert metrics["gemini_site_count"] == 1
-    assert red["a.example"].score == 91
-    assert red["a.example"].source_label == "格物实测"
-    assert red["a.example"].report_count == 12
-    assert red["a.example"].protocols == ("gemini", "openai")
-    assert black["c.example"].score == 60
+    assert historical["a.example"].score == 91
+    assert historical["a.example"].source_label == "格物实测"
+    assert historical["a.example"].report_count == 12
+    assert historical["a.example"].protocols == ("gemini", "openai")
+    assert historical["c.example"].score == 60
 
 
 def test_homepage_renders_coverage_counts_and_truthful_key_policy(monkeypatch):

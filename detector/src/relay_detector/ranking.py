@@ -7,9 +7,10 @@ import json
 import math
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping
+from urllib.parse import urlsplit
 
 from . import __version__
 from .core.models import Mode, Protocol, RankingEvidence
@@ -185,12 +186,26 @@ def assess_ranking_eligibility(report: Mapping[str, Any]) -> tuple[bool, str]:
     required = _CORE_DETECTORS.get(protocol)
     if required is None:
         return False, "unsupported_protocol"
-    if not str(report.get("base_url") or "").strip():
+    if not isinstance(report.get("base_url"), str) or not report["base_url"].strip():
         return False, "missing_base_url"
+    try:
+        endpoint = urlsplit(report["base_url"])
+        if (
+            endpoint.scheme not in {"http", "https"} or not endpoint.hostname
+            or endpoint.username or endpoint.password or endpoint.query or endpoint.fragment
+        ):
+            return False, "invalid_base_url"
+        endpoint.port
+    except ValueError:
+        return False, "invalid_base_url"
     if not str(report.get("target_model") or "").strip():
         return False, "missing_target_model"
     try:
-        datetime.fromisoformat(str(report.get("timestamp") or "").replace("Z", "+00:00"))
+        captured_at = datetime.fromisoformat(str(report.get("timestamp") or "").replace("Z", "+00:00"))
+        if captured_at.tzinfo is None:
+            return False, "invalid_timestamp"
+        if captured_at > datetime.now(timezone.utc) + timedelta(minutes=5):
+            return False, "future_timestamp"
     except ValueError:
         return False, "invalid_timestamp"
     try:

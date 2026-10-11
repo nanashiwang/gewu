@@ -52,7 +52,7 @@
    render as a green circle and "基本通过" caption — visually contradicting
    the red critical findings below. #}
 {% if verdict == 'passed' and score >= 95 and protocol == 'anthropic' %}
-  {% set caption = '完全一致' %}{% set verdict_class = 'ok' %}
+  {% set caption = '本次检测通过' %}{% set verdict_class = 'ok' %}
 {% elif verdict == 'passed' and score >= 85 %}
   {% set caption = '协议表现良好' if protocol in ['openai', 'gemini'] else '优秀' %}
   {% set verdict_class = 'ok' %}
@@ -83,17 +83,24 @@
 </section>
 
 {% set ranking = report.ranking_evidence or {} %}
-{% if ranking.eligible and ranking.review_status == 'approved' %}
-<section class="card alert-card">
+{% if ranking_approved %}
+<section class="card">
   <strong>公共榜单证据：</strong>
-  本报告已审核入榜；来源、检测器版本和基线版本可在对应站点的榜单详情页复核。
+  本报告通过证据准入；只有近 30 天有效证据参与当前排名，过期后作为历史参考。
 </section>
 {% else %}
-<section class="card alert-card">
+<section class="card">
   <strong>用户自测报告：</strong>
   本报告可分享，但不会自动参与公共榜单评分或改变站点排名。
 </section>
 {% endif %}
+
+<section class="card">
+  <h2>先看结论，再看证据</h2>
+  <p>通过：本次已测项目符合预期。未通过：发现需要复核的异常。错误或跳过：没有足够证据作结论，不能当作通过或模型造假。</p>
+  <p>先确认模型名称、接口协议和账号权限；再查看下面每项证据。认证或额度错误请检查 Key 与余额，超时可稍后复测；能力异常请携带脱敏报告联系服务商。</p>
+  <p>本报告只覆盖这次请求使用的账号与入口。服务商内部线路及账号分组未知；没有账单或余额对账时，Usage 差异不能证明实际多扣费用。</p>
+</section>
 
 {% if report.run_error %}
 <section class="card alert-card">

@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% from "_pricing_table.html" import pricing_workbench with context %}
 
-{% block title %}AI 模型全网比价 + 中转站真伪验证 | 格物{% endblock %}
-{% block description %}格物聚合主流 AI 模型公开价格，并用真实 API 请求评估 Claude / GPT / Gemini 中转站的协议透传质量和后端替换风险。先比价，再验证；报告证据可复核。{% endblock %}
-{% block og_title %}AI 模型全网比价 + 真伪可验 | 格物{% endblock %}
-{% block og_description %}查主流模型公开价格，再用真实请求验证中转站线路与模型真伪。{% endblock %}
+{% block title %}AI API 公益检测与模型观测 | 格物{% endblock %}
+{% block description %}用真实 API 请求检查接口兼容性、能力与异常线索，按模型查看已审核观测，每项结论保留可复核证据。{% endblock %}
+{% block og_title %}AI API 公益检测与模型观测 | 格物{% endblock %}
+{% block og_description %}用真实请求检查接口兼容性、能力与异常线索，按模型查看可复核的检测证据。{% endblock %}
 
 {% block head_extra %}
 <script type="application/ld+json">
@@ -56,7 +56,7 @@
       "name": "怎么知道我用的是真 Claude / GPT / Gemini 还是假的?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "三个方向：① 协议字段（id 前缀、object、finish_reason 是否符合官方规范）；② 能力指纹（Claude 思维签名是否服务端真签名、PDF 是否能识别、function calling 形状）；③ 用量字段（usage 里有没有混入异源痕迹）。格物把这三类合成 7–10 项自动检测，约 30–75 秒出结果。"
+        "text": "三个方向：① 协议字段（id 前缀、object、finish_reason 是否符合协议规范）；② 能力表现（思维签名回放、PDF 识别、function calling 形状）；③ 用量字段（usage 是否有异常线索）。具体检测项目与耗时取决于协议、模型和检测模式，结论以本次实际完成的项目为准。"
       }
     },
     {
@@ -107,9 +107,9 @@
   <div class="hub-hero-grid">
     <div class="hub-hero-copy">
       <span class="live-status"><i aria-hidden="true"></i>实时检测开放 · 结果可复核</span>
-      <h1>全网比价 +<br><span>真伪可验</span></h1>
+      <h1>接口是否好用<br><span>让证据来回答</span></h1>
       <p class="answer-capsule">
-        先看模型公开价格，再查中转站历史记录；需要确认当前线路时，用自己的 key 跑一次真实检测。
+        公益检测 Claude / OpenAI / Gemini 接口：检查能否调用、能力是否完整、是否存在协议异常。检测分数不是模型身份证明。
       </p>
 
       <div class="history-search-panel">
@@ -120,7 +120,7 @@
         <form class="history-search-form" id="history-search-form" role="search" novalidate>
           <label class="sr-only" for="home-domain-search">搜索中转站域名</label>
           <input id="home-domain-search" type="search" list="home-domain-options"
-                 placeholder="例如 nan.meta-api.vip" autocomplete="off" maxlength="253">
+                 placeholder="输入中转站域名" autocomplete="off" maxlength="253">
           <button class="btn btn-primary" type="submit">查历史报告</button>
         </form>
         <datalist id="home-domain-options">
@@ -134,7 +134,7 @@
     <form class="quick-check-panel" id="quick-check" novalidate>
       <div class="quick-check-head">
         <span>RUN A NEW CHECK</span>
-        <strong>跑一次新检测 · 约 30–75 秒</strong>
+        <strong>开始检测 · 耗时取决于模型与模式</strong>
       </div>
       <fieldset class="quick-protocols">
         <legend>接口协议</legend>
@@ -166,6 +166,17 @@
   </div>
 </section>
 
+<section class="ranking-guide">
+  <div class="ranking-guide-head"><span>CHOOSE YOUR CHECK</span><h2>这次你想确认什么？</h2></div>
+  <div class="ranking-guide-grid">
+    <article><strong>接口能否使用</strong><p>先做快速检查，确认鉴权、模型调用和协议响应；失败时从具体报错开始排查。</p><a href="#quick-check">开始快速检查 →</a></article>
+    <article><strong>能力是否符合预期</strong><p>在协议页选择标准或完整模式，查看工具调用、结构化输出等项目。未测能力不作保证。</p><a href="/openai">查看能力检测 →</a></article>
+    <article><strong>近期表现怎么样</strong><p>按模型与观测入口查看有效样本及七天记录。缺少样本会明确显示，不推算可用率。</p><a href="/leaderboard/monitor">查看模型观测 →</a></article>
+  </div>
+  <p>格物不收检测服务费；实际请求会消耗你的上游额度。建议使用限额专用 Key，从快速模式开始，复测前确认余额。</p>
+</section>
+
+<details class="ranking-methodology"><summary>价格辅助参考 · 不参与检测结论</summary>
 {% if pricing and pricing.homepage_prices %}
 <section class="home-pricing" id="home-pricing" aria-labelledby="home-pricing-title">
   <div class="home-pricing-head">
@@ -179,7 +190,7 @@
   {{ pricing_workbench(pricing, pricing.homepage_prices, true) }}
   <div class="home-pricing-footer">
     <p>公开市场汇总价格 · 格物读取时间：{{ pricing.captured_at }} · 最终以供应平台结算页为准</p>
-    <strong>价格告诉你多少钱，检测回答是不是真货。</strong>
+    <strong>价格仅供参考，检测提供本次调用的证据。</strong>
   </div>
 </section>
 {% else %}
@@ -190,14 +201,15 @@
   </div>
 </section>
 {% endif %}
+</details>
 
 <section class="home-ranking" id="home-ranking" aria-labelledby="home-ranking-title">
   <div class="home-ranking-head">
     <div>
       <span class="public-ranking-kicker">CURRENT QUALITY RANKING</span>
-      <h2 id="home-ranking-title">当前质量榜 · 前 {{ ranking_sites|length }} 名</h2>
+      <h2 id="home-ranking-title">近期有效检测 · {{ ranking_sites|length }} 个站点</h2>
     </div>
-    <p>{{ coverage.site_count_label }} 个域名 · {{ coverage.report_count_label }} 次记录 · 更新至 {{ coverage.updated_at }}</p>
+    <p>含历史参考共 {{ coverage.site_count_label }} 个域名 · {{ coverage.report_count_label }} 次记录 · 更新至 {{ coverage.updated_at }}</p>
   </div>
   <div class="home-ranking-table-wrap">
     <table class="home-ranking-table">
@@ -230,6 +242,7 @@
       </tbody>
     </table>
   </div>
+  {% if not ranking_sites %}<p class="card">暂无近 30 天可展示的高分证据。旧记录已移入历史参考，不以历史分数承诺当前质量。<a href="/leaderboard#historical-reference">查看历史参考 →</a></p>{% endif %}
   <p class="home-ranking-empty" id="home-ranking-empty" hidden>首页前 {{ ranking_sites|length }} 名中没有匹配项；按回车可继续搜索完整榜单。</p>
   <div class="home-ranking-footer">
     <p>每行保留来源标记；第三方快照不会显示成格物实测。</p>
@@ -304,7 +317,7 @@
 </section>
 
 <section class="how-it-works">
-  <h2>怎么用？三步，约 30–75 秒</h2>
+  <h2>怎么用？三步查看检测证据</h2>
   <ol class="how-steps">
     <li>
       <span class="how-num">1</span>
@@ -316,8 +329,8 @@
     <li>
       <span class="how-num">2</span>
       <div>
-        <h3>点「开始检测」，等待 30–75 秒</h3>
-        <p>格物并发执行 7–10 项检测并实时显示进度；期间消耗的 token 由你的 key 对应账户支付。</p>
+        <h3>点「开始检测」，查看实时进度</h3>
+        <p>具体项目与耗时取决于协议、模型和检测模式；实际请求消耗由你的 key 对应账户支付。</p>
       </div>
     </li>
     <li>

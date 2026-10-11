@@ -8,6 +8,14 @@ This project adheres to [Semantic Versioning](https://semver.org/) and the
 
 ## [Unreleased]
 
+### 2026-10-11 · 检测证据与模型观测
+
+- 当前排名与历史参考分离，所有来源统一应用 30 天时效；实测分数不混入过期样本。
+- 禁止固定快照绕过证据审核自称格物实测，拒绝无时区、未来时间和不安全地址。
+- 新增模型观测、UTC 七天样本状态和分组报告入口；未知线路和无数据明确标注，不推算可用率。
+- 首页突出检测用途与费用边界，价格折叠为辅助信息；移除榜单推广位，报告强化证据解释。
+- 保持检测站独立运行，不自动开启收费检测。
+
 ### Added
 - Caddy structured access logs(JSON 格式,含 Cf-Connecting-Ip / Referer / User-Agent)
 - 用户画像分析工具 `scripts/analyze_access_log.py` — 把访问者按行为分群
