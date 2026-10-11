@@ -35,7 +35,7 @@
     </ul>
   </aside>
 
-  <main class="faq-main">
+  <div class="faq-main">
     {% for cat in categories %}
     <section class="faq-category" id="{{ cat.id }}">
       <h2>{{ cat.title }}</h2>
@@ -46,7 +46,7 @@
         <details class="faq-entry" id="{{ cat.id }}-{{ entry.id }}">
           <summary class="faq-q">
             {{ entry.q }}
-            <a class="faq-permalink" href="#{{ cat.id }}-{{ entry.id }}" aria-label="复制链接到该问题">#</a>
+            <a class="faq-permalink" href="#{{ cat.id }}-{{ entry.id }}" aria-label="跳到该问题">#</a>
           </summary>
           {# entry.a may contain limited inline HTML (<strong>, <code> etc.)
              from faq_data.py — that file is fully under our control, no user
@@ -64,7 +64,7 @@
         的报告 details 里包含具体的扣分原因,通常自带答案。
       </p>
     </section>
-  </main>
+  </div>
 </div>
 
 <script>

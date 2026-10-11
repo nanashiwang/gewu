@@ -11,14 +11,14 @@
   <a class="btn btn-primary" href="/#quick-check">开始检测</a>
   <a class="btn btn-ghost" href="/ranking-governance">证据与公益规则</a>
 </section>
-<section class="card">
-  <h2>如何读这张表</h2>
+<details class="info-disclosure">
+  <summary>如何读这张表</summary>
   <p>观测入口按地址区分；服务商内部的账号分组、路由与实际供应商未知，不能据此代表整个站点。不同模型、检测模式、检测器版本及基线分别展示。</p>
   <p>状态条使用 UTC 日期。绿色表示当天已审核样本通过，黄色表示有异常，蓝色表示有未完成项，灰色表示无有效样本。点击色块查看对应报告；这里不是可用率，鉴权失败及无效检测不参与统计。</p>
-</section>
+</details>
 <form class="observation-filters card" onsubmit="return false" role="search">
   <label>搜索站点或模型 <input type="search" id="observation-search" maxlength="120" placeholder="输入域名或模型名称"></label>
-  <label>模型 <select id="observation-model"><option value="">全部模型</option>{% for model in models %}<option value="{{ model }}">{{ model }}</option>{% endfor %}</select></label>
+  <div class="observation-model-field"><label for="observation-model">模型</label><select id="observation-model" data-picker="search"><option value="">全部模型</option>{% for model in models %}<option value="{{ model }}">{{ model }}</option>{% endfor %}</select></div>
   <span id="observation-count" aria-live="polite">{{ rows|length }} 组观测</span>
 </form>
 {% for row in rows %}

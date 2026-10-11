@@ -546,8 +546,8 @@ def test_homepage_renders_coverage_counts_and_truthful_key_policy(monkeypatch):
     assert response.status_code == 200
     assert "73" in response.text
     assert "1,927" in response.text
-    assert "73 个域名" in response.text
-    assert "1,927 次记录" in response.text
+    assert '<strong>73</strong><span>收录域名</span>' in response.text
+    assert '<strong>1,927</strong><span>历史记录</span>' in response.text
     assert "sk-y7xU" not in response.text
     assert "不会保留密钥前缀" in response.text
     assert 'id="quick-check"' in response.text

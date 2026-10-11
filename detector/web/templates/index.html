@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block body_class %}page-detect{% endblock %}
 
 {% block title %}Claude API 中转站检测 · thinking 签名回放验证 | 格物{% endblock %}
 {% block description %}免费检测 Claude API 中转站的协议透传质量 — 对 thinking block 做原始回放和篡改对照,再结合 10 项辅助检测与 Token 用量检查。无需注册,API key 不持久化,结果可复核。{% endblock %}
@@ -66,17 +67,18 @@
 {% endblock %}
 
 {% block content %}
-
+<a class="detect-back" href="/">← 返回检测首页</a>
 <section class="hero">
-  <h1>这家 Claude API 中转站，是真原生吗？</h1>
+  <h1>Claude 接口检测</h1>
   <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
     <strong>格物</strong>对 Claude <strong>thinking block 做原始/篡改回放验证</strong>，再结合 10 项辅助检测，
     约 <strong>30–75 秒</strong>评估中转站的协议透传质量与后端替换风险。免费、API key 不持久化、结果可复核。
   </p>
 </section>
 
+<div class="detect-layout">
 <section class="card form-card">
-  <form id="detect-form" data-endpoint="/api/detect/claude" autocomplete="off">
+  <form id="detect-form" data-endpoint="/api/detect/claude" method="post" action="/api/detect/claude" autocomplete="off">
     <div class="field">
       <label for="base_url">中转站接口地址</label>
       <input type="url" id="base_url" name="base_url" required
@@ -100,7 +102,7 @@
       </div>
       <div class="field">
         <label for="mode">检测深度</label>
-        <select id="mode" name="mode">
+        <select id="mode" name="mode" data-picker>
           <option value="quick">快速 (~15 秒,5 项核心)</option>
           <option value="standard">标准 (~45 秒,9 项)</option>
           <option value="full" selected>完整 (~75 秒,全 11 项,推荐)</option>
@@ -108,6 +110,8 @@
       </div>
     </div>
 
+    <details class="detect-extra">
+    <summary>高级检测选项 <small>可选 · 额外消耗上游额度</small></summary>
     <div class="field-checkbox">
       <input type="checkbox" id="include_long_context" name="include_long_context" value="true" />
       <label for="include_long_context">
@@ -133,6 +137,7 @@
       </label>
     </div>
 
+    </details>
     <button type="submit" id="submit-btn" class="btn btn-primary btn-block">
       开始检测
     </button>
@@ -140,7 +145,9 @@
     <div class="form-error" id="form-error" role="alert" aria-live="assertive" hidden></div>
   </form>
 </section>
-
+{% include "_detect_aside.html" %}
+</div>
+<details class="detect-details"><summary>检测方法与常见问题</summary>
 <section class="features">
   <div class="feature">
     <h3>签名回放验证 ⭐</h3>
@@ -253,5 +260,6 @@
   </p>
 </section>
 
+</details>
 {# app.js loaded globally by base.html #}
 {% endblock %}

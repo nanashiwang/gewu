@@ -31,8 +31,12 @@
   });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') setOpen(false);
+    if (e.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+      setOpen(false);
+      toggle.focus();
+    }
   });
+  window.matchMedia('(min-width: 761px)').addEventListener('change', () => setOpen(false));
 })();
 
 

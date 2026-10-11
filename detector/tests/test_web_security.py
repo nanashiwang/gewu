@@ -11,6 +11,27 @@ from web import security
 from web.ratelimit import reset as reset_rate_limits
 
 
+@pytest.mark.parametrize("protocol", ["claude", "openai", "gemini"])
+def test_detection_form_never_falls_back_to_credentials_in_get_query(protocol):
+    """A missing JS bundle must not send the API key in a navigation URL."""
+    from html.parser import HTMLParser
+    from web.server import app
+
+    class FormParser(HTMLParser):
+        form = None
+
+        def handle_starttag(self, tag, attrs):
+            attributes = dict(attrs)
+            if tag == "form" and attributes.get("id") == "detect-form":
+                self.form = attributes
+
+    parser = FormParser()
+    parser.feed(TestClient(app).get(f"/{protocol}").text)
+    assert parser.form is not None
+    assert parser.form["method"].lower() == "post"
+    assert parser.form["action"] == f"/api/detect/{protocol}"
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "target",
