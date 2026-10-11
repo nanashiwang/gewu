@@ -432,7 +432,7 @@ def test_homepage_visual_and_interaction_contract(monkeypatch):
     assert response.text.index('id="home-ranking"') < response.text.index(
         'id="security-and-trust"'
     )
-    assert response.text.index("怎么用？三步，约 30–75 秒") < response.text.index(
+    assert response.text.index("怎么用？三步查看检测证据") < response.text.index(
         'class="account-entry"'
     )
     assert "查看完整榜单" in response.text

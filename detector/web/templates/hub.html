@@ -56,7 +56,7 @@
       "name": "怎么知道我用的是真 Claude / GPT / Gemini 还是假的?",
       "acceptedAnswer": {
         "@type": "Answer",
-        "text": "三个方向：① 协议字段（id 前缀、object、finish_reason 是否符合官方规范）；② 能力指纹（Claude 思维签名是否服务端真签名、PDF 是否能识别、function calling 形状）；③ 用量字段（usage 里有没有混入异源痕迹）。格物把这三类合成 7–10 项自动检测，约 30–75 秒出结果。"
+        "text": "三个方向：① 协议字段（id 前缀、object、finish_reason 是否符合协议规范）；② 能力表现（思维签名回放、PDF 识别、function calling 形状）；③ 用量字段（usage 是否有异常线索）。具体检测项目与耗时取决于协议、模型和检测模式，结论以本次实际完成的项目为准。"
       }
     },
     {
@@ -209,7 +209,7 @@
       <span class="public-ranking-kicker">CURRENT QUALITY RANKING</span>
       <h2 id="home-ranking-title">近期有效检测 · {{ ranking_sites|length }} 个站点</h2>
     </div>
-    <p>{{ coverage.site_count_label }} 个域名 · {{ coverage.report_count_label }} 次记录 · 更新至 {{ coverage.updated_at }}</p>
+    <p>含历史参考共 {{ coverage.site_count_label }} 个域名 · {{ coverage.report_count_label }} 次记录 · 更新至 {{ coverage.updated_at }}</p>
   </div>
   <div class="home-ranking-table-wrap">
     <table class="home-ranking-table">
@@ -317,7 +317,7 @@
 </section>
 
 <section class="how-it-works">
-  <h2>怎么用？三步，约 30–75 秒</h2>
+  <h2>怎么用？三步查看检测证据</h2>
   <ol class="how-steps">
     <li>
       <span class="how-num">1</span>
@@ -329,8 +329,8 @@
     <li>
       <span class="how-num">2</span>
       <div>
-        <h3>点「开始检测」，等待 30–75 秒</h3>
-        <p>格物并发执行 7–10 项检测并实时显示进度；期间消耗的 token 由你的 key 对应账户支付。</p>
+        <h3>点「开始检测」，查看实时进度</h3>
+        <p>具体项目与耗时取决于协议、模型和检测模式；实际请求消耗由你的 key 对应账户支付。</p>
       </div>
     </li>
     <li>
