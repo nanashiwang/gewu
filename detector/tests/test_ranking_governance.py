@@ -53,6 +53,12 @@ def _unreviewed() -> dict:
     }
 
 
+@pytest.mark.parametrize("model", ["deepseek-flash", "qwen3.8-max", "custom-future-model"])
+def test_basic_compatibility_reports_cannot_be_ranked_even_when_approved(model):
+    report = {**_report(), "target_model": model, "ranking_evidence": _approved()}
+    assert assess_ranking_eligibility(report) == (False, "basic_compatibility_only")
+
+
 def test_ranking_fails_closed_for_legacy_and_user_submissions():
     report = _report()
     assert assess_ranking_eligibility(report) == (False, "missing_ranking_evidence")

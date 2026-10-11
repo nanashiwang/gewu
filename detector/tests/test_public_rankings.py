@@ -551,7 +551,7 @@ def test_homepage_renders_coverage_counts_and_truthful_key_policy(monkeypatch):
     assert "sk-y7xU" not in response.text
     assert "不会保留密钥前缀" in response.text
     assert 'id="quick-check"' in response.text
-    assert 'name="protocol"' in response.text
+    assert 'name="vendor"' in response.text
     assert "首页不收集密钥" in response.text
 
 

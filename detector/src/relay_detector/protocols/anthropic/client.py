@@ -38,6 +38,8 @@ MAX_RETRIES = 4
 # all known rejected fields are listed so future probes stay safe too.
 # Adding entries here keeps detector code model-agnostic.
 PARAM_DEPRECATIONS: dict[str, tuple[str, ...]] = {
+    "claude-opus-5-5": ("temperature", "top_p", "top_k"),
+    "claude-haiku-5-5": ("temperature", "top_p", "top_k"),
     "claude-fable-5": ("temperature", "top_p", "top_k"),
     "claude-sonnet-5": ("temperature", "top_p", "top_k"),
     "claude-opus-4-7": ("temperature", "top_p", "top_k"),
@@ -58,6 +60,11 @@ def _sanitize_body(body: dict[str, Any]) -> dict[str, Any]:
         if normalized_model.startswith(prefix):
             for k in deprecated:
                 body.pop(k, None)
+    if normalized_model.startswith(("claude-fable-5-1", "claude-opus-5-5")):
+        # Always-on thinking needs room even for a short echo/replay probe.
+        if "max_tokens" in body:
+            body["max_tokens"] = max(4096, body["max_tokens"])
+        body.setdefault("output_config", {"effort": "low"})
     return body
 
 

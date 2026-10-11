@@ -48,6 +48,8 @@ class StructuredOutputDetector(ActiveDetector):
     weight = 12.0
 
     async def run(self, client, model: str) -> DetectorResult:
+        if model.replace(".", "-").startswith(("claude-fable-5-1", "claude-opus-5-5")):
+            return self.skip("官方限制：常开思考模型不接受本探针的强制 tool_choice，暂不计分")
         try:
             _req, resp, _h, _lat = await client.messages_create(
                 model=model,

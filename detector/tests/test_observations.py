@@ -16,7 +16,7 @@ def report(**changes):
     now = datetime.now(timezone.utc)
     return {
         "base_url": "https://relay.example/v1",
-        "protocol": "openai", "target_model": "model-a", "mode": "quick",
+        "protocol": "openai", "target_model": "gpt-test-a", "mode": "quick",
         "timestamp": now.isoformat(), "total_score": 90, "verdict": "passed",
         "results": [{"name": "basic_request", "status": "pass"}],
         "ranking_evidence": {
@@ -92,14 +92,14 @@ def test_invalid_reports_never_enter_monitor_or_ranking(stage, changes):
 
 def test_model_mode_endpoint_and_version_are_separate_and_no_uptime_invented(stage):
     stage("one", report())
-    stage("two", report(target_model="model-b"))
+    stage("two", report(target_model="gpt-test-b"))
     stage("three", report(mode="full"))
     stage("four", report(base_url="https://relay.example/secret-route"))
     metadata = {**report()["ranking_evidence"], "detector_version": "build-b"}
     stage("five", report(ranking_evidence=metadata))
     snapshot = monitoring_snapshot()
     assert len(snapshot["rows"]) == 5
-    assert snapshot["models"] == ["model-a", "model-b"]
+    assert snapshot["models"] == ["gpt-test-a", "gpt-test-b"]
     for row in snapshot["rows"]:
         assert row["count"] == 1
         assert sum(day["state"] == "no_data" for day in row["days"]) == 6

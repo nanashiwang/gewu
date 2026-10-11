@@ -26,6 +26,10 @@ def default_model() -> str:
 # Cheap-and-stable first. Used by pick_default_model() to pre-fill the form
 # after a probe — Haiku is universal, Sonnet is the next-best fallback.
 _PREFERRED_DEFAULTS = (
+    "claude-haiku-5-5",
+    "claude-sonnet-5-5",
+    "claude-opus-5-5",
+    "claude-fable-5-1",
     "claude-haiku-4-5",
     "claude-sonnet-5",
     "claude-opus-4-8",

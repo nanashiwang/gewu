@@ -85,7 +85,10 @@ def _chars_per_token(protocol: str | None) -> float:
 #   2. Limit too high → detector probes past the model's real limit, gets
 #                       a 400 error, and misclassifies it as relay truncation
 #                       (false positives on legitimate APIs)
+from ..model_catalog import REVIEWED_INPUT_LIMITS
+
 _MODEL_CONTEXT_LIMITS = {
+    **REVIEWED_INPUT_LIMITS,
     # OpenAI. More-specific prefixes must precede family prefixes because
     # model_context_limit also accepts snapshot suffixes.
     "gpt-5.6-sol":  1_050_000,

@@ -3,6 +3,7 @@
 html { scroll-padding-top: 96px; }
 html, body { overflow-x: clip; }
 body { font-size: 15px; }
+:not(pre) > code { overflow-wrap: anywhere; white-space: normal; }
 [hidden] { display: none !important; }
 button, input, select, textarea { font-family: inherit; }
 button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }

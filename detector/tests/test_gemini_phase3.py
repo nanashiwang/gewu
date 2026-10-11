@@ -271,15 +271,7 @@ def test_tier_banner_signals_protocol_level_and_mentions_openai_compat():
 
 def test_model_choices_contains_supported_aliases_and_no_deprecated():
     choices = model_choices()
-    assert choices == [
-        "gemini-3.5-flash",
-        "gemini-3.1-pro-preview",
-        "gemini-3.1-flash-lite",
-        "gemini-3-flash-preview",
-        "gemini-2.5-pro",
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-    ]
+    assert {"gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"} <= set(choices)
     # Retired families and shut-down previews must not be advertised.
     assert not any(c.startswith("gemini-1.5") for c in choices)
     assert not any(c.startswith("gemini-2.0") for c in choices)

@@ -28,6 +28,10 @@ def default_model() -> str:
 # compatibility fallbacks. Used by pick_default_model() to pre-fill the form
 # after a probe rather than landing on whatever happens to sort first.
 _PREFERRED_DEFAULTS = (
+    "gpt-6-luna",
+    "gpt-6-sol",
+    "gpt-6.1-sol",
+    "gpt-6-astra",
     "gpt-5.6-luna",
     "gpt-5.6-terra",
     "gpt-5.6-sol",

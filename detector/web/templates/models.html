@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}模型目录与官方来源 | 格物{% endblock %}
+{% block content %}
+<a class="detect-back" href="/">← 返回检测首页</a>
+<section class="hero"><h1>模型目录</h1><p class="hero-sub">{{ catalog.vendor_count }} 家厂商 · 官方资料核对于 {{ catalog.verified_on }}{% if catalog.stale %} · 已超过复核周期，目录待更新{% endif %}</p></section>
+<section class="card">
+  <p>目录提供经过人工核对的文本模型候选。填写地址和 Key 后，会读取该接口声明的模型；目录收录与接口声明都不保证实际可用，也不是模型身份认证。</p>
+  <p>Claude 使用 Messages 检测；Gemini 使用兼容接口检测；GPT 使用 Chat Completions 检测。其他厂商目前检查基础请求与流式一致性，不套用 OpenAI 的指纹或计费标准。官方不支持的能力会跳过。</p>
+  <p>图片、音频、Embedding 和 Responses 专用模型不属于本检测器的文本检测范围。目录每日自动检查官方页面变化与复核期限；发现变化后核对能力再更新，不自动导入未经验证的型号。</p>
+</section>
+{% for v in catalog.vendors if v.id != 'other' %}
+<section class="card">
+  <h2>{{ v.label }}</h2><p><a href="{{ v.source }}" target="_blank" rel="noopener noreferrer">查看官方模型文档 ↗</a></p>
+  <ul>{% for m in v.models %}<li><a href="/{{ v.route }}?vendor={{ v.id }}&amp;model={{ m.id|urlencode }}#detect-form"><code>{{ m.label }}</code></a></li>{% endfor %}</ul>
+</section>
+{% endfor %}
+{% endblock %}

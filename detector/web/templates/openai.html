@@ -67,22 +67,28 @@
 {% block content %}
 <a class="detect-back" href="/">← 返回检测首页</a>
 <section class="hero">
-  <h1>OpenAI / GPT 中转站检测</h1>
+  <h1>OpenAI 兼容接口检测</h1>
   <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
-    <strong>格物</strong>通过 8 项 Chat Completions 协议检测 + <strong>usage 字段后端指纹识别</strong>，
-    约 <strong>30–75 秒</strong>评估中转站的 OpenAI 协议透传质量和后端适配层风险。免费、API key 不持久化、结果可复核。
+    选择模型厂商与型号，检查本次接口表现。GPT 按能力运行协议检测；其他厂商先提供基础兼容检测。
+    免费、API key 不持久化、结果可复核。
   </p>
 </section>
 
 <section class="card alert-card">
-  <strong>行为/协议级验证：</strong>
-  本检测无法可靠区分高配模型真品与低配模型伪装。我们检测的是中转站接口是否符合 OpenAI
-  Chat Completions 协议规范、能力是否完整、usage 字段是否符合官方响应形状。
+  <strong>检测边界：</strong>
+  兼容 OpenAI 接口不等于使用 OpenAI 模型。检测范围随厂商与型号变化，分数仅对应实际运行的项目，不能作为模型身份证明。
 </section>
 
 <div class="detect-layout">
 <section class="card form-card">
   <form id="detect-form" data-endpoint="/api/detect/openai" method="post" action="/api/detect/openai" autocomplete="off">
+    <div class="field">
+      <label for="model-vendor">模型厂商</label>
+      <select id="model-vendor" data-picker="search" data-catalog='{{ vendors|tojson }}'>
+        {% for v in vendors %}<option value="{{ v.id }}" {% if v.id == vendor.id %}selected{% endif %}>{{ v.label }}</option>{% endfor %}
+      </select>
+      <p class="hint" id="vendor-scope" aria-live="polite">{% if vendor.id == 'openai' %}按官方能力运行检测；模型不支持的项目会跳过，不扣分。{% else %}基础兼容检测：快速模式检查基础请求，标准模式增加流式一致性。不验证该厂商的模型身份、工具能力或计费；不能与完整 GPT 分数直接比较。{% endif %}</p>
+    </div>
     <div class="field">
       <label for="base_url">中转站接口地址</label>
       <input type="url" id="base_url" name="base_url" required
@@ -107,9 +113,9 @@
       <div class="field">
         <label for="mode">检测深度</label>
         <select id="mode" name="mode" data-picker>
-          <option value="quick">快速 (~15 秒,3 项)</option>
-          <option value="standard" selected>标准 (~40 秒,6 项)</option>
-          <option value="full">完整 (~70 秒,全 6 项)</option>
+          <option value="quick">快速 · 基础请求</option>
+          <option value="standard" selected>标准 · 增加能力与流式检测</option>
+          <option value="full">完整 · 全部适用项目</option>
         </select>
       </div>
     </div>

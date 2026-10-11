@@ -6,6 +6,7 @@ import statistics
 
 from ....core.models import DetectorResult, Mode
 from ..config import models_match
+from ....model_catalog import bare_model
 from .base import ActiveDetector
 
 
@@ -16,7 +17,8 @@ class ModelConsistencyDetector(ActiveDetector):
 
     async def run(self, client, model: str) -> DetectorResult:
         quick = self.config is not None and self.config.mode == Mode.QUICK
-        runs = 1 if quick else 3
+        variable_sampling = bare_model(model).startswith(("gpt-6-astra", "gpt-6.1-sol"))
+        runs = 1 if quick or variable_sampling else 3
         responses = []
         try:
             for _ in range(runs):
@@ -46,7 +48,7 @@ class ModelConsistencyDetector(ActiveDetector):
         }
         if runs == 1:
             score += 40.0
-            details["stability_label"] = "skipped_quick_mode"
+            details["stability_label"] = "not_applicable_sampling_restricted" if variable_sampling else "skipped_quick_mode"
         else:
             tokens = [
                 _safe_int((r.get("usage") or {}).get("completion_tokens"))

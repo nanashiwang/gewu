@@ -34,7 +34,10 @@ class ConsistencyDetector(ActiveDetector):
 
     async def run(self, client, model: str) -> DetectorResult:
         is_quick = self.config is not None and self.config.mode == Mode.QUICK
-        n_runs = RUNS_QUICK if is_quick else RUNS_FULL
+        sampling_restricted = model.replace(".", "-").startswith((
+            "claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5",
+        ))
+        n_runs = RUNS_QUICK if is_quick or sampling_restricted else RUNS_FULL
 
         responses = []
         try:
@@ -87,7 +90,7 @@ class ConsistencyDetector(ActiveDetector):
         else:
             # Quick mode: skip stability test, full credit, mark as skipped.
             stability_score = 40.0
-            details["stability_label"] = "skipped_quick_mode"
+            details["stability_label"] = "not_applicable_sampling_restricted" if sampling_restricted else "skipped_quick_mode"
 
         score = model_score + stability_score
         status = "pass" if score >= 70 else "fail"

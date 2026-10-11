@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 from . import __version__
 from .core.models import Mode, Protocol, RankingEvidence
+from .model_catalog import is_generic_chat
 
 
 APPROVED_RANKING_SOURCES = frozenset({
@@ -200,6 +201,8 @@ def assess_ranking_eligibility(report: Mapping[str, Any]) -> tuple[bool, str]:
         return False, "invalid_base_url"
     if not str(report.get("target_model") or "").strip():
         return False, "missing_target_model"
+    if protocol == "openai" and is_generic_chat(str(report["target_model"])):
+        return False, "basic_compatibility_only"
     try:
         captured_at = datetime.fromisoformat(str(report.get("timestamp") or "").replace("Z", "+00:00"))
         if captured_at.tzinfo is None:

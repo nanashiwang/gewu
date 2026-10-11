@@ -263,6 +263,14 @@ async def _run(
                     "我们检测的是中转站接口是否符合 OpenAI Chat Completions 协议规范、"
                     "能力是否完整、usage 字段是否符合官方响应形状。"
                 )
+                from relay_detector.model_catalog import is_generic_chat
+                if is_generic_chat(model):
+                    tier_title = "基础兼容检测"
+                    tier_message = (
+                        "仅检查本次请求与流式输出；分数只反映已运行的基础项目。"
+                        "未验证模型身份、工具能力、计费准确性或该厂商原生协议，"
+                        "不能与完整 OpenAI 检测分数直接比较。"
+                    )
             elif protocol == "gemini":
                 outcome = await _run_gemini(base_url, api_key, model, cfg)
                 report_protocol = Protocol.GEMINI

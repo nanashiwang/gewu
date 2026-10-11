@@ -576,6 +576,10 @@ async def _run_detect(
                 detected_brands = [b for b in brands if isinstance(b, str)]
 
     tier, tier_title, tier_message = _PROTOCOL_TIERS[protocol]
+    from .model_catalog import is_generic_chat
+    if protocol == Protocol.OPENAI and is_generic_chat(model):
+        tier_title = "基础兼容检测"
+        tier_message = "仅检查基础请求与流式一致性；不验证模型身份、工具能力或计费，不能与完整 GPT 分数直接比较。"
     report = DetectionReport(
         protocol=protocol,
         tier=tier,
