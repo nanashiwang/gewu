@@ -5,7 +5,7 @@
 {% block og_description %}选择模型，检测接口，查看证据。格物提供公益检测与历史报告查询。{% endblock %}
 {% block body_class %}home-simple{% endblock %}
 {% block head_extra %}
-<link rel="stylesheet" href="/static/home.css?v=20261011-4" />
+<link rel="stylesheet" href="/static/home.css?v=20261011-catalog" />
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -30,20 +30,21 @@
   <section class="home-check" aria-labelledby="quick-check-title">
     <div class="home-panel-heading"><h2 id="quick-check-title">开始检测</h2><span>01 / 配置接口</span></div>
     <form id="quick-check" novalidate>
-      <fieldset class="home-protocols">
-        <legend class="sr-only">接口协议</legend>
-        {% for value, label in [("claude", "Claude"), ("openai", "OpenAI"), ("gemini", "Gemini")] %}
-        <label><input type="radio" name="protocol" value="{{ value }}" {% if loop.first %}checked{% endif %}><span>{{ label }}</span></label>
-        {% endfor %}
-      </fieldset>
+      {% set catalog = model_catalog() %}
       <div class="home-check-fields">
+        <div class="home-field">
+          <label for="quick-vendor">模型厂商</label>
+          <select id="quick-vendor" name="vendor" data-picker="search" data-catalog='{{ catalog.vendors|tojson }}'>
+            {% for v in catalog.vendors %}<option value="{{ v.id }}">{{ v.label }}</option>{% endfor %}
+          </select>
+        </div>
         <div class="home-field">
           <label for="quick-model">目标模型</label>
           <select id="quick-model" name="model" required data-picker="search" data-choices='{{ quick_models|tojson }}' aria-describedby="quick-model-hint">
             <option value="" selected disabled>请选择目标模型</option>
             {% for model in quick_models.claude %}<option value="{{ model.id }}">{{ model.label }}</option>{% endfor %}
           </select>
-          <p id="quick-model-hint">从候选中选择，也可在下一步读取接口模型列表。</p>
+          <p id="quick-model-hint">从官方候选中选择；下一步按接口声明确认可用性。</p>
         </div>
         <div class="home-field">
           <label for="quick-base-url">接口地址</label>
@@ -57,7 +58,7 @@
       </div>
       <p id="quick-check-error" class="home-form-error" role="alert" hidden></p>
     </form>
-    <p class="home-cost-note">格物不收检测服务费；新检测会消耗你的上游 API 额度。</p>
+    <p class="home-cost-note">格物不收检测服务费；新检测会消耗你的上游 API 额度。<br><a href="/models">{{ catalog.vendor_count }} 家厂商 · 目录核对于 {{ catalog.verified_on }}{% if catalog.stale %} · 待复核{% endif %} →</a></p>
   </section>
 
   <section class="home-history" aria-labelledby="history-title">

@@ -71,7 +71,28 @@
 (function () {
   const input = document.getElementById('model');
   if (!input || input.tagName !== 'SELECT') return;
-  const defaults = Array.from(input.options).filter(option => option.value).map(option => ({value: option.value, label: option.textContent}));
+  let defaults = Array.from(input.options).filter(option => option.value).map(option => ({value: option.value, label: option.textContent}));
+  const vendor = document.getElementById('model-vendor');
+  if (vendor) vendor.addEventListener('change', () => {
+    const catalog = JSON.parse(vendor.dataset.catalog || '[]');
+    const entry = catalog.find(v => v.id === vendor.value);
+    defaults = (entry?.models || []).map(m => ({value: m.id, label: m.label}));
+    input.value = '';
+    window.gewuResetModelChoices();
+    const scope = document.getElementById('vendor-scope');
+    if (scope) scope.textContent = vendor.value === 'openai'
+      ? '按官方能力运行检测；模型不支持的项目会跳过，不扣分。'
+      : '基础兼容检测：快速模式检查基础请求，标准模式增加流式一致性。不验证模型身份、工具能力或计费；不能与完整 GPT 分数直接比较。';
+    const extras = document.querySelector('.detect-extra');
+    if (extras) {
+      extras.hidden = vendor.value !== 'openai';
+      if (extras.hidden) extras.querySelectorAll('input[type="checkbox"]').forEach(box => { box.checked = false; });
+    }
+  });
+  if (vendor && vendor.value !== 'openai') {
+    const extras = document.querySelector('.detect-extra');
+    if (extras) extras.hidden = true;
+  }
   window.gewuResetModelChoices = function () {
     const previous = input.value;
     const placeholder = new Option('请选择目标模型', '');
@@ -137,7 +158,7 @@
     if (!baseUrl || !apiKey || apiKey.length < 8) return;
     if (!/^https?:\/\//.test(baseUrl)) return;
 
-    const key = JSON.stringify([baseUrl, apiKey]); // In-memory only; distinct keys must re-probe.
+    const key = JSON.stringify([baseUrl, apiKey, document.getElementById('model-vendor')?.value]);
     if (key === lastKey) return; // already probed this combo
     lastKey = key;
 
@@ -193,7 +214,10 @@
       return;
     }
 
-    const myModels = (data.by_protocol && data.by_protocol[protocol]) || [];
+    const selectedVendor = document.getElementById('model-vendor')?.value;
+    const myModels = selectedVendor && data.by_vendor
+      ? (data.by_vendor[selectedVendor] || [])
+      : ((data.by_protocol && data.by_protocol[protocol]) || []);
     const total = data.raw_count || 0;
 
     if (myModels.length === 0) {
@@ -204,8 +228,8 @@
         .map((p) => ({proto: p, count: data.by_protocol[p].length, sample: data.by_protocol[p][0]}));
 
       let html =
-        '<div class="probe-headline">🟡 该中转站没有任何 ' + escapeHtml(protoLabel) + ' 模型</div>' +
-        '<div class="probe-detail">已识别 ' + total + ' 个模型,但都不属于本检测协议。</div>';
+        '<div class="probe-headline">🟡 接口未列出当前厂商的文本模型</div>' +
+        '<div class="probe-detail">已读取 ' + total + ' 个模型。可切换厂商查看其他候选。</div>';
       if (others.length) {
         html += '<div class="probe-actions">';
         others.forEach((o) => {
@@ -252,6 +276,15 @@
     pill.textContent = text;
     pill.hidden = false;
   }
+
+  document.getElementById('model-vendor')?.addEventListener('change', () => {
+    if (inflight) inflight.abort();
+    inflight = null;
+    lastKey = null;
+    pill.hidden = true;
+    setSubmitEnabled(true);
+    runProbe();
+  });
   function setPillHtml(level, html) {
     pill.className = 'probe-pill probe-' + level;
     pill.innerHTML = html;
@@ -621,19 +654,24 @@
     const input = document.getElementById('quick-base-url');
     const modelInput = document.getElementById('quick-model');
     const error = document.getElementById('quick-check-error');
-    const choices = JSON.parse(modelInput?.dataset.choices || '{}');
-    launcher.querySelectorAll('input[name="protocol"]').forEach(radio => {
-      radio.addEventListener('change', () => {
+    const vendorInput = document.getElementById('quick-vendor');
+    const catalog = JSON.parse(vendorInput?.dataset.catalog || '[]');
+    vendorInput?.addEventListener('change', () => {
+        const vendor = catalog.find(v => v.id === vendorInput.value);
         const placeholder = new Option('请选择目标模型', '');
         placeholder.disabled = true;
         placeholder.selected = true;
-        modelInput.replaceChildren(placeholder, ...(choices[radio.value] || []).map(m => new Option(m.label, m.id)));
+        modelInput.replaceChildren(placeholder, ...(vendor?.models || []).map(m => new Option(m.label, m.id)));
+        modelInput.disabled = vendor?.id === 'other';
+        const hint = document.getElementById('quick-model-hint');
+        if (hint) hint.textContent = vendor?.id === 'other'
+          ? '下一步填写地址和 Key，读取接口模型列表后选择。'
+          : '从官方候选中选择；下一步按接口声明确认可用性。';
         if (error) error.hidden = true;
-      });
     });
     launcher.addEventListener('submit', (event) => {
       event.preventDefault();
-      if (!modelInput?.value) {
+      if (!modelInput?.value && vendorInput?.value !== 'other') {
         if (error) { error.textContent = '请先从列表中选择目标模型'; error.hidden = false; }
         modelInput?.focus();
         return;
@@ -648,9 +686,10 @@
         input?.focus();
         return;
       }
-      const selected = launcher.querySelector('input[name="protocol"]:checked');
-      const protocol = selected?.value || 'claude';
+      const vendor = catalog.find(v => v.id === vendorInput?.value);
+      const protocol = vendor?.route || 'claude';
       const target = new URL(`/${protocol}`, location.origin);
+      target.searchParams.set('vendor', vendor?.id || 'anthropic');
       target.searchParams.set('base_url', value);
       const model = String(modelInput?.value || '').trim();
       if (model && model.length <= 120 && !/[\u0000-\u001f\u007f]/.test(model)) {
@@ -986,10 +1025,13 @@
         if (!quickCheck || !modelInput) return;
         const model = String(button.dataset.pricingTestModel || '').slice(0, 120);
         const protocol = String(button.dataset.pricingTestProtocol || 'openai');
-        const radio = quickCheck.querySelector(`input[name="protocol"][value="${protocol}"]`);
-        if (radio) {
-          radio.checked = true;
-          radio.dispatchEvent(new Event('change', {bubbles: true}));
+        const vendorInput = document.getElementById('quick-vendor');
+        if (vendorInput) {
+          const catalog = JSON.parse(vendorInput.dataset.catalog || '[]');
+          const vendor = catalog.find(v => v.models.some(m => m.id === model));
+          vendorInput.value = vendor?.id || ({claude: 'anthropic', gemini: 'google'}[protocol] || 'other');
+          vendorInput.dispatchEvent(new Event('change', {bubbles: true}));
+          modelInput.disabled = false;
         }
         if (!Array.from(modelInput.options).some(option => option.value === model)) {
           modelInput.add(new Option(`${model}（价格榜候选）`, model));

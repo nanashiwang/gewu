@@ -11,18 +11,18 @@ TEMPLATES = Path(__file__).parents[1] / "web" / "templates"
 
 def test_claude_dropdown_is_current_public_lineup():
     assert [item["id"] for item in _model_choices()] == [
-        "claude-fable-5",
-        "claude-opus-4-8",
-        "claude-sonnet-5",
-        "claude-haiku-4-5-20251001",
+        "claude-fable-5-1",
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "claude-haiku-5-5",
     ]
 
 
 def test_frontend_offers_each_provider_catalog_without_auto_selection():
     expected = {
-        "/claude": 'value="claude-fable-5"',
-        "/openai": 'value="gpt-5.6-sol"',
-        "/gemini": 'value="gemini-3.5-flash"',
+        "/claude": 'value="claude-fable-5-1"',
+        "/openai": 'value="gpt-6-astra"',
+        "/gemini": 'value="gemini-3.8-flash"',
     }
     for route, marker in expected.items():
         page = TestClient(app).get(route).text

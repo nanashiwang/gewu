@@ -36,7 +36,7 @@ def test_classify_openai_aliases():
     assert _classify("o1-preview") == "openai"
     assert _classify("o3-mini") == "openai"
     assert _classify("chatgpt-4o-latest") == "openai"
-    assert _classify("text-embedding-3-small") == "openai"
+    assert _classify("text-embedding-3-small") is None
 
 
 def test_classify_gemini_aliases():
@@ -48,7 +48,7 @@ def test_classify_gemini_aliases():
 
 def test_classify_unknown_returns_none():
     assert _classify("llama-3-70b") is None
-    assert _classify("deepseek-v3") is None
+    assert _classify("deepseek-v3") == "openai"
     assert _classify("") is None
     assert _classify(None) is None  # type: ignore[arg-type]
 
@@ -159,6 +159,25 @@ async def test_probe_happy_path_classifies_all_buckets(monkeypatch):
     assert captured["auth"] == "Bearer sk-test-key"
     assert captured["xkey"] == "sk-test-key"
     assert captured["anthropic_version"] == "2023-06-01"
+
+
+@pytest.mark.asyncio
+async def test_probe_vendor_buckets_preserve_ids_and_exclude_non_chat(monkeypatch):
+    ids = ["deepseek-flash", "Qwen/qwen3.8-max", "glm-5.3", "custom-text-model",
+           "text-embedding-3-large", "gpt-image-1", "gpt-5-codex"]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == "https://relay.example.com/api/paas/v4/models"
+        return httpx.Response(200, json={"data": [{"id": mid} for mid in ids]})
+
+    _patch_async_client(monkeypatch, _mock(handler))
+    out = await probe_relay("https://relay.example.com/api/paas/v4", "fixture-only-key")
+    assert out["by_vendor"] == {
+        "deepseek": ["deepseek-flash"], "qwen": ["Qwen/qwen3.8-max"],
+        "zai": ["glm-5.3"], "other": ["custom-text-model"],
+    }
+    assert set(out["by_protocol"]["openai"]) == set(ids[:3])
+    assert out["all_models"] == ids
 
 
 @pytest.mark.asyncio

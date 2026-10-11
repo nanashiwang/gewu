@@ -23,6 +23,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from . import jobs, leaderboard
 from .observations import monitoring_snapshot
 from relay_detector.ranking import assess_ranking_eligibility
+from relay_detector.model_catalog import catalog_view, choices as catalog_choices, model_protocol, model_vendor
 from .brand import brand
 from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
 from .featured_pricing import FEATURED_DOMAIN, FEATURED_WEBSITE_URL
@@ -149,6 +150,7 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 templates.env.globals["brand"] = brand
+templates.env.globals["model_catalog"] = catalog_view
 
 
 _CONTENT_SECURITY_POLICY = "; ".join(
@@ -209,22 +211,12 @@ WISHLIST_PATH = Path(
 
 
 def _protocol_from_model(model: str) -> str:
-    normalized = model.strip().lower()
-    if normalized.startswith(("gemini-", "models/gemini-")):
-        return "gemini"
-    if normalized.startswith(("gpt-", "o1", "o3", "o4")):
-        return "openai"
-    return "anthropic"
+    return model_protocol(model) or "openai"
 
 
 def _model_choices() -> list[dict[str, str]]:
     """Current public Claude lineup; free-form legacy IDs remain accepted."""
-    suggestions = [
-        "claude-fable-5",
-        "claude-opus-4-8",
-        "claude-sonnet-5",
-        "claude-haiku-4-5-20251001",
-    ]
+    suggestions = catalog_choices("anthropic")
     return [{"id": s, "label": s} for s in suggestions]
 
 
@@ -235,9 +227,7 @@ def _openai_model_choices() -> list[dict[str, str]]:
 
 
 def _gemini_model_choices() -> list[dict[str, str]]:
-    from relay_detector.protocols.gemini import model_choices
-
-    return [{"id": s, "label": s} for s in model_choices()]
+    return next(v["models"] for v in catalog_view()["vendors"] if v["id"] == "google")
 
 
 _PUBLIC_RANKINGS_TTL_S = 60.0
@@ -424,11 +414,19 @@ async def claude_index(request: Request) -> HTMLResponse:
 
 @app.get("/openai", response_class=HTMLResponse)
 async def openai_index(request: Request) -> HTMLResponse:
+    vendors = [v for v in catalog_view()["vendors"] if v["route"] == "openai"]
+    chosen = request.query_params.get("vendor") or model_vendor(request.query_params.get("model") or "gpt-")
+    vendor = next((v for v in vendors if v["id"] == chosen), vendors[0])
     return templates.TemplateResponse(
         request,
         "openai.html",
-        {"models": _openai_model_choices()},
+        {"models": vendor["models"], "vendors": vendors, "vendor": vendor},
     )
+
+
+@app.get("/models", response_class=HTMLResponse)
+async def models_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(request, "models.html", {"catalog": catalog_view()})
 
 
 @app.get("/gemini", response_class=HTMLResponse)
@@ -1159,6 +1157,7 @@ _STATIC_SITEMAP_URLS = [
     ("/claude",      "weekly",  "0.9",  "index.html"),
     ("/openai",      "weekly",  "0.9",  "openai.html"),
     ("/gemini",      "weekly",  "0.9",  "gemini.html"),
+    ("/models",      "weekly",  "0.8",  "models.html"),
     ("/leaderboard", "daily",   "0.85", "leaderboard.html"),
     ("/leaderboard/monitor", "daily", "0.85", "monitor.html"),
     ("/ranking-governance", "monthly", "0.65", "ranking_governance.html"),

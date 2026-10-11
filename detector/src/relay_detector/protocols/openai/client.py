@@ -7,10 +7,12 @@ import json
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import TYPE_CHECKING, Any
+from urllib.parse import urlsplit
 
 import httpx
 
 from ...core.models import UsageMetrics
+from ...model_catalog import bare_model, is_generic_chat, model_vendor
 
 if TYPE_CHECKING:
     from ...core.detectors_base import PassiveDetector
@@ -29,13 +31,42 @@ DEFAULT_TEMPERATURE_ONLY_PREFIXES = (
 
 def normalize_openai_base_url(base_url: str) -> str:
     normalized = base_url.rstrip("/")
-    if normalized.endswith("/v1"):
+    # Preserve explicit compatible roots, including GLM's /api/paas/v4.
+    if urlsplit(normalized).path.rstrip("/"):
         return normalized
     return normalized + "/v1"
 
 
-def _sanitize_body(body: dict[str, Any]) -> dict[str, Any]:
+def _sanitize_body(body: dict[str, Any], *, responses: bool = False) -> dict[str, Any]:
     model = body.get("model")
+    if not isinstance(model, str):
+        return body
+    s = bare_model(model)
+    if s.startswith(("gpt-6-", "gpt-6.1-")):
+        always_thinks = s.startswith(("gpt-6-astra", "gpt-6.1-sol"))
+        effort = "low" if always_thinks else "none"
+        if responses:
+            body.setdefault("reasoning", {"effort": effort})
+            effort = body["reasoning"].get("effort", effort)
+        else:
+            effort = body.setdefault("reasoning_effort", effort)
+        if effort != "none":
+            for field in ("temperature", "top_p", "top_logprobs", "logprobs"):
+                body.pop(field, None)
+            output_limit = "max_output_tokens" if responses else "max_completion_tokens"
+            if output_limit in body:
+                body[output_limit] = max(4096, body[output_limit])
+    if not responses and is_generic_chat(model):
+        # Basic compatibility probes cannot assume OpenAI tokenizers, fixed
+        # temperature support, or a tiny non-reasoning output budget.
+        body.pop("temperature", None)
+        if "max_completion_tokens" in body:
+            body["max_tokens"] = max(4096, body.pop("max_completion_tokens"))
+        vendor = model_vendor(model)
+        if vendor in {"zai", "moonshot"} and s.startswith(("glm-5.3", "kimi-k3")):
+            body.setdefault("reasoning_effort", "low")
+        elif s.startswith("minimax-m3.1"):
+            body.setdefault("reasoning_effort", "low")
     if isinstance(model, str) and model.startswith(DEFAULT_TEMPERATURE_ONLY_PREFIXES):
         body.pop("temperature", None)
     return body
@@ -114,7 +145,7 @@ class OpenAIChatClient:
         self, **body: Any
     ) -> tuple[dict[str, Any], dict[str, Any], httpx.Headers, int]:
         body.pop("stream", None)
-        body = _sanitize_body(body)
+        body = _sanitize_body(body, responses=True)
         start = time.perf_counter()
         resp = await self._client.post("/responses", json=body)
         latency_ms = int((time.perf_counter() - start) * 1000)

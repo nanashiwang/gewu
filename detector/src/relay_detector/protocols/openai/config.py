@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ...core.models import Mode
+from ...model_catalog import choices
 
 
 DETECTOR_WEIGHTS: dict[str, float] = {
@@ -43,18 +44,7 @@ MODE_DETECTORS: dict[Mode, set[str]] = {
 }
 
 
-OPENAI_MODEL_CHOICES = [
-    # Current general-purpose Chat Completions models. Pro and Codex variants
-    # are deliberately excluded: this detector exercises Chat Completions,
-    # while those SKUs are Responses-only or specialized for another surface.
-    "gpt-5.6-sol",
-    "gpt-5.6-terra",
-    "gpt-5.6-luna",
-    "gpt-5.5",
-    "gpt-5.4",
-    "gpt-5.4-mini",
-    "gpt-5.4-nano",
-]
+OPENAI_MODEL_CHOICES = choices("openai")
 
 
 def models_match(request_model: str, response_model: str) -> bool:

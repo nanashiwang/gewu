@@ -35,6 +35,9 @@ def default_model() -> str:
 # intentionally absent. Used by pick_default_model() — see the OpenAI version
 # for the matching philosophy.
 _PREFERRED_DEFAULTS = (
+    "gemini-3.5-flash-lite",
+    "gemini-3.8-flash",
+    "gemini-3.6-flash",
     "gemini-3.1-flash-lite",
     "gemini-3.5-flash",
     "gemini-flash-latest",

@@ -446,17 +446,10 @@ def test_openai_tier_banner_disclaims_authenticity():
     assert "无法可靠区分" in message
 
 
-def test_openai_default_model_choices_are_gpt5_series():
-    assert model_choices() == [
-        "gpt-5.6-sol",
-        "gpt-5.6-terra",
-        "gpt-5.6-luna",
-        "gpt-5.5",
-        "gpt-5.4",
-        "gpt-5.4-mini",
-        "gpt-5.4-nano",
-    ]
-    assert default_model() == "gpt-5.6-sol"
+def test_openai_choices_include_reviewed_generations_without_specialized_skus():
+    assert {"gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna", "gpt-5.4-mini"} <= set(model_choices())
+    assert default_model() in model_choices()
+    assert not any("codex" in model or model.endswith("-pro") for model in model_choices())
 
 
 def test_openai_protocol_detector_accepts_chat_completion_shape():

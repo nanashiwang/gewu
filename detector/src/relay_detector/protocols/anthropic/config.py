@@ -72,6 +72,12 @@ class ModelInfo:
 
 
 MODELS: dict[str, ModelInfo] = {
+    **{model: ModelInfo(
+        alias=model, aliases=(model,), context_tokens=1_000_000,
+        max_output_tokens=128_000, pdf_page_max=600,
+        supports_extended_thinking=False, supports_adaptive_thinking=True,
+        new_tokenizer=True,
+    ) for model in ("claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5")},
     # Current public Claude lineup. Capability and limit metadata follows the
     # official model overview; legacy entries below remain for relay support.
     "claude-fable-5": ModelInfo(
@@ -191,10 +197,11 @@ def lookup_model(model_id: str) -> ModelInfo | None:
     variants (`claude-sonnet-4.5` ≡ `claude-sonnet-4-5`).
     """
     nid = _normalize_model_id(model_id)
-    for info in MODELS.values():
+    # Longest alias first: fable-5 must not shadow fable-5-1.
+    for info in sorted(MODELS.values(), key=lambda item: len(item.alias), reverse=True):
         for alias in info.aliases:
             nalias = _normalize_model_id(alias)
-            if nid.startswith(nalias) or nalias.startswith(nid):
+            if nid == nalias or (nid.startswith(nalias + "-") and nid[len(nalias) + 1:].isdigit()):
                 return info
     return None
 

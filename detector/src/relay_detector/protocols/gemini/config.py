@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ...core.models import Mode
+from ...model_catalog import choices
 
 
 # Detector internal names match what the web UI expects in `_DETECTOR_DISPLAY`.
@@ -31,21 +32,7 @@ MODE_DETECTORS: dict[Mode, set[str]] = {
 }
 
 
-# Curated suggestions surfaced in the web form. Free-form input is still
-# accepted; this is just the dropdown. Updated against the official model and
-# deprecation pages (July 2026). Shut-down 3 Pro / 3.1 Flash-Lite preview IDs
-# and the retired 2.0/1.5 families must never be advertised.
-GEMINI_MODEL_CHOICES = [
-    # Current stable / preview text-generation lineup.
-    "gemini-3.5-flash",
-    "gemini-3.1-pro-preview",
-    "gemini-3.1-flash-lite",
-    "gemini-3-flash-preview",
-    # Supported 2.5 compatibility fallbacks.
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-]
+GEMINI_MODEL_CHOICES = choices("google")
 
 
 def models_match(request_model: str, response_model: str) -> bool:

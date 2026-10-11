@@ -1,0 +1,31 @@
+name: 官方模型目录巡检
+
+on:
+  schedule:
+    - cron: '20 2 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'detector/src/relay_detector/model_catalog.py'
+      - 'detector/data/model_catalog_sources.json'
+      - 'detector/scripts/check_model_catalog.py'
+      - '.github/workflows/model-catalog.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  official-catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -c detector/constraints.txt httpx
+      - name: 核对官方页面与目录复核期限
+        env:
+          PYTHONPATH: detector/src
+        run: python detector/scripts/check_model_catalog.py

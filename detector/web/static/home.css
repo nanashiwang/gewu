@@ -16,7 +16,7 @@
 .home-protocols span { display: block; padding: 8px 12px; border-radius: 6px; color: var(--muted); font-size: 13px; font-weight: 600; }
 .home-protocols input:checked + span { background: var(--surface); color: var(--accent-strong); box-shadow: 0 1px 4px #20382c18; }
 .home-protocols input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
-.home-check-fields { display: grid; grid-template-columns: 1fr; gap: 18px; }
+.home-check-fields { display: grid; grid-template-columns: 1fr; gap: 18px; margin-top: 20px; }
 .home-field { min-width: 0; }
 .home-field > label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 600; }
 .home-field > input, .home-history-form > input, .home-field > select { width: 100%; min-width: 0; height: 46px; border: 1px solid var(--control-line); border-radius: 8px; background: var(--surface); color: var(--text); padding: 0 13px; font: inherit; font-size: 14px; }

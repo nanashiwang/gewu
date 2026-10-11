@@ -43,17 +43,8 @@ def _classify(model_id: str) -> str | None:
     """
     if not isinstance(model_id, str) or not model_id:
         return None
-    s = model_id.strip().lower().removeprefix("models/")
-    if s.startswith("claude") or "/claude" in s:
-        return "anthropic"
-    if s.startswith("gemini") or "/gemini" in s:
-        return "gemini"
-    if (
-        s.startswith(("gpt-", "o1", "o3", "o4", "chatgpt", "text-embedding-"))
-        or s.startswith(("openai/", "azure/openai"))
-    ):
-        return "openai"
-    return None
+    from relay_detector.model_catalog import model_protocol
+    return model_protocol(model_id)
 
 
 # (base_url, api_key_hash) -> (timestamp, response_dict)
@@ -163,6 +154,11 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
         return out
 
     ids = _extract_model_ids(payload)
+    from relay_detector.model_catalog import is_chat_candidate, model_vendor
+    by_vendor: dict[str, list[str]] = {}
+    for mid in ids:
+        if is_chat_candidate(mid):
+            by_vendor.setdefault(model_vendor(mid), []).append(mid)
     by_proto: dict[str, list[str]] = {p: [] for p in PROTOCOLS}
     for mid in ids:
         bucket = _classify(mid)
@@ -186,6 +182,7 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
         "models_endpoint_supported": True,
         "raw_count": len(ids),
         "all_models": ids,
+        "by_vendor": by_vendor,
         "by_protocol": by_proto,
         # Per-protocol preferred default — used by the frontend to pre-fill
         # the model field after a cross-protocol handoff (so a /gemini → /openai
