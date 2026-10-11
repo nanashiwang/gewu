@@ -68,6 +68,11 @@ def test_responses_request_never_receives_chat_only_reasoning_field():
     body = _sanitize_body({"model": "gpt-6-astra", "temperature": 0, "max_output_tokens": 100}, responses=True)
     assert body["reasoning"] == {"effort": "low"}
     assert "reasoning_effort" not in body
+    assert body["max_output_tokens"] == 4096
+    assert "max_completion_tokens" not in body and "max_tokens" not in body
+    other = _sanitize_body({"model": "glm-5.3", "max_output_tokens": 100}, responses=True)
+    assert "reasoning_effort" not in other
+    assert "max_tokens" not in other
 
 
 @pytest.mark.parametrize("model", ["deepseek-flash", "qwen3.8-max", "kimi-k3", "glm-5.3", "MiniMax-M3", "grok-4.7", "unknown-model"])

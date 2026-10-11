@@ -53,9 +53,10 @@ def _sanitize_body(body: dict[str, Any], *, responses: bool = False) -> dict[str
         if effort != "none":
             for field in ("temperature", "top_p", "top_logprobs", "logprobs"):
                 body.pop(field, None)
-            if "max_completion_tokens" in body:
-                body["max_completion_tokens"] = max(4096, body["max_completion_tokens"])
-    if is_generic_chat(model):
+            output_limit = "max_output_tokens" if responses else "max_completion_tokens"
+            if output_limit in body:
+                body[output_limit] = max(4096, body[output_limit])
+    if not responses and is_generic_chat(model):
         # Basic compatibility probes cannot assume OpenAI tokenizers, fixed
         # temperature support, or a tiny non-reasoning output budget.
         body.pop("temperature", None)
