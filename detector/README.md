@@ -193,7 +193,8 @@ nano .env  # 填 ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY / ANTHROPIC_MODEL
 ```
 
 线上版还提供:
-- `/leaderboard` 中转站红黑榜,按域名聚合所有公开报告
+- `/leaderboard` 近 30 天有效证据排名与折叠历史参考；用户自测不自动入榜
+- `/leaderboard/monitor` 按模型、观测入口和检测版本查看七天样本与报告，不推算可用率
 - `/r/{id}` 可分享的公开检测报告(HTML + JPG)
 - `POST /api/detect` 提交检测任务(异步)
 - `/faq` 常见问题(35+ 问答,含 JSON-LD 结构化数据)

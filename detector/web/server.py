@@ -21,6 +21,8 @@ from fastapi.templating import Jinja2Templates
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import jobs, leaderboard
+from .observations import monitoring_snapshot
+from relay_detector.ranking import assess_ranking_eligibility
 from .brand import brand
 from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
 from .featured_pricing import FEATURED_DOMAIN, FEATURED_WEBSITE_URL
@@ -248,14 +250,18 @@ _RED_SCORE_THRESHOLD = 70
 
 
 def _compute_public_ranking_snapshot() -> dict[str, object]:
-    """Merge the curated snapshot with newer first-party reports by domain."""
+    """Only approved reports may claim first-party provenance."""
     sites = {
         site.domain: site
         for site in (*RED_RANKING, *BLACK_RANKING)
         if site.domain.lower() not in EXCLUDED_RANKING_DOMAINS
+        and site.source_kind == "external_snapshot"
     }
     latest = UPDATED_AT
-    relays, _summary = leaderboard.aggregate()
+    relays, _summary = leaderboard.aggregate(max_age_days=30)
+    historical_relays, _ = leaderboard.aggregate()
+    recent_domains = {relay.domain for relay in relays}
+    relays = [*relays, *(r for r in historical_relays if r.domain not in recent_domains)]
     for relay in relays:
         if (
             not relay.domain
@@ -301,7 +307,7 @@ def _compute_public_ranking_snapshot() -> dict[str, object]:
         )
 
     red_sites = tuple(sorted(
-        (site for site in sites.values() if site.score >= _RED_SCORE_THRESHOLD),
+        (site for site in sites.values() if site.is_current and site.score >= _RED_SCORE_THRESHOLD),
         key=lambda site: (
             -site.score,
             -site.confidence_score,
@@ -310,10 +316,14 @@ def _compute_public_ranking_snapshot() -> dict[str, object]:
         ),
     ))
     black_sites = tuple(sorted(
-        (site for site in sites.values() if site.score < _RED_SCORE_THRESHOLD),
+        (site for site in sites.values() if site.is_current and site.score < _RED_SCORE_THRESHOLD),
         key=lambda site: (site.score, -site.report_count, site.domain),
     ))
     total_reports = sum(site.report_count for site in sites.values())
+    historical_sites = tuple(sorted(
+        (site for site in sites.values() if not site.is_current),
+        key=lambda site: (site.last_checked, site.domain), reverse=True,
+    ))
     first_party_sites = tuple(site for site in sites.values() if site.source_kind == "gewu_test")
     external_sites = tuple(site for site in sites.values() if site.source_kind != "gewu_test")
     first_party_updated_at = max(
@@ -324,6 +334,8 @@ def _compute_public_ranking_snapshot() -> dict[str, object]:
         "report_count": total_reports,
         "red_count": len(red_sites),
         "black_count": len(black_sites),
+        "current_count": len(red_sites) + len(black_sites),
+        "historical_count": len(historical_sites),
         "site_count_label": f"{len(sites):,}",
         "report_count_label": f"{total_reports:,}",
         "updated_at": latest,
@@ -346,6 +358,7 @@ def _compute_public_ranking_snapshot() -> dict[str, object]:
     return {
         "red_sites": red_sites,
         "black_sites": black_sites,
+        "historical_sites": historical_sites,
         "metrics": metrics,
     }
 
@@ -384,7 +397,7 @@ def _public_ranking_detail(
 @app.get("/", response_class=HTMLResponse)
 async def hub(request: Request) -> HTMLResponse:
     snapshot = _public_ranking_snapshot()
-    all_sites = (*snapshot["red_sites"], *snapshot["black_sites"])
+    all_sites = (*snapshot["red_sites"], *snapshot["black_sites"], *snapshot.get("historical_sites", ()))
     return templates.TemplateResponse(
         request,
         "hub.html",
@@ -434,6 +447,7 @@ async def leaderboard_page(request: Request) -> HTMLResponse:
         {
             "red_sites": snapshot["red_sites"],
             "black_sites": snapshot["black_sites"],
+            "historical_sites": snapshot.get("historical_sites", ()),
             "coverage": metrics,
             "updated_at": metrics["updated_at"],
             "featured_domain": FEATURED_DOMAIN,
@@ -467,7 +481,7 @@ async def compare_page(request: Request) -> HTMLResponse:
     snapshot = _public_ranking_snapshot()
     site_by_domain = {
         site.domain: site
-        for site in (*snapshot["red_sites"], *snapshot["black_sites"])
+        for site in (*snapshot["red_sites"], *snapshot["black_sites"], *snapshot.get("historical_sites", ()))
     }
     selected: list[PublicRankingSite] = []
     seen: set[str] = set()
@@ -488,6 +502,21 @@ async def compare_page(request: Request) -> HTMLResponse:
     )
 
 
+_monitor_cached_at = 0.0
+_monitor_cache: dict | None = None
+
+
+@app.get("/leaderboard/monitor", response_class=HTMLResponse)
+async def monitor_page(request: Request) -> HTMLResponse:
+    """Browse evidence by model/observed endpoint without triggering detection."""
+    global _monitor_cached_at, _monitor_cache
+    now = time.monotonic()
+    if _monitor_cache is None or now - _monitor_cached_at >= _PUBLIC_RANKINGS_TTL_S:
+        _monitor_cache = monitoring_snapshot()
+        _monitor_cached_at = now
+    return templates.TemplateResponse(request, "monitor.html", _monitor_cache)
+
+
 @app.get("/leaderboard/{domain}", response_class=HTMLResponse)
 async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse:
     """Render a safe decision page for every domain in the public ranking."""
@@ -496,7 +525,7 @@ async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse
         raise HTTPException(status_code=404, detail="relay not found")
 
     snapshot = _public_ranking_snapshot()
-    sites = (*snapshot["red_sites"], *snapshot["black_sites"])
+    sites = (*snapshot["red_sites"], *snapshot["black_sites"], *snapshot.get("historical_sites", ()))
     site = next((candidate for candidate in sites if candidate.domain == domain), None)
     if site is None:
         raise HTTPException(status_code=404, detail="relay not found")
@@ -521,7 +550,6 @@ async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse
             "site": site,
             "relay": relay,
             "history": history,
-            "trend": list(reversed(history[:12])),
             "failed_summary": failed_summary,
             "protocol_labels": leaderboard.PROTOCOL_LABELS,
             "verdict_labels": leaderboard.VERDICT_LABELS,
@@ -1067,6 +1095,7 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
             "report": j.report,
             "rows": _result_rows(j.report),
             "report_notes": _report_notes(j.report),
+            "ranking_approved": assess_ranking_eligibility(j.report)[0],
             "breadcrumb_domain": domain,
             **_seo_meta_for_report(j.report),
         },
@@ -1127,6 +1156,7 @@ _STATIC_SITEMAP_URLS = [
     ("/openai",      "weekly",  "0.9",  "openai.html"),
     ("/gemini",      "weekly",  "0.9",  "gemini.html"),
     ("/leaderboard", "daily",   "0.85", "leaderboard.html"),
+    ("/leaderboard/monitor", "daily", "0.85", "monitor.html"),
     ("/ranking-governance", "monthly", "0.65", "ranking_governance.html"),
     ("/pricing",     "daily",   "0.75", "pricing.html"),
     ("/faq",         "monthly", "0.8",  "faq.html"),
@@ -1316,7 +1346,7 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
 
     structured = results.get("structured_output") or {}
     sd = structured.get("details") if isinstance(structured.get("details"), dict) else {}
-    if structured.get("status") != "pass":
+    if structured.get("status") == "fail":
         text = str(sd.get("response_text") or "").strip().replace("\n", " ")
         if len(text) > 180:
             text = text[:180] + "..."
@@ -1330,13 +1360,14 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
         if markdown_seen:
             message = (
                 "底层模型把 JSON 包在 Markdown 代码块里(```json ... ```),"
-                "OpenAI strict 模式应该返回裸 JSON。说明 response_format 被透传了,"
-                "但底层模型没有真正理解 strict 模式 — 通常是中转站把请求转给了非 GPT 模型。"
+                "本次未满足 strict 模式的裸 JSON 要求。"
+                "可能涉及模型能力或适配层处理，单凭这一项不能确认参数是否透传或后端模型身份。"
             )
         else:
             message = (
                 "返回的不是 JSON 也没有代码块包装。请求已发送 "
-                "response_format=json_schema strict=true,但中转站很可能根本没把这个参数透传给后端。"
+                "response_format=json_schema strict=true，但本次返回未满足要求。"
+                "建议核对模型是否支持该能力，并联系服务商复核适配层；不能据此断言模型被替换。"
             )
         if text:
             message += f" 实际返回片段: {text}"

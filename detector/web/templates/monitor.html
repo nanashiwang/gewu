@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}模型与线路观测 · 格物{% endblock %}
+{% block description %}按模型、协议和观测入口查看已审核检测证据、最近七天样本和历史报告。无数据不代表服务故障。{% endblock %}
+{% block canonical %}{{ brand.site_url }}/leaderboard/monitor{% endblock %}
+{% block og_url %}{{ brand.site_url }}/leaderboard/monitor{% endblock %}
+{% block content %}
+<section class="leaderboard-hero">
+  <span class="public-ranking-kicker">MODEL OBSERVATIONS</span>
+  <h1>模型与线路观测</h1>
+  <p>先选模型，再看本次检测覆盖了什么。这里只展示最近 30 天通过准入的报告；每条结论均可展开复核。</p>
+  <a class="btn btn-primary" href="/#quick-check">开始检测</a>
+  <a class="btn btn-ghost" href="/ranking-governance">证据与公益规则</a>
+</section>
+<section class="card">
+  <h2>如何读这张表</h2>
+  <p>观测入口按地址区分；服务商内部的账号分组、路由与实际供应商未知，不能据此代表整个站点。不同模型、检测模式、检测器版本及基线分别展示。</p>
+  <p>状态条使用 UTC 日期。绿色表示当天已审核样本通过，黄色表示有异常，蓝色表示有未完成项，灰色表示无有效样本。点击色块查看对应报告；这里不是可用率，鉴权失败及无效检测不参与统计。</p>
+</section>
+<form class="observation-filters card" onsubmit="return false" role="search">
+  <label>搜索站点或模型 <input type="search" id="observation-search" maxlength="120" placeholder="输入域名或模型名称"></label>
+  <label>模型 <select id="observation-model"><option value="">全部模型</option>{% for model in models %}<option value="{{ model }}">{{ model }}</option>{% endfor %}</select></label>
+  <span id="observation-count" aria-live="polite">{{ rows|length }} 组观测</span>
+</form>
+{% for row in rows %}
+<article class="card observation-row" data-observation-row data-model="{{ row.model }}" data-search="{{ (row.domain ~ ' ' ~ row.model)|lower }}">
+  <div class="relay-section-head"><div><h2>{{ row.model }}</h2><a href="/leaderboard/{{ row.domain }}">{{ row.domain }}</a></div><span>{{ {'anthropic':'Claude','openai':'OpenAI','gemini':'Gemini'}.get(row.protocol, row.protocol) }} · {{ {'quick':'快速','standard':'标准','full':'完整'}.get(row.mode, '未知模式') }} · {{ row.count }} 个有效样本</span></div>
+  <p class="muted">观测入口 {{ row.endpoint_id }} · 账号分组未知 · 检测器 {{ row.version }} · 基线 {{ '未提供' if row.baseline == 'not_available' else row.baseline }}</p>
+  <div class="observation-days">
+  {% for day in row.days %}
+    {% set labels = {'pass':'样本通过', 'risk':'存在异常', 'incomplete':'未完成', 'no_data':'无有效样本'} %}
+    {% if day.job_id %}<a class="observation-day observation-{{ day.state }}" href="/r/{{ day.job_id }}" aria-label="{{ day.date }}：{{ labels[day.state] }}，{{ day.count }} 个样本">{% else %}<span class="observation-day observation-no_data">{% endif %}
+      <span>{{ day.date[5:] }}</span><strong>{{ labels[day.state] }}</strong><small>{{ day.count }} 个样本</small>
+    {% if day.job_id %}</a>{% else %}</span>{% endif %}
+  {% endfor %}
+  </div>
+  <p>最新有效检测：{{ row.latest.timestamp.strftime('%Y-%m-%d %H:%M UTC') }} · <a href="/r/{{ row.latest.job_id }}">查看完整证据 →</a></p>
+  <details><summary>最近 {{ row.history|length }} 份报告</summary><ul>{% for item in row.history %}<li><a href="/r/{{ item.job_id }}">{{ item.timestamp.strftime('%Y-%m-%d %H:%M UTC') }} · {{ item.score }} 分 · {{ {'pass':'样本通过','risk':'存在异常','incomplete':'未完成'}[item.state] }}</a></li>{% endfor %}</ul></details>
+</article>
+{% endfor %}
+<section class="card" id="observation-empty" {% if rows %}hidden{% endif %}><h2>暂无匹配的有效观测</h2><p>不使用旧快照或未经审核的用户自测填充监测状态。你仍可发起一次检测，或查看历史参考。</p><a href="/leaderboard#historical-reference">查看历史参考</a></section>
+{% endblock %}

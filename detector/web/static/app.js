@@ -695,6 +695,47 @@
 // Client-side leaderboard search and dual filter. All rows remain in the HTML
 // for accessibility and search indexing; filtering only changes presentation.
 (() => {
+  const search = document.getElementById('observation-search');
+  const model = document.getElementById('observation-model');
+  if (!search || !model) return;
+  const rows = Array.from(document.querySelectorAll('[data-observation-row]'));
+  search.value = (new URLSearchParams(location.search).get('query') || '').slice(0, 120);
+  function apply() {
+    let count = 0;
+    const query = search.value.trim().toLowerCase();
+    rows.forEach((row) => {
+      row.hidden = !(row.dataset.search.includes(query)
+        && (!model.value || row.dataset.model === model.value));
+      if (!row.hidden) count += 1;
+    });
+    document.getElementById('observation-count').textContent = `${count} 组观测`;
+    document.getElementById('observation-empty').hidden = count > 0;
+  }
+  search.addEventListener('input', apply);
+  model.addEventListener('change', apply);
+  apply();
+})();
+
+(() => {
+  const search = document.getElementById('ranking-search');
+  const history = document.getElementById('historical-reference');
+  if (!search || !history) return;
+  search.value = (new URLSearchParams(location.search).get('query') || '').slice(0, 253);
+  const rows = Array.from(document.querySelectorAll('[data-history-domain]'));
+  function apply() {
+    const query = search.value.trim().toLowerCase();
+    let count = 0;
+    rows.forEach((row) => {
+      row.hidden = !row.dataset.historyDomain.includes(query);
+      if (!row.hidden) count += 1;
+    });
+    if (query && count) history.open = true;
+  }
+  search.addEventListener('input', apply);
+  apply();
+})();
+
+(() => {
   const rows = Array.from(document.querySelectorAll('[data-rank-row]'));
   if (!rows.length) return;
   const search = document.getElementById('ranking-search');

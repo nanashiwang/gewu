@@ -2969,3 +2969,18 @@ a.coverage-metric:hover strong { color: var(--accent); }
   }
   .form-error.form-error-rich { background: #2f1418; color: #fecaca; }
 }
+/* Evidence observations: finite samples, never a synthetic uptime meter. */
+.observation-filters { display: flex; gap: 16px; flex-wrap: wrap; align-items: end; }
+.observation-filters label { display: grid; gap: 8px; flex: 1 1 220px; min-width: 0; }
+.observation-filters input, .observation-filters select { padding: 12px; width: 100%; }
+.observation-row { margin-top: 20px; overflow-wrap: anywhere; }
+.observation-days { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; margin: 20px 0; }
+.observation-day { display: flex; flex-direction: column; gap: 6px; padding: 12px 6px; text-align: center; border-radius: 8px; color: #172033; border: 1px solid #cbd5e1; background: #f1f5f9; font-size: 12px; }
+.observation-pass { background: #d1fae5; border-color: #6ee7b7; }
+.observation-risk { background: #fef3c7; border-color: #fcd34d; }
+.observation-incomplete { background: #dbeafe; border-color: #93c5fd; }
+.historical-row { padding: 12px; border-bottom: 1px solid var(--line); }
+[data-observation-row][hidden], [data-history-domain][hidden] { display: none; }
+@media (max-width: 600px) {
+  .observation-days { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

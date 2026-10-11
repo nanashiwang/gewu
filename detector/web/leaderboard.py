@@ -16,7 +16,7 @@ import re
 import statistics
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -209,12 +209,41 @@ def _parse_timestamp(ts: Any) -> datetime | None:
 
 def _load_report(path: Path) -> dict | None:
     try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
+        value = json.loads(path.read_text(encoding="utf-8"))
+        return value if isinstance(value, dict) else None
+    except (json.JSONDecodeError, OSError, UnicodeError):
         return None
 
 
-def aggregate() -> tuple[list[RelayStats], dict[str, int]]:
+def approved_reports(max_age_days: int | None = None):
+    """Read only attributable, valid evidence; never expose raw report data."""
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(days=max_age_days)
+        if max_age_days is not None else None
+    )
+    seen: set[Path] = set()
+    for directory in REPORT_DIRS:
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.glob("*.json")):
+            if path.is_symlink() or path.resolve() in seen:
+                continue
+            seen.add(path.resolve())
+            report = _load_report(path)
+            if not report or not assess_ranking_eligibility(report)[0]:
+                continue
+            domain = _extract_domain(report.get("base_url", ""))
+            if not is_valid_domain(domain) or domain in _BLOCKED_DOMAINS:
+                continue
+            timestamp = _parse_timestamp(report.get("timestamp"))
+            if timestamp is None or (cutoff and timestamp < cutoff):
+                continue
+            if not re.fullmatch(r"[A-Za-z0-9_-]{1,160}", path.stem):
+                continue
+            yield path, report
+
+
+def aggregate(max_age_days: int | None = None) -> tuple[list[RelayStats], dict[str, int]]:
     """Scan all report JSONs, return (sorted relay stats, summary metrics).
 
     Sort:
@@ -224,55 +253,28 @@ def aggregate() -> tuple[list[RelayStats], dict[str, int]]:
     by_domain: dict[str, RelayStats] = defaultdict(lambda: RelayStats(domain=""))
     total_reports = 0
 
-    for dir_path in REPORT_DIRS:
-        if not dir_path.is_dir():
-            continue
-        for json_path in dir_path.glob("*.json"):
-            report = _load_report(json_path)
-            if not report:
-                continue
-            eligible, _reason = assess_ranking_eligibility(report)
-            if not eligible:
-                continue
-            domain = _extract_domain(report.get("base_url", ""))
-            if not domain:
-                continue
-            if domain in _BLOCKED_DOMAINS:
-                continue
-            total_reports += 1
-            protocol = str(report.get("protocol") or "anthropic")
-            if protocol not in PROTOCOL_LABELS:
-                continue
-            score = _parse_score(report.get("total_score"))
-            verdict = str(report.get("verdict") or "failed")
-            ts = _parse_timestamp(report.get("timestamp"))
-            job_id = json_path.stem
-
-            relay = by_domain[domain]
-            relay.domain = domain
-            ps = relay.by_protocol.setdefault(protocol, ProtocolStats(protocol=protocol))
-            ps.count += 1
-            ps.scores.append(score)
-            for r in report.get("results") or []:
-                if isinstance(r, dict) and r.get("status") == "fail":
-                    name = r.get("name")
-                    if isinstance(name, str):
-                        ps.failed_detectors[name] += 1
-            # Track most recent — by timestamp if available, else by file mtime
-            if ts and (ps.last_checked is None or ts > ps.last_checked):
-                ps.last_checked = ts
-                ps.last_job_id = job_id
-                ps.last_score = score
-                ps.last_verdict = verdict
-            elif ps.last_checked is None:
-                ps.last_job_id = job_id
-                ps.last_score = score
-                ps.last_verdict = verdict
-                try:
-                    mtime = datetime.fromtimestamp(json_path.stat().st_mtime, tz=timezone.utc)
-                    ps.last_checked = mtime
-                except OSError:
-                    pass
+    for json_path, report in approved_reports(max_age_days):
+        domain = _extract_domain(report["base_url"])
+        total_reports += 1
+        protocol = str(report["protocol"])
+        score = _parse_score(report.get("total_score"))
+        verdict = str(report.get("verdict") or "failed")
+        ts = _parse_timestamp(report.get("timestamp"))
+        relay = by_domain[domain]
+        relay.domain = domain
+        ps = relay.by_protocol.setdefault(protocol, ProtocolStats(protocol=protocol))
+        ps.count += 1
+        ps.scores.append(score)
+        for result in report.get("results") or []:
+            if isinstance(result, dict) and result.get("status") == "fail":
+                name = result.get("name")
+                if isinstance(name, str):
+                    ps.failed_detectors[name] += 1
+        if ts and (ps.last_checked is None or ts > ps.last_checked):
+            ps.last_checked = ts
+            ps.last_job_id = json_path.stem
+            ps.last_score = score
+            ps.last_verdict = verdict
 
     relays = list(by_domain.values())
     # Sort by Bayesian-weighted ranking score (descending), then by
@@ -350,6 +352,8 @@ def aggregate_one(domain: str) -> tuple[RelayStats, list[JobEntry]] | None:
         if not dir_path.is_dir():
             continue
         for json_path in dir_path.glob("*.json"):
+            if json_path.is_symlink() or not re.fullmatch(r"[A-Za-z0-9_-]{1,160}", json_path.stem):
+                continue
             report = _load_report(json_path)
             if not report:
                 continue

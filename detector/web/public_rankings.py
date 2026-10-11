@@ -109,6 +109,15 @@ class PublicRankingSite:
         return max(0, (date.today() - checked).days)
 
     @property
+    def is_current(self) -> bool:
+        """All sources share the same 30-day evidence window."""
+        try:
+            age = (date.today() - date.fromisoformat(self.last_checked)).days
+        except (TypeError, ValueError):
+            return False
+        return 0 <= age <= 30
+
+    @property
     def freshness_label(self) -> str:
         age = self.age_days
         if age is None:
@@ -184,10 +193,6 @@ class PublicRankingSite:
 
 
 RED_RANKING = (
-    PublicRankingSite(
-        "nan.meta-api.vip", 96, 3, "2026-07-18", ("anthropic", "openai"),
-        source_kind="gewu_test",
-    ),
     PublicRankingSite("codereel.pro", 94, 38, "2026-07-17", ("anthropic", "openai")),
     PublicRankingSite("api.yuboar.com", 94, 9, "2026-06-26", ("anthropic", "openai")),
     PublicRankingSite("ssnaiyun.com", 93, 30, "2026-07-13", ("anthropic", "openai")),
