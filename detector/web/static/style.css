@@ -2994,6 +2994,13 @@ a.coverage-metric:hover strong { color: var(--accent); }
   .form-error.form-error-rich { background: #2f1418; color: #fecaca; }
 }
 /* Evidence observations: finite samples, never a synthetic uptime meter. */
+.monitor-health-summary { margin: 20px 0; overflow-wrap: anywhere; }
+.monitor-health-summary h2 { margin: 8px 0; font-size: 21px; }
+.monitor-health-summary p, .monitor-health-summary small { color: var(--muted); line-height: 1.7; }
+.monitor-health-summary dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 20px 0; }
+.monitor-health-summary dt { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+.monitor-health-summary dd { margin: 0; font-size: 15px; font-weight: 650; }
+@media (max-width: 640px) { .monitor-health-summary dl { grid-template-columns: 1fr; gap: 14px; } }
 .observation-filters { display: flex; gap: 16px; flex-wrap: wrap; align-items: end; }
 .observation-filters label { display: grid; gap: 8px; flex: 1 1 220px; min-width: 0; }
 .observation-filters input, .observation-filters select { padding: 12px; width: 100%; }

@@ -20,10 +20,12 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.concurrency import run_in_threadpool
 
 from . import jobs, leaderboard
 from .job_feedback import job_feedback
 from .observations import monitoring_snapshot
+from .monitor_health import cached_monitor_health
 from relay_detector.ranking import assess_ranking_eligibility
 from relay_detector.core.assessment import assess_report
 from relay_detector.model_catalog import catalog_view, choices as catalog_choices, model_protocol, model_vendor
@@ -530,7 +532,10 @@ async def monitor_page(request: Request) -> HTMLResponse:
     if _monitor_cache is None or now - _monitor_cached_at >= _PUBLIC_RANKINGS_TTL_S:
         _monitor_cache = monitoring_snapshot()
         _monitor_cached_at = now
-    return templates.TemplateResponse(request, "monitor.html", _monitor_cache)
+    health = await run_in_threadpool(cached_monitor_health, jobs.JOBS_DIR)
+    return templates.TemplateResponse(request, "monitor.html", {
+        **_monitor_cache, "monitor_health": health["summary"], "health_available": health["available"],
+    })
 
 
 @app.get("/leaderboard/{domain}", response_class=HTMLResponse)
@@ -1027,6 +1032,16 @@ def _require_internal_result_access(request: Request) -> None:
     if not supplied or not secrets.compare_digest(supplied, expected):
         # Avoid advertising that the private evidence endpoint exists.
         raise HTTPException(status_code=404, detail="result not found")
+
+
+@app.get("/api/status/monitor-health/summary")
+def api_monitor_health(request: Request) -> JSONResponse:
+    # Fail closed even when no internal token has been configured. Never
+    # accept credentials in a query string or expose target metadata publicly.
+    if not os.environ.get("GEWU_INTERNAL_API_TOKEN", "").strip():
+        raise HTTPException(status_code=404, detail="not found")
+    _require_internal_result_access(request)
+    return JSONResponse(cached_monitor_health(jobs.JOBS_DIR), headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/result/{job_id}.json")

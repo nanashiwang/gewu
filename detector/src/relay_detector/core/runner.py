@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .detectors_base import ActiveDetector, BaseDetector, PassiveDetector
+from .evidence_errors import contains_auth_failure
 from .models import (
     DetectorResult,
     ExecutionConfig,
@@ -31,6 +32,10 @@ ThrottledClientFactory = Callable[
 ]
 TTFTProbe = Callable[[Any, str], Awaitable[None]]
 ProgressObserver = Callable[[dict[str, Any]], None]
+
+
+class _AuthenticationBlocked(Exception):
+    """Internal control flow; the original failing probe remains in the report."""
 
 
 @dataclass
@@ -119,17 +124,39 @@ class Runner:
             finished[d.name] = result
             running.discard(d.name)
             notify("probing")
+            if self._config.stop_on_auth_failure and contains_auth_failure([result.model_dump(mode="json")]):
+                raise _AuthenticationBlocked
             return result
 
         run_started = time.perf_counter()
         notify("probing")
-        tasks = [asyncio.create_task(run_one(d)) for d in active]
+        tasks: list[asyncio.Task] = []
+
+        async def execute() -> list[DetectorResult]:
+            remaining_active = active
+            first_results = []
+            if self._config.stop_on_auth_failure:
+                # Reuse the normal core probe: no extra preflight request or cost.
+                first = next((d for d in active if d.name in {"identity", "basic_request"}), None)
+                if first is not None:
+                    first_results.append(await run_one(first))
+                    remaining_active = [d for d in active if d is not first]
+            tasks.extend(asyncio.create_task(run_one(d)) for d in remaining_active)
+            return [*first_results, *await asyncio.gather(*tasks)]
+
         timed_out = False
+        auth_blocked = False
         try:
             active_results = await asyncio.wait_for(
-                asyncio.gather(*tasks),
+                execute(),
                 timeout=self._config.overall_timeout_s,
             )
+        except _AuthenticationBlocked:
+            auth_blocked = True
+            active_results = [finished.get(d.name) or d.skip("authentication-blocked") for d in active]
+            finished.update({result.name: result for result in active_results})
+            running.clear()
+            notify("probing")
         except asyncio.TimeoutError:
             timed_out = True
             active_results = [
@@ -159,7 +186,7 @@ class Runner:
         # a fallback — costs ~5 output tokens (~$0.0005 on Haiku). Skip when
         # samples already exist so standard/full pay nothing extra.
         remaining = self._config.overall_timeout_s - (time.perf_counter() - run_started)
-        if not timed_out and remaining > 0 and self._ttft_probe is not None and not getattr(client, "_ttft_samples_ms", []):
+        if not timed_out and not auth_blocked and remaining > 0 and self._ttft_probe is not None and not getattr(client, "_ttft_samples_ms", []):
             notify("measuring")
             try:
                 await asyncio.wait_for(self._ttft_probe(client, model), timeout=remaining)
