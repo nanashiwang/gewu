@@ -8,6 +8,7 @@ import os
 import re
 import secrets
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
@@ -21,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from . import jobs, leaderboard
+from .job_feedback import job_feedback
 from .observations import monitoring_snapshot
 from relay_detector.ranking import assess_ranking_eligibility
 from relay_detector.core.assessment import assess_report
@@ -83,6 +85,7 @@ class RequestBodyLimitMiddleware:
             path == "/api/probe"
             or path == "/api/wishlist"
             or path.startswith("/api/detect")
+            or path.startswith("/api/jobs/")
         )
         if (
             sensitive_endpoint
@@ -144,7 +147,16 @@ class RequestBodyLimitMiddleware:
             )(scope, receive, send)
 
 
-app = FastAPI(title=brand.english_name, docs_url=None, redoc_url=None, openapi_url=None)
+@asynccontextmanager
+async def lifespan(_app):
+    jobs.startup()
+    try:
+        yield
+    finally:
+        await jobs.shutdown()
+
+
+app = FastAPI(title=brand.english_name, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 app.add_middleware(
     RequestBodyLimitMiddleware, max_bytes=_MAX_API_REQUEST_BODY_BYTES
 )
@@ -695,6 +707,18 @@ async def _submit_or_503(*args, **kwargs) -> str:
         ) from exc
 
 
+def _submission_response(request: Request, job_id: str, headers=None) -> JSONResponse:
+    response = JSONResponse(
+        {"job_id": job_id, "status_url": f"/api/status/{job_id}"},
+        headers={**(headers or {}), "Cache-Control": "no-store"},
+    )
+    token = jobs.issue_cancel_token(job_id)
+    if token:
+        response.set_cookie(f"gewu_cancel_{job_id}", token, httponly=True,
+                            secure=request.url.scheme == "https", samesite="strict", max_age=7200)
+    return response
+
+
 async def _preflight_or_422(
     request: Request,
     base_url: str,
@@ -840,10 +864,7 @@ async def api_detect_claude(
                 include_long_context=include_long_context,
                 include_long_context_extreme=include_long_context_extreme,
             )
-            return JSONResponse(
-                {"job_id": job_id, "status_url": f"/api/status/{job_id}"},
-                headers=legacy_headers,
-            )
+            return _submission_response(request, job_id, legacy_headers)
     elif _protocol_from_model(model) == "gemini":
         raise HTTPException(
             status_code=400,
@@ -863,10 +884,7 @@ async def api_detect_claude(
         include_long_context_extreme=include_long_context_extreme,
     )
     # NOTE: never echo api_key back in the response
-    return JSONResponse(
-        {"job_id": job_id, "status_url": f"/api/status/{job_id}"},
-        headers=legacy_headers,
-    )
+    return _submission_response(request, job_id, legacy_headers)
 
 
 @app.post("/api/detect/openai")
@@ -900,7 +918,7 @@ async def api_detect_openai(
         include_long_context=include_long_context,
         include_long_context_extreme=include_long_context_extreme,
     )
-    return JSONResponse({"job_id": job_id, "status_url": f"/api/status/{job_id}"})
+    return _submission_response(request, job_id)
 
 
 @app.post("/api/detect/gemini")
@@ -929,7 +947,7 @@ async def api_detect_gemini(
     job_id = await _submit_or_503(
         base_url, api_key, model, mode, protocol="gemini"
     )
-    return JSONResponse({"job_id": job_id, "status_url": f"/api/status/{job_id}"})
+    return _submission_response(request, job_id)
 
 
 @app.get("/api/status/{job_id}")
@@ -947,15 +965,17 @@ async def api_status(job_id: str) -> JSONResponse:
         "created_at": j.created_at,
         "started_at": j.started_at,
         "finished_at": j.finished_at,
+        "progress": j.progress,
     }
-    if j.status == "done":
+    if j.report is not None:
         report = j.report or {}
+        assessment = assess_report(report)
         results = report.get("results")
         result_rows = results if isinstance(results, list) else []
         completed = sum(
             1
             for row in result_rows
-            if isinstance(row, dict) and row.get("status") != "skip"
+            if isinstance(row, dict) and row.get("status") in {"pass", "fail"}
         )
         payload.update(
             {
@@ -963,19 +983,37 @@ async def api_status(job_id: str) -> JSONResponse:
                 "image_url": f"/r/{j.id}.jpg",
                 "total_score": (
                     float(report.get("total_score"))
-                    if isinstance(report.get("total_score"), (int, float))
-                    and not isinstance(report.get("total_score"), bool)
-                    else 0.0
+                    if assessment["score_usable"] else None
                 ),
-                "verdict": str(report.get("verdict") or "failed"),
-                "assessment": assess_report(report),
+                "verdict": str(report.get("verdict") or "failed") if assessment["score_usable"] else None,
+                "assessment": assessment,
                 "completed_checks": completed,
                 "total_checks": len(result_rows),
             }
         )
-    elif j.status == "error":
+    if j.status in jobs.TERMINAL_STATUSES:
+        payload["feedback"] = job_feedback(j)
+    if j.status in {"error", "cancelled", "interrupted"}:
         payload["error"] = j.error
     return JSONResponse(payload, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/jobs/{job_id}/cancel")
+async def cancel_job(request: Request, job_id: str) -> JSONResponse:
+    job = await jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="job not found")
+    expected = os.environ.get("GEWU_INTERNAL_API_TOKEN", "").strip()
+    supplied = request.headers.get("X-Gewu-Internal-Token", "")
+    internal = bool(expected and supplied and secrets.compare_digest(expected, supplied))
+    if not internal:
+        origin = request.headers.get("origin")
+        if (origin and origin != f"{request.url.scheme}://{request.url.netloc}") or request.headers.get("sec-fetch-site") == "cross-site":
+            raise HTTPException(status_code=403, detail="仅允许从原提交页面取消检测")
+        if not jobs.can_cancel(job, request.cookies.get(f"gewu_cancel_{job_id}", "")):
+            raise HTTPException(status_code=403, detail="只有任务提交者可以取消检测")
+    await jobs.cancel(job_id)
+    return await api_status(job_id)
 
 
 def _require_internal_result_access(request: Request) -> None:
@@ -1007,7 +1045,7 @@ async def api_result_json(request: Request, job_id: str) -> JSONResponse:
 @app.get("/r/{job_id}.jpg")
 async def result_jpg(job_id: str) -> Response:
     j = await jobs.get(job_id)
-    if j is None or j.status != "done" or j.report is None:
+    if j is None or j.report is None:
         raise HTTPException(status_code=404, detail="result not ready")
 
     # Cache the JPG next to the JSON. Detection report is immutable, so once
@@ -1083,9 +1121,11 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
     j = await jobs.get(job_id)
     if j is None:
         raise HTTPException(status_code=404, detail="job not found")
-    if j.status != "done" or j.report is None:
+    if j.report is None:
         return templates.TemplateResponse(
-            request, "running.html", {"job_id": job_id, "job": j},
+            request, "running.html", {"job_id": job_id, "job": j,
+                                     "can_cancel": jobs.can_cancel(j, request.cookies.get(f"gewu_cancel_{job_id}", ""))},
+            headers={"Cache-Control": "no-store"},
         )
     # Domain feeds the breadcrumb (首页 › 质量榜 › {domain} › 报告).
     # Goes through is_valid_domain so a malformed base_url doesn't produce

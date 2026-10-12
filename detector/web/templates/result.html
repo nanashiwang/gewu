@@ -168,6 +168,7 @@
 </section>
 {% endif %}
 
+{% if report.performance_complete | default(true) %}
 <section class="metrics-row metrics-row-5">
   <div class="metric{% if ttft_ms is not none and ttft_ms > 2000 %} metric-warn{% endif %}">
     <div class="metric-label">首 TOKEN</div>
@@ -200,6 +201,10 @@
     <div class="metric-value">{{ '{:,}'.format(output_tokens) }}</div>
   </div>
 </section>
+
+{% else %}
+<p class="muted small">本次检测未完成，尚未汇总完整耗时与用量。已发送的请求仍可能产生费用。</p>
+{% endif %}
 
 {% if protocol == 'anthropic' and report.detected_non_anthropic_brands %}
 <section class="card alert-card">

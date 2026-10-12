@@ -78,7 +78,7 @@ class IdentityDetector(ActiveDetector):
                 messages=[{"role": "user", "content": PROMPT}],
             )
         except Exception as e:  # noqa: BLE001
-            return self._result("error", 0.0, error=str(e))
+            return self._result("error", 0.0, error=f"{type(e).__name__}: {e}")
 
         text = _join_text(resp.get("content"))
         text_lc = text.lower()

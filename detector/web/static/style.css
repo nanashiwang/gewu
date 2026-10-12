@@ -1309,6 +1309,15 @@ a.coverage-metric:hover strong { color: var(--accent); }
 .feature p { color: var(--muted); font-size: 14px; margin: 0; }
 
 /* running */
+.running-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 0; margin: 24px 0; list-style: none; text-align: left; }
+.running-checks li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
+.running-checks li span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.running-checks li span:last-child { flex-shrink: 0; color: var(--muted); font-size: 12px; }
+.running-checks li[data-state="running"] { background: var(--accent-soft); border-color: var(--accent); }
+.running-checks li[data-state="pass"] span:last-child { color: var(--accent-strong); }
+.running-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 24px 0 14px; }
+.running-target { overflow-wrap: anywhere; }
+@media (max-width: 540px) { .running-checks { grid-template-columns: 1fr; } .running-actions .btn { width: 100%; } }
 .running-card { text-align: center; padding: 56px 28px; }
 .spinner {
   width: 36px; height: 36px;

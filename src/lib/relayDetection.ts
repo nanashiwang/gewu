@@ -156,6 +156,16 @@ function epochSecondsToIso(value: unknown): string | undefined {
   return Number.isFinite(seconds) && seconds > 0 ? new Date(seconds * 1000).toISOString() : undefined
 }
 
+export async function cancelRelayCheck(payload: Payload, siteId: string, checkId: string) {
+  const check = await payload.findByID({ collection: 'relay-checks' as any, id: checkId, depth: 0, overrideAccess: true }) as any
+  if (relationId(check.site) !== siteId) throw new Error('无权操作该检测任务')
+  if (!ACTIVE_CHECK_STATUSES.includes(check.status)) return check
+  if (!check.detectorJobId) throw new Error('任务正在提交，请稍后再取消')
+  if (!process.env.GEWU_INTERNAL_API_TOKEN?.trim()) throw new Error('取消服务尚未配置，请联系管理员')
+  await detectorFetch(`/api/jobs/${encodeURIComponent(String(check.detectorJobId))}/cancel`, { method: 'POST' })
+  return reconcileRelayCheck(payload, check)
+}
+
 export async function reconcileRelayCheck(payload: Payload, check: any) {
   const ageMs = checkAgeMs(check)
   if (!check.detectorJobId) {
@@ -208,15 +218,20 @@ export async function reconcileRelayCheck(payload: Payload, check: any) {
     : null
   const apiKey = decryptSecret(site?.apiKeyEncrypted)
 
-  if (status.status === 'error') {
+  if (['error', 'cancelled', 'interrupted'].includes(status.status)) {
     const finishedAt = epochSecondsToIso(status.finished_at) || new Date().toISOString()
+    const partialReport = status.result_url
+      ? await detectorFetch(`/api/result/${encodeURIComponent(String(check.detectorJobId))}.json`, undefined, 20_000).catch(() => null)
+      : null
     return payload.update({
       collection: 'relay-checks' as any,
       id: check.id,
       overrideAccess: true,
       data: {
         status: 'error',
+        score: null, grade: null, verdict: null,
         error: String(redactRelaySecret(status.error || '检测失败', apiKey)).slice(0, 1000),
+        ...(partialReport ? { report: redactRelaySecret(partialReport, apiKey), resultUrl: `${detectorPublicUrl()}/r/${encodeURIComponent(String(check.detectorJobId))}` } : {}),
         startedAt: epochSecondsToIso(status.started_at) || check.startedAt,
         finishedAt,
       },

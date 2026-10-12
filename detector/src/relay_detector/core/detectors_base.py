@@ -79,7 +79,7 @@ class ActiveDetector(BaseDetector):
                     "traceback": traceback.format_exc()[:3000],
                 },
                 duration_ms=elapsed,
-                error=str(e),
+                error=f"{type(e).__name__}: {e}",
             )
         if result.duration_ms is None:
             result.duration_ms = int((time.perf_counter() - start) * 1000)

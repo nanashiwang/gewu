@@ -26,7 +26,7 @@ class BasicRequestDetector(ActiveDetector):
                 ],
             )
         except Exception as e:  # noqa: BLE001
-            return self._result("error", 0.0, error=str(e))
+            return self._result("error", 0.0, error=f"{type(e).__name__}: {e}")
 
         text = _message_text(resp)
         finish_reason = _finish_reason(resp)

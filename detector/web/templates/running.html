@@ -1,134 +1,26 @@
 {% extends "base.html" %}
-
-{% block title %}检测进行中 · 格物{% endblock %}
-{% block description %}格物 正在执行中转站协议检测并生成可复核分数。{% endblock %}
-
+{% block title %}检测进度 · 格物{% endblock %}
+{% block description %}查看本次检测的实际项目、执行状态和已完成证据。{% endblock %}
 {% block content %}
-<section class="card running-card" data-job-id="{{ job_id }}" aria-live="polite">
+<section class="card running-card" data-job-id="{{ job_id }}">
   <div class="spinner" id="running-spinner" aria-hidden="true"></div>
-  <p class="running-kicker">检测任务 #{{ job_id }}</p>
-  <h1 id="status-headline">正在建立真实请求基线…</h1>
+  <p class="running-kicker">本次检测</p>
+  <h1 id="status-headline" aria-live="polite">正在读取任务状态…</h1>
   <p class="running-score" id="running-score" hidden></p>
-  <p class="muted running-target">
-    目标模型:<code>{{ job.target_model }}</code> · 检测深度 <code>{{ job.mode }}</code><br/>
-    中转站:<code>{{ job.base_url }}</code>
-  </p>
-
-  <div class="running-progress" aria-label="预计进度">
-    <div class="running-progress-bar" id="progress-bar"></div>
+  <p class="muted running-target">{{ job.target_model }} · {{ {'quick':'快速检测','standard':'标准检测','full':'完整检测'}.get(job.mode, job.mode) }}<br><span>{{ job.base_url }}</span></p>
+  <div class="running-progress" role="progressbar" aria-label="实际完成项目" aria-valuemin="0" aria-valuemax="100" id="progress-track"><div class="running-progress-bar" id="progress-bar" style="width:0"></div></div>
+  <div class="running-progress-meta"><span id="stage-label">等待检测资源</span><span id="elapsed-label"></span></div>
+  <p class="muted small" id="coverage-label">进度来自实际检测项目；完成数量不代表通过率或模型真实性。</p>
+  <ul class="running-checks" id="running-checks" aria-label="检测项目状态"></ul>
+  <p class="form-error" id="run-error" role="status" hidden></p>
+  <div class="running-actions">
+    {% if can_cancel %}<button type="button" class="btn btn-ghost" id="cancel-job">取消本次检测</button>{% endif %}
+    <button type="button" class="btn btn-ghost" id="refresh-progress" hidden>重新读取进度</button>
+    <a class="btn btn-primary" id="view-evidence" href="/r/{{ job_id }}" hidden>查看已完成证据</a>
+    <a class="btn btn-ghost" href="/{{ {'anthropic':'claude','openai':'openai','gemini':'gemini'}.get(job.protocol, 'claude') }}">返回检测页</a>
   </div>
-  <div class="running-progress-meta">
-    <span id="stage-label">正在排队</span>
-    <span id="elapsed-label">0 秒</span>
-  </div>
-  <p class="muted small">进度按预计时长计算,不代表检测覆盖率;最终以报告中的实际证据和分数为准。</p>
-
-  <ol class="running-stages" id="running-stages">
-    <li data-stage="0" class="active">确认模型与传输方式</li>
-    <li data-stage="1">执行协议与行为检测</li>
-    <li data-stage="2">汇总字段级证据</li>
-    <li data-stage="3">计算 0–100 协议质量分</li>
-  </ol>
-
-  <p class="form-error" id="run-error" role="alert" aria-live="assertive" hidden></p>
+  <p class="muted small">取消会停止继续检测，已发送的请求仍可能产生费用。重新读取进度不会重新发起检测。</p>
 </section>
-
-<script>
-(function () {
-  const id = {{ job_id|tojson }};
-  const mode = {{ job.mode|tojson }};
-  const createdAt = Number({{ job.created_at|tojson }}) * 1000;
-  const headline = document.getElementById('status-headline');
-  const scoreBox = document.getElementById('running-score');
-  const errBox = document.getElementById('run-error');
-  const progressBar = document.getElementById('progress-bar');
-  const stageLabel = document.getElementById('stage-label');
-  const elapsedLabel = document.getElementById('elapsed-label');
-  const spinner = document.getElementById('running-spinner');
-  const stages = Array.from(document.querySelectorAll('#running-stages li'));
-  const expectedSeconds = mode === 'quick' ? 25 : mode === 'full' ? 100 : 55;
-  let stopped = false;
-  let failures = 0;
-
-  function elapsedSeconds() {
-    return Math.max(0, Math.round((Date.now() - createdAt) / 1000));
-  }
-
-  function stageFor(elapsed, status) {
-    if (status === 'queued') return 0;
-    const ratio = elapsed / expectedSeconds;
-    if (ratio < 0.18) return 0;
-    if (ratio < 0.68) return 1;
-    if (ratio < 0.9) return 2;
-    return 3;
-  }
-
-  function renderProgress(status) {
-    const elapsed = elapsedSeconds();
-    const stage = stageFor(elapsed, status);
-    const percent = status === 'queued'
-      ? 4
-      : Math.min(92, Math.max(8, Math.round((elapsed / expectedSeconds) * 88)));
-    progressBar.style.width = percent + '%';
-    elapsedLabel.textContent = elapsed + ' 秒';
-    const labels = ['确认模型与传输方式', '执行协议与行为检测', '汇总字段级证据', '计算协议质量分'];
-    stageLabel.textContent = status === 'queued' ? '等待检测资源' : labels[stage];
-    stages.forEach((item, index) => {
-      item.classList.toggle('active', index === stage);
-      item.classList.toggle('done', index < stage);
-    });
-  }
-
-  async function poll() {
-    if (stopped) return;
-    const ctrl = new AbortController();
-    const timeout = setTimeout(() => ctrl.abort(), 10000);
-    try {
-      const r = await fetch('/api/status/' + id, {cache: 'no-store', signal: ctrl.signal});
-      if (!r.ok) throw new Error('status ' + r.status);
-      const j = await r.json();
-      failures = 0;
-      renderProgress(j.status);
-      if (j.status === 'done') {
-        stopped = true;
-        const score = Math.round(Number(j.total_score) || 0);
-        const checks = Number(j.completed_checks) || 0;
-        headline.textContent = '检测完成';
-        scoreBox.textContent = score + '/100';
-        scoreBox.hidden = false;
-        stageLabel.textContent = checks ? '已完成 ' + checks + ' 项有效检测' : '报告已生成';
-        progressBar.style.width = '100%';
-        spinner.classList.add('spinner-done');
-        stages.forEach((item) => { item.classList.remove('active'); item.classList.add('done'); });
-        setTimeout(() => location.replace(j.result_url || location.href), 900);
-        return;
-      }
-      if (j.status === 'error') {
-        stopped = true;
-        headline.textContent = '检测未完成,无法生成有效分数';
-        errBox.hidden = false;
-        errBox.textContent = j.error || '检测任务异常结束,请返回后重试。';
-        spinner.hidden = true;
-        return;
-      }
-      headline.textContent = j.status === 'running' ? '正在检测并收集证据…' : '检测任务正在排队…';
-    } catch (e) {
-      failures++;
-      if (failures >= 6) {
-        stopped = true;
-        headline.textContent = '暂时无法读取检测进度';
-        errBox.hidden = false;
-        errBox.textContent = '网络连接不稳定。任务仍可能在后台运行,请稍后刷新本页面。';
-        return;
-      }
-    } finally {
-      clearTimeout(timeout);
-    }
-    setTimeout(poll, 2500);
-  }
-
-  renderProgress('queued');
-  poll();
-})();
-</script>
+<script id="running-config" type="application/json">{{ {'id':job_id}|tojson }}</script>
+<script src="/static/running.js?v=task-state-v1" defer></script>
 {% endblock %}

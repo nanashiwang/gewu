@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - 'detector/src/relay_detector/model_catalog.py'
+      - 'detector/src/relay_detector/data/model_catalog.json'
       - 'detector/data/model_catalog_sources.json'
       - 'detector/scripts/check_model_catalog.py'
       - '.github/workflows/model-catalog.yml'

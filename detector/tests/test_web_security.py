@@ -306,6 +306,7 @@ def test_status_api_exposes_score_only_after_completion(monkeypatch):
 
     report = {
         "total_score": 91.2,
+        "protocol": "openai",
         "verdict": "passed",
         "results": [
             {"name": "basic_request", "status": "pass", "score": 100},

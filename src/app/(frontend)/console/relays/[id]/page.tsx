@@ -37,7 +37,7 @@ export default async function RelayDetailPage({ params }: { params: Promise<{ id
         <div className="mt-4 flex flex-wrap gap-4 text-xs text-[var(--muted)]"><span>{RELAY_PROTOCOL_LABELS[site.protocol]}</span><span>{site.model}</span><span>{modeLabel}</span><span>{site.hasApiKey ? '已配置检测 Key' : '未配置检测 Key'}</span><span>{site.scheduleEnabled ? `每 ${site.scheduleIntervalHours} 小时自动检测` : '未启用自动检测'}</span></div>
         {site.description && <p className="mt-4 whitespace-pre-wrap text-sm">{site.description}</p>}
         {site.reviewNotes && <div className="mt-4 rounded-lg border border-[var(--warn)]/40 p-3 text-sm"><b>审核反馈：</b>{site.reviewNotes}</div>}
-        <div className="mt-5"><RelaySiteActions site={site} hasActiveCheck={active} /></div>
+        <div className="mt-5"><RelaySiteActions site={site} hasActiveCheck={active} activeCheckId={checks.find((check) => ['queued', 'running'].includes(String(check.status)))?.id as string | undefined} /></div>
       </div>
 
       {!['verified', 'manual'].includes(site.claimStatus) && <Section title="站点认领（DNS TXT）"><RelayDnsRecord name={claim.name} value={claim.value} /></Section>}
