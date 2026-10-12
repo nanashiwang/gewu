@@ -1,14 +1,14 @@
-"""Model identity + deterministic stability check.
+"""Declared model fields and output-length observations.
 
 In OpenAI-compat mode, Gemini relays return the model id in `response.model`.
 The relay's job is to faithfully echo (or canonically map) the requested model.
-We also probe deterministic completion length stability across runs to flag
-models that silently fall back to a different routing target between calls.
+Completion lengths describe the sample only; neither length nor a matching
+model field proves which upstream model generated the response.
 """
 
 from __future__ import annotations
 
-import statistics
+from ....core.scoring_policy import sampling_observation
 
 from ....core.models import DetectorResult, Mode
 from ..config import models_match
@@ -44,18 +44,20 @@ class ModelInfoDetector(ActiveDetector):
 
         first = responses[0]
         response_model = str(first.get("model") or "")
-        match = models_match(model, response_model)
-        score = 60.0 if match else 0.0
+        response_models = [str(r.get("model") or "") for r in responses]
+        match = all(models_match(model, value) for value in response_models)
+        score = 100.0 if match else 0.0
         details = {
             "request_model": model,
             "response_model": response_model,
+            "response_models": response_models,
+            "score_basis": "仅检查每次响应声明的型号是否匹配请求；字段匹配不证明模型身份。",
             "model_match": match,
             "response_id": first.get("id"),
             "response_object": first.get("object"),
             "n_runs": runs,
         }
         if runs == 1:
-            score += 40.0
             details["stability_label"] = "skipped_quick_mode"
         else:
             tokens = [
@@ -63,18 +65,5 @@ class ModelInfoDetector(ActiveDetector):
                 for r in responses
             ]
             details["completion_tokens_seq"] = tokens
-            mean = statistics.mean(tokens) if tokens else 0
-            if mean:
-                cv = statistics.pstdev(tokens) / mean
-                details["stability_cv"] = round(cv, 3)
-                if cv < 0.10:
-                    score += 40.0
-                    details["stability_label"] = "stable"
-                elif cv < 0.30:
-                    score += 20.0
-                    details["stability_label"] = "suspicious"
-                else:
-                    details["stability_label"] = "highly_anomalous"
-            else:
-                details["stability_label"] = "no_completion_usage"
+            details.update(sampling_observation(tokens))
         return self._result("pass" if score >= 70.0 else "fail", score, details)

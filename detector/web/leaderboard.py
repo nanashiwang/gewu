@@ -101,6 +101,13 @@ class RelayStats:
     """Aggregated stats for one relay domain across all protocols + checks."""
     domain: str
     by_protocol: dict[str, ProtocolStats] = field(default_factory=dict)
+    scoring_version: str = "weighted-v1"
+    probe_version: str = ""
+
+    @property
+    def scoring_label(self) -> str:
+        from relay_detector.core.scoring_policy import scoring_label
+        return scoring_label(self.scoring_version)
 
     @property
     def total_count(self) -> int:
@@ -248,6 +255,16 @@ def approved_reports(max_age_days: int | None = None, *, include_incomplete: boo
             yield path, report
 
 
+def _select_score_cohort(candidates):
+    """Select one scoring/probe basis while keeping the original reports intact."""
+    from relay_detector.core.scoring_policy import SCORING_VERSION, LEGACY_SCORING_VERSION
+    version = SCORING_VERSION if any(report.get("scoring_version") == SCORING_VERSION for _, report in candidates) else LEGACY_SCORING_VERSION
+    candidates = [(path, report) for path, report in candidates if (report.get("scoring_version") or LEGACY_SCORING_VERSION) == version]
+    newest = max(candidates, key=lambda item: (_parse_timestamp(item[1]["timestamp"]), item[0].stem), default=None)
+    probes = (newest[1].get("probe_version") or "") if newest else ""
+    return [(path, report) for path, report in candidates if (report.get("probe_version") or "") == probes]
+
+
 def aggregate(max_age_days: int | None = None) -> tuple[list[RelayStats], dict[str, int]]:
     """Scan all report JSONs, return (sorted relay stats, summary metrics).
 
@@ -258,7 +275,8 @@ def aggregate(max_age_days: int | None = None) -> tuple[list[RelayStats], dict[s
     by_domain: dict[str, RelayStats] = defaultdict(lambda: RelayStats(domain=""))
     total_reports = 0
 
-    for json_path, report in approved_reports(max_age_days):
+    # Historical originals remain readable. Never average different score bases.
+    for json_path, report in _select_score_cohort(list(approved_reports(max_age_days))):
         domain = _extract_domain(report["base_url"])
         total_reports += 1
         protocol = str(report["protocol"])
@@ -267,11 +285,13 @@ def aggregate(max_age_days: int | None = None) -> tuple[list[RelayStats], dict[s
         ts = _parse_timestamp(report.get("timestamp"))
         relay = by_domain[domain]
         relay.domain = domain
+        relay.scoring_version = report.get("scoring_version") or "weighted-v1"
+        relay.probe_version = report.get("probe_version") or ""
         ps = relay.by_protocol.setdefault(protocol, ProtocolStats(protocol=protocol))
         ps.count += 1
         ps.scores.append(score)
         for result in report.get("results") or []:
-            if isinstance(result, dict) and result.get("status") == "fail":
+            if isinstance(result, dict) and result.get("status") == "fail" and result.get("evidence_role", "scored") == "scored":
                 name = result.get("name")
                 if isinstance(name, str):
                     ps.failed_detectors[name] += 1
@@ -314,6 +334,13 @@ class JobEntry:
     detector_version: str
     baseline_version: str
     reviewed_at: datetime | None
+    scoring_version: str = "weighted-v1"
+    probe_version: str = ""
+
+    @property
+    def scoring_label(self) -> str:
+        from relay_detector.core.scoring_policy import scoring_label
+        return scoring_label(self.scoring_version)
 
     @property
     def date_str(self) -> str:
@@ -352,6 +379,8 @@ def aggregate_one(domain: str) -> tuple[RelayStats, list[JobEntry]] | None:
 
     relay = RelayStats(domain=domain)
     history: list[JobEntry] = []
+    cohort = _select_score_cohort([(path, report) for path, report in approved_reports() if _extract_domain(report.get("base_url", "")) == domain])
+    cohort_paths = {path for path, _ in cohort}
 
     for dir_path in REPORT_DIRS:
         if not dir_path.is_dir():
@@ -387,26 +416,29 @@ def aggregate_one(domain: str) -> tuple[RelayStats, list[JobEntry]] | None:
             results = report.get("results") or []
             failed_count = sum(
                 1 for r in results
-                if isinstance(r, dict) and r.get("status") == "fail"
+                if isinstance(r, dict) and r.get("status") == "fail" and r.get("evidence_role", "scored") == "scored"
             )
 
-            ps = relay.by_protocol.setdefault(protocol, ProtocolStats(protocol=protocol))
-            ps.count += 1
-            ps.scores.append(score)
-            for r in results:
-                if isinstance(r, dict) and r.get("status") == "fail":
-                    name = r.get("name")
-                    if isinstance(name, str):
-                        ps.failed_detectors[name] += 1
-            if ts and (ps.last_checked is None or ts > ps.last_checked):
-                ps.last_checked = ts
-                ps.last_job_id = job_id
-                ps.last_score = score
-                ps.last_verdict = verdict
-            elif ps.last_checked is None:
-                ps.last_job_id = job_id
-                ps.last_score = score
-                ps.last_verdict = verdict
+            if json_path in cohort_paths:
+                relay.scoring_version = report.get("scoring_version") or "weighted-v1"
+                relay.probe_version = report.get("probe_version") or ""
+                ps = relay.by_protocol.setdefault(protocol, ProtocolStats(protocol=protocol))
+                ps.count += 1
+                ps.scores.append(score)
+                for r in results:
+                    if isinstance(r, dict) and r.get("status") == "fail" and r.get("evidence_role", "scored") == "scored":
+                        name = r.get("name")
+                        if isinstance(name, str):
+                            ps.failed_detectors[name] += 1
+                if ts and (ps.last_checked is None or ts > ps.last_checked):
+                    ps.last_checked = ts
+                    ps.last_job_id = job_id
+                    ps.last_score = score
+                    ps.last_verdict = verdict
+                elif ps.last_checked is None:
+                    ps.last_job_id = job_id
+                    ps.last_score = score
+                    ps.last_verdict = verdict
 
             history.append(JobEntry(
                 job_id=job_id,
@@ -421,6 +453,8 @@ def aggregate_one(domain: str) -> tuple[RelayStats, list[JobEntry]] | None:
                 detector_version=str(evidence.get("detector_version") or ""),
                 baseline_version=str(evidence.get("baseline_version") or "not_available"),
                 reviewed_at=reviewed_at,
+                scoring_version=report.get("scoring_version") or "weighted-v1",
+                probe_version=report.get("probe_version") or "",
             ))
 
     if not history:

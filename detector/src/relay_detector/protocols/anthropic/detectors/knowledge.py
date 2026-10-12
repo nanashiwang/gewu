@@ -7,6 +7,7 @@ Active. Two-mode question delivery (DESIGN §6.4):
     answer. Saves N-1 requests.
 
 Per-model expected_by_model overrides the global expected_keywords when present.
+Answers are observations with zero quality-scoring weight, not identity evidence.
 """
 
 from __future__ import annotations
@@ -34,8 +35,9 @@ def _load_questions() -> list[dict]:
 
 class KnowledgeDetector(ActiveDetector):
     name = "knowledge"
-    display_name = "知识准确度"
-    weight = 10.0
+    display_name = "知识问答观察"
+    weight = 0.0
+    evidence_role = "observation"
 
     async def run(self, client, model: str) -> DetectorResult:
         questions = _load_questions()

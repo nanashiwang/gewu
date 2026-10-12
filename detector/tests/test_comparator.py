@@ -1,6 +1,7 @@
 """Comparator unit tests — verify each per-detector severity classification."""
 
 from __future__ import annotations
+from datetime import datetime, timezone
 
 from relay_detector.comparator import (
     ComparisonReport,
@@ -40,7 +41,7 @@ def test_cmp_thinking_signature_block_missing_is_critical():
     assert any("thinking 块" in f for f in c.findings)
 
 
-def test_cmp_thinking_signature_short_signature_is_major():
+def test_cmp_thinking_signature_short_signature_is_observation_only():
     b = _result("thinking_signature", 100.0, details={
         "thinking_block_seen": True,
         "signature_length": 800,
@@ -50,7 +51,8 @@ def test_cmp_thinking_signature_short_signature_is_major():
         "signature_length": 100,  # < 30% of 800
     })
     c = _compare_one("thinking_signature", b, r)
-    assert c.severity == Severity.MAJOR
+    assert c.severity == Severity.OK
+    assert any("长度" in finding for finding in c.findings)
 
 
 def test_cmp_thinking_signature_aligned_is_ok():
@@ -64,7 +66,7 @@ def test_cmp_thinking_signature_aligned_is_ok():
     })
     c = _compare_one("thinking_signature", b, r)
     assert c.severity == Severity.OK
-    assert c.findings == []
+    assert all("长度" in finding for finding in c.findings)
 
 
 # --- pdf -------------------------------------------------------------------
@@ -108,11 +110,11 @@ def test_cmp_consistency_model_mismatch_is_critical():
     assert c.severity == Severity.CRITICAL
 
 
-def test_cmp_consistency_high_cv_is_major():
+def test_cmp_consistency_high_cv_is_observation_only():
     b = _result("consistency", 100.0, details={"model_match": True, "stability_cv": 0.01})
     r = _result("consistency", 90.0, details={"model_match": True, "stability_cv": 0.5})
     c = _compare_one("consistency", b, r)
-    assert c.severity == Severity.MAJOR
+    assert c.severity == Severity.OK
     assert any("CV=0.500" in f or "0.5" in f for f in c.findings)
 
 
@@ -127,7 +129,7 @@ def test_cmp_consistency_suspicious_cv_shows_seq():
         "output_tokens_seq": [44, 57, 60],
     })
     c = _compare_one("consistency", b, r)
-    assert c.severity == Severity.MINOR
+    assert c.severity == Severity.OK
     finding = " ".join(c.findings)
     assert "0.130" in finding or "0.13" in finding
     assert "[44, 57, 60]" in finding
@@ -311,6 +313,14 @@ def test_cmp_relay_error_is_major():
 
 # --- top-level compare() ---------------------------------------------------
 
+def _qualified(data):
+    from relay_detector.core.scoring_policy import SCORING_VERSION, PROBE_VERSION
+    return {**data, "protocol": "anthropic", "wire_api": "messages",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "scoring_version": SCORING_VERSION, "probe_version": PROBE_VERSION,
+            "results": [{**_result("identity"), "evidence_role": "observation", "weight": 0,
+                         "details": {"core_response_valid": True}}, *data["results"]]}
+
 
 def test_compare_overall_summary_aggregates_severities():
     baseline = {
@@ -328,7 +338,7 @@ def test_compare_overall_summary_aggregates_severities():
     relay = {
         "target_model": "claude-haiku-4-5",
         "mode": "full",
-        "total_score": 35.0,
+        "total_score": 25.0,
         "results": [
             _result("thinking_signature", 0.0, status="fail", details={
                 "thinking_block_seen": False, "signature_length": 0,
@@ -340,7 +350,7 @@ def test_compare_overall_summary_aggregates_severities():
             }),
         ],
     }
-    cmp = compare(baseline, relay)
+    cmp = compare(_qualified(baseline), _qualified(relay))
     assert cmp.overall_severity == Severity.CRITICAL
     # Verify each detector gets the right severity
     by_name = {d.name: d for d in cmp.detectors}
@@ -372,7 +382,7 @@ def test_compare_aligned_reports_overall_ok():
             }),
         ],
     }
-    cmp = compare(baseline, relay)
+    cmp = compare(_qualified(baseline), _qualified(relay))
     assert cmp.overall_severity == Severity.OK
 
 
@@ -390,4 +400,7 @@ def test_compare_model_mismatch_in_summary():
         "results": [],
     }
     cmp = compare(baseline, relay)
-    assert "模型不一致" in cmp.summary
+    assert "模型不同" in cmp.summary
+    assert cmp.comparable is False
+    assert cmp.overall_severity is None
+    assert not cmp.detectors

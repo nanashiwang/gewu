@@ -51,6 +51,7 @@ class Report:
             f"([{color}]{assessment['headline']}[/{color}])"
             f"\n接口: {assessment['availability']['label']} · 能力: {assessment['capability']['label']}"
             f"\n身份证据: {assessment['identity']['label']}\n{assessment['identity']['detail']}"
+            f"\n评分规则: {assessment['scoring_label']}；不同评分或探针版本不直接比较。"
         )
         if report.self_reported_identity:
             snippet = report.self_reported_identity.replace("\n", " ")
@@ -76,11 +77,15 @@ class Report:
         for r in report.results:
             status_str = _STATUS_LABEL.get(r.status, r.status)
             note = self._note_for(r)
+            observation = report.scoring_version == "evidence-v2" and r.evidence_role == "observation"
+            if observation:
+                status_str = "[dim]仅观察[/dim]" if r.status not in {"error", "skip"} else status_str
+                note = "不计分，不证明模型身份。" + note
             table.add_row(
                 r.display_name,
                 status_str,
-                f"{r.score:.0f}",
-                f"{r.weight:.0f}%",
+                "—" if observation else f"{r.score:.0f}",
+                "不计分" if observation else f"{r.weight:.0f}",
                 f"{r.duration_ms}ms" if r.duration_ms else "—",
                 note,
             )

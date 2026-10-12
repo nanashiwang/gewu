@@ -15,6 +15,8 @@ from urllib.parse import urlsplit
 from . import __version__
 from .core.models import Mode, Protocol, RankingEvidence
 from .core.assessment import CORE_DETECTORS, assess_report
+from .core.scoring_policy import SCORING_VERSION, PROBE_VERSION
+from .core.comparison_guard import comparison_reasons
 from .model_catalog import is_generic_chat
 
 
@@ -41,7 +43,7 @@ def detector_version() -> str:
     return os.environ.get("GEWU_RELEASE_ID", "").strip() or __version__
 
 
-def baseline_reference(protocol: str | Protocol, model: str, mode: str | Mode) -> str:
+def baseline_reference(protocol: str | Protocol, model: str, mode: str | Mode, *, report: Mapping | None = None) -> str:
     """Return a reproducible baseline filename + content hash, or an honest sentinel."""
     protocol_value = protocol.value if isinstance(protocol, Protocol) else str(protocol)
     mode_value = mode.value if isinstance(mode, Mode) else str(mode)
@@ -49,16 +51,21 @@ def baseline_reference(protocol: str | Protocol, model: str, mode: str | Mode) -
     baseline_root = detector_root / "data" / "baselines"
     candidates = [
         baseline_root / protocol_value / f"{model}_{mode_value}.json",
-        baseline_root / protocol_value / f"{model}_full.json",
         baseline_root / f"{model}_{mode_value}.json",
-        baseline_root / f"{model}_full.json",
     ]
     for path in candidates:
         if not path.is_file():
             continue
         try:
-            digest = hashlib.sha256(path.read_bytes()).hexdigest()[:12]
-        except OSError:
+            content = path.read_bytes()
+            candidate = json.loads(content)
+            if not isinstance(candidate, dict) or any(candidate.get(key) != expected for key, expected in {
+                "protocol": protocol_value, "target_model": model, "mode": mode_value,
+                "scoring_version": SCORING_VERSION, "probe_version": PROBE_VERSION,
+            }.items()) or comparison_reasons(candidate, report if report is not None else candidate):
+                continue
+            digest = hashlib.sha256(content).hexdigest()[:12]
+        except (OSError, ValueError, TypeError):
             continue
         return f"{path.name}#sha256:{digest}"
     return "not_available"
@@ -130,6 +137,8 @@ def assess_ranking_eligibility(report: Mapping[str, Any]) -> tuple[bool, str]:
         return False, "missing_detector_version"
     if not str(evidence.get("baseline_version") or "").strip():
         return False, "missing_baseline_version"
+    if report.get("scoring_version") == SCORING_VERSION and evidence.get("baseline_version") == "not_available":
+        return False, "uncalibrated_scoring_version"
     if not str(evidence.get("reviewer") or "").strip():
         return False, "missing_reviewer"
     if not str(evidence.get("reviewed_at") or "").strip():

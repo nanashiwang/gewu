@@ -10,7 +10,6 @@ documented validation error.
 Sub-checks:
   100 — original block is accepted and tampered control is specifically rejected
    60 — signature-shaped field exists but enforcement could not be proven
-   40 — signature-shaped field exists but is suspiciously short
    20 — thinking block exists but no opaque signature/data arrived
     0 — thinking parameter ignored / no thinking block at all
 
@@ -45,9 +44,6 @@ THINKING_BUDGET_TOKENS = 2000
 # official documentation examples.
 MAX_TOKENS = 16000
 
-# Empirically observed Anthropic thinking signatures are >> 100 chars; we
-# settle for >= 50 as a generous lower bound.
-SIGNATURE_MIN_LEN = 50
 REPLAY_MAX_TOKENS = 16
 REPLAY_PROMPT = "Reply with OK."
 
@@ -211,9 +207,6 @@ class ThinkingSignatureDetector(ActiveDetector):
         elif not signature_received or not signature_value:
             score = 20.0
             note = "thinking_block_but_no_signature"
-        elif len(signature_value) < SIGNATURE_MIN_LEN:
-            score = 40.0
-            note = "signature_too_short"
         else:
             original_content = [
                 block for block in (resp.get("content") or []) if isinstance(block, dict)

@@ -34,6 +34,7 @@ from .monitor_health import (
 )
 from .ranking import (
     approved_ranking_evidence,
+    baseline_reference,
     revoke_report_approval,
     unreviewed_ranking_evidence,
     update_report_approval,
@@ -41,6 +42,7 @@ from .ranking import (
 from .report import Report
 from .runner import Runner
 from .scorer import compute_total, effective_verdict, fatal_run_error, summary_text
+from .core.scoring_policy import SCORING_VERSION, PROBE_VERSION
 
 app = typer.Typer(
     name="gewu",
@@ -650,6 +652,7 @@ async def _run_detect(
         tier_title = WIRE_APIS[config.gemini_wire_api]["label"] + " 能力检测"
         tier_message = " ".join(capability_notes(config.gemini_wire_api))
     report = DetectionReport(
+        scoring_version=SCORING_VERSION, probe_version=PROBE_VERSION,
         protocol=protocol,
         wire_api=config.openai_wire_api if protocol == Protocol.OPENAI else config.gemini_wire_api if protocol == Protocol.GEMINI else None,
         tier=tier,
@@ -673,6 +676,7 @@ async def _run_detect(
         detected_non_anthropic_brands=detected_brands,
     )
 
+    report.ranking_evidence.baseline_version = baseline_reference(protocol, model, config.mode, report=report.model_dump(mode="json"))
     if report.wire_api in {"responses", "interactions", "generate_content"}:
         report.ranking_evidence.baseline_version = "not_available"
 
@@ -777,6 +781,9 @@ def compare_cmd(
 
 def _render_comparison(cmp) -> None:
     """Render a side-by-side comparison table to the terminal."""
+    if not cmp.comparable:
+        console.print(Panel(cmp.summary, title="不可直接比较", border_style="yellow"))
+        return
     color = _SEVERITY_COLOR.get(cmp.overall_severity.value, "white")
     bm, rm = cmp.baseline_meta, cmp.relay_meta
 

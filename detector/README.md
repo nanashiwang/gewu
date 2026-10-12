@@ -44,7 +44,9 @@
 
 Claude 协议下,启用 thinking 时会返回不透明的 `signature` 字段。仅检查字段存在或长度并不能证明真实性,所以 格物 会执行两次对照:原始 thinking block 必须被接受,篡改单字节后的 block 必须被服务端以 thinking 校验错误拒绝。只有两项同时成立才给 100 分。它是高强度协议证据,但不是本地公钥验签,也不宣称能绝对排除专门针对探针的恶意中转层。
 
-OpenAI / Gemini 没有同等级别的服务端签名机制,验证强度只到**协议级 / 行为级**,但仍可通过 `usage` 字段后端指纹(如 `claude_cache_creation_*` 残留)识别"换芯"中转站。
+OpenAI / Gemini 的本工具检测结论限于已测能力与协议兼容情况。响应字段残留可以提示协议转换或实现异常，不能据此确认上游模型身份。
+
+当前采用 **证据评分 v2**：模型自述、风格和知识问答仅观察、不计分；输出长度波动和签名长短不单独扣分。历史报告保留原分。基线比较要求相同模型、协议与接口、深度、评分/探针版本和实际计分范围，且采样均在 30 天内；不满足时显示“不可直接比较”。缺少可比基线的新报告不进入公共评分榜单。
 
 ---
 
@@ -75,11 +77,11 @@ OpenAI / Gemini 没有同等级别的服务端签名机制,验证强度只到**�
 
 | 类别 | 检测器 | 核心检测点 |
 |---|---|---|
-| **真伪** | identity | 直接询问"你是谁",含 Claude / Anthropic 关键词 |
-| | behavioral_signature | 3 道行为指纹题(markdown / 列表 / 拒绝风格) |
+| **观察（不计分）** | identity | 记录自述；有效文本仅确认基础请求完成 |
+| | behavioral_signature | 记录 markdown / 列表 / 拒绝风格 |
 | | **thinking_signature** ⭐ | **签名回放**:原始块通过、篡改单字节块被明确拒绝 |
-| | consistency | model 字段匹配 + 多次响应稳定性(CV) |
-| | knowledge | 5 道 Anthropic 公司知识题 |
+| | consistency | 每次 model 字段匹配；长度 CV 仅作观察 |
+| **观察（不计分）** | knowledge | 知识问答表现，不证明身份 |
 | **能力** | pdf | base64 PDF + magic string 提取 |
 | | structured_output | tool_use schema 校验(5 项子检查) |
 | **协议** | protocol | 字段、content block 类型、SSE 序列 |
@@ -187,10 +189,10 @@ nano .env  # 填 ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY / ANTHROPIC_MODEL
 
 | 级别 | 含义 | 典型场景 |
 |---|---|---|
-| **✗ 严重 (critical)** | 几乎确定不是真品 | thinking 块缺失 / PDF 剥离 / tool_use 假 ID |
-| **⚠ 重大 (major)** | 疑似伪装 / 能力降级 | response.model 不匹配 / 用 UUID 替代 msg_ |
-| **▲ 轻微 (minor)** | 能用但有协议偏差 | 1-2 题失败 / CV 偏高 / 1-2 个 issues |
-| **✓ 一致 (ok)** | 跟官方基线一致 | 关键字段全部匹配 |
+| **✗ 严重 (critical)** | 已测能力或协议存在严重差异 | thinking 块缺失 / PDF 探针失败 |
+| **⚠ 重大 (major)** | 已测协议或能力差异需复核 | 签名对照未成立 / 消息 ID 不符合协议 |
+| **▲ 轻微 (minor)** | 已测项目的较小差异 | 部分协议子检查异常 |
+| **✓ 一致 (ok)** | 已比较项目未发现质量差异 | 不等于具体模型身份已认证 |
 
 #### 启动 Web 服务(本地)
 

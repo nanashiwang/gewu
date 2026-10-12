@@ -72,6 +72,7 @@ class DetectorResult(BaseModel):
     status: DetectorStatus
     score: float = Field(ge=0.0, le=100.0)
     weight: float = Field(ge=0.0)
+    evidence_role: Literal["scored", "observation"] = "scored"
     details: dict[str, Any] = Field(default_factory=dict)
     # null for passive detectors (no own request) and for skipped/error
     # results that never started timing.
@@ -132,6 +133,9 @@ class RankingEvidence(BaseModel):
 class DetectionReport(BaseModel):
     # Defaults preserve compatibility with historical Claude-only reports.
     protocol: Protocol = Protocol.ANTHROPIC
+    # Missing metadata always means a historical report, never the current policy.
+    scoring_version: str = "weighted-v1"
+    probe_version: str = ""
     wire_api: Literal["chat_completions", "responses", "messages", "interactions", "generate_content"] | None = None
     tier: DetectionTier = DetectionTier.SIGNATURE_ROUNDTRIP
     tier_title: str = ""
@@ -164,6 +168,7 @@ class DetectionReport(BaseModel):
         from .assessment import assess_report
         return assess_report({
             "protocol": self.protocol.value, "total_score": self.total_score,
+            "scoring_version": self.scoring_version, "probe_version": self.probe_version,
             "verdict": self.verdict, "run_error": self.run_error,
             "results": [row.model_dump() for row in self.results],
         })

@@ -91,13 +91,23 @@
 </section>
 {% else %}
 <section class="card">
+  {% if ranking.source and ranking.source != 'user_submission' %}
+  <strong>本次报告暂不参与公共榜单：</strong>
+  证据尚未满足当前榜单准入条件，可以查看本次实测结果。
+  {% else %}
   <strong>用户自测报告：</strong>
   本报告可分享，但不会自动参与公共榜单评分或改变站点排名。
+  {% endif %}
+  {% if report.scoring_version == 'evidence-v2' and ranking.baseline_version == 'not_available' %}
+  <p class="muted small">尚无满足同模型、接口、版本及检测范围要求的近期基线，本次分数不能作为相对官方基线的结论。</p>
+  {% endif %}
 </section>
 {% endif %}
 
 <section class="card">
   <h2>先看结论，再看证据</h2>
+  <p class="muted small">{{ assessment.scoring_label }} · 不同评分版本、探针版本或检测范围不直接比较，历史报告保留原分。</p>
+  {% if assessment.observation_count %}<p>模型自述、行为风格和知识问答仅作观察，不计入质量分。输出长度波动与签名长度也不单独作为扣分依据。</p>{% endif %}
   <div class="evidence-grid">
     {% for title, item in [('接口可用性', assessment.availability), ('实测能力', assessment.capability), ('模型身份证据', assessment.identity)] %}
     <div><h3>{{ title }}</h3><strong>{{ item.label }}</strong><p class="muted small">{{ item.detail }}</p></div>

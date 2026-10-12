@@ -131,8 +131,8 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "ask-who-are-you",
                 "直接问「你是谁」能验证模型真假吗?",
                 "不能。现代模型都被训练得知道怎么回答身份问题,而且中转站可以注入 system prompt "
-                "让模型说「我是 Claude」。格物 把「身份一致性」检测的权重设为 5%,"
-                "只作为最弱的辅助信号 — 更强的证据来自 thinking block 的原始/篡改回放验证。",
+                "让模型说「我是 Claude」。当前证据评分 v2 将自述、风格和知识问答设为观察项，不参与质量分。"
+                "thinking block 的原始/篡改回放属于更强的协议证据，仍不证明具体模型版本。",
             ),
             FAQEntry(
                 "kiro-amazon-q",
@@ -179,10 +179,9 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "claude-detector-coverage",
                 "格物 的 Claude 检测覆盖哪些维度?",
-                "11 项,按权重:thinking signature (25%) > behavioral signature (15%) > "
-                "structured output (12%) > consistency / knowledge / token usage (各 10%) > pdf (8%) > "
-                "identity / protocol / integrity / message_id (各 5%)。"
-                "standard 模式跑 9 项 ~45 秒,full 模式跑全 11 项 ~75 秒。",
+                "覆盖签名回放、PDF、结构化输出、型号字段、协议、流式完整性、消息标识和用量等。"
+                "自述、行为风格、知识问答只观察，不计分；长度波动不推断换模。"
+                "实际覆盖随模型、接口、深度和选测项变化，以报告中已执行的项目为准。",
             ),
             FAQEntry(
                 "claude-stream-no-thinking",
@@ -243,10 +242,8 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "openai-model-mismatch",
                 "我用的中转站 model 字段返回 gpt-4o,但响应明显不像 GPT,怎么办?",
-                "model 字段只是字符串,中转站可以填任何值。真伪要看其他指标:"
-                "① 格物 协议规范性 detector 会扫 usage 字段指纹;"
-                "② 行为差异(GPT 偏简洁,Claude 偏礼貌啰嗦);"
-                "③ 多次调用的 token 数 CV(模型一致性 detector)。",
+                "model 字段只是响应声明，匹配也不能证明身份。建议复核结构化输出、工具调用、流式和用量等实际能力。"
+                "写作风格、自述和 token 长度波动都可能受提示词或采样影响，当前规则仅记录观察，不据此扣分或断言换模。",
             ),
             FAQEntry(
                 "openai-no-models",
@@ -300,8 +297,8 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
                 "gemini-google-official",
                 "Google 官方 Gemini API 也能用 格物 测吗?",
                 "可以。base_url 填 https://generativelanguage.googleapis.com/v1beta/openai,"
-                "api_key 用 Google AI Studio 申请的 AIza... key。Google 官方端点应该全 7 项 100 分,"
-                "可作为基线对比第三方中转站。",
+                "api_key 使用 Google AI Studio 的有效 Key。官方端点也不保证所有探针满分；"
+                "仅在模型、接口、深度、版本、计分覆盖与采样时间都满足可比条件时，才用于基线对比。",
             ),
         ),
     ),

@@ -43,6 +43,7 @@
   </div>
 </section>
 {% if relay %}
+<p class="muted small">统计口径：{{ relay.scoring_label }} · 探针 {{ relay.probe_version or '历史未记录' }}。不同版本不混合计分，历史记录保留原分。</p>
 <section class="lb-detail-summary">
   <div class="lb-detail-score lb-score-{{ relay.verdict_class }}"><span class="lb-detail-score-num">{{ "%.0f"|format(relay.overall_median) }}</span><span class="lb-detail-score-label">逐次报告中位分</span></div>
   <div class="lb-detail-protocols"><h2>各协议最近表现</h2><div class="lb-protocols">{% for proto, ps in relay.by_protocol.items() %}{% set badge_class = 'ok' if ps.last_score >= 85 else ('good' if ps.last_score >= 70 else ('warn' if ps.last_score >= 50 else 'fail')) %}<a class="lb-proto-chip lb-proto-{{ badge_class }}" href="/r/{{ ps.last_job_id }}"><span class="lb-proto-name">{{ protocol_labels.get(proto, proto) }}</span><span class="lb-proto-score">{{ "%.0f"|format(ps.last_score) }}</span><span class="lb-proto-count">×{{ ps.count }}</span></a>{% endfor %}</div><p class="lb-detail-hint">点击协议徽章查看该协议最近一次完整报告。</p></div>
@@ -59,8 +60,8 @@
   </div>
   <div class="lb-history-table-wrap">
     <table class="lb-history-table">
-      <thead><tr><th>日期</th><th>证据来源</th><th>审核</th><th>检测器</th><th>基线</th><th>协议</th><th>测试模型</th><th class="num">分数</th><th>判定</th><th class="num">扣分项</th><th>报告</th></tr></thead>
-      <tbody>{% for item in history %}<tr><td>{{ item.date_str }}</td><td>{{ item.source_label }}</td><td>{{ item.review_label }}</td><td><code>{{ item.detector_version }}</code></td><td><code>{{ item.baseline_version }}</code></td><td>{{ protocol_labels.get(item.protocol, item.protocol) }}</td><td><code>{{ item.model or "—" }}</code></td><td class="num"><span class="lb-history-score lb-history-score-{{ item.badge_class }}">{{ "%.0f"|format(item.score) }}</span></td><td>{{ verdict_labels.get(item.verdict, item.verdict) }}</td><td class="num">{{ item.failed_count }}</td><td><a href="/r/{{ item.job_id }}">查看 →</a></td></tr>{% endfor %}</tbody>
+      <thead><tr><th>日期</th><th>证据来源</th><th>审核</th><th>检测器 / 评分 / 探针</th><th>基线</th><th>协议</th><th>测试模型</th><th class="num">分数</th><th>判定</th><th class="num">扣分项</th><th>报告</th></tr></thead>
+      <tbody>{% for item in history %}<tr><td>{{ item.date_str }}</td><td>{{ item.source_label }}</td><td>{{ item.review_label }}</td><td><code>{{ item.detector_version }}</code><br>{{ item.scoring_label }}<br><code>{{ item.probe_version or '历史未记录' }}</code></td><td><code>{{ item.baseline_version }}</code></td><td>{{ protocol_labels.get(item.protocol, item.protocol) }}</td><td><code>{{ item.model or "—" }}</code></td><td class="num"><span class="lb-history-score lb-history-score-{{ item.badge_class }}">{{ "%.0f"|format(item.score) }}</span></td><td>{{ verdict_labels.get(item.verdict, item.verdict) }}</td><td class="num">{{ item.failed_count }}</td><td><a href="/r/{{ item.job_id }}">查看 →</a></td></tr>{% endfor %}</tbody>
     </table>
   </div>
 </section>

@@ -1092,7 +1092,7 @@ async def result_jpg(job_id: str) -> Response:
 
     # Cache the JPG next to the JSON. Detection report is immutable, so once
     # generated we always serve from disk to spare the CPU.
-    cache_path = jobs.image_path(job_id, j.protocol).with_suffix(".evidence-v2.jpg")
+    cache_path = jobs.image_path(job_id, j.protocol).with_suffix(".calibration-v2.jpg")
     if not cache_path.exists():
         png_bytes = render_report_jpg(j.report)
         cache_path.write_bytes(png_bytes)
@@ -1412,6 +1412,10 @@ def _result_rows(report: dict) -> list[dict]:
             label_short, css = "警告", "warn"
         else:
             label_short, css = "未通过", "fail"
+        if report.get("scoring_version") == "evidence-v2" and r.get("evidence_role") == "observation":
+            label = r.get("display_name") or label
+            if status not in {"skip", "error"}:
+                label_short, css = "仅观察 · 不计分", "muted"
         out.append({
             "name": name,
             "label": label,

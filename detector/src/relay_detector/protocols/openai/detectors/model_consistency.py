@@ -1,8 +1,8 @@
-"""OpenAI model field and deterministic output consistency."""
+"""Check declared model fields; record output lengths without a quality penalty."""
 
 from __future__ import annotations
 
-import statistics
+from ....core.scoring_policy import sampling_observation
 
 from ....core.models import DetectorResult, Mode
 from ..config import models_match
@@ -38,16 +38,18 @@ class ModelConsistencyDetector(ActiveDetector):
             return self._result("error", 0.0, error=str(e))
 
         response_model = str(responses[0].get("model") or "")
-        match = models_match(model, response_model)
-        score = 60.0 if match else 0.0
+        response_models = [str(r.get("model") or "") for r in responses]
+        match = all(models_match(model, value) for value in response_models)
+        score = 100.0 if match else 0.0
         details = {
             "request_model": model,
             "response_model": response_model,
+            "response_models": response_models,
+            "score_basis": "仅检查每次响应声明的型号是否匹配请求；字段匹配不证明模型身份。",
             "model_match": match,
             "n_runs": runs,
         }
         if runs == 1:
-            score += 40.0
             details["stability_label"] = "not_applicable_sampling_restricted" if variable_sampling else "skipped_quick_mode"
         else:
             tokens = [
@@ -55,20 +57,7 @@ class ModelConsistencyDetector(ActiveDetector):
                 for r in responses
             ]
             details["completion_tokens_seq"] = tokens
-            mean = statistics.mean(tokens) if tokens else 0
-            if mean:
-                cv = statistics.pstdev(tokens) / mean
-                details["stability_cv"] = round(cv, 3)
-                if cv < 0.10:
-                    score += 40.0
-                    details["stability_label"] = "stable"
-                elif cv < 0.30:
-                    score += 20.0
-                    details["stability_label"] = "suspicious"
-                else:
-                    details["stability_label"] = "highly_anomalous"
-            else:
-                details["stability_label"] = "no_completion_usage"
+            details.update(sampling_observation(tokens))
         return self._result("pass" if score >= 70 else "fail", score, details)
 
 

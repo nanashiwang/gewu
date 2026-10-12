@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 
 from . import leaderboard
 from relay_detector.core.assessment import assess_report
+from relay_detector.core.scoring_policy import scoring_label
 
 
 def monitoring_snapshot() -> dict:
@@ -28,8 +29,10 @@ def monitoring_snapshot() -> dict:
             str(report.get("mode") or "unknown"),
             str(evidence["detector_version"]),
             str(evidence["baseline_version"]),
+            str(report.get("scoring_version") or "weighted-v1"),
+            str(report.get("probe_version") or "unknown"),
         )
-        statuses = [r.get("status") for r in report["results"] if isinstance(r, dict)]
+        statuses = [r.get("status") for r in report["results"] if isinstance(r, dict) and r.get("evidence_role", "scored") == "scored"]
         state = (
             "risk" if "fail" in statuses
             else "incomplete" if any(s != "pass" for s in statuses)
@@ -45,7 +48,7 @@ def monitoring_snapshot() -> dict:
     rows = []
     for key, samples in grouped.items():
         samples.sort(key=lambda s: (s["timestamp"], s["job_id"]), reverse=True)
-        domain, endpoint_id, protocol, model, mode, version, baseline = key
+        domain, endpoint_id, protocol, model, mode, version, baseline, scoring, probes = key
         days = []
         for offset in range(6, -1, -1):
             day = (now - timedelta(days=offset)).date()
@@ -61,6 +64,8 @@ def monitoring_snapshot() -> dict:
         rows.append({
             "domain": domain, "endpoint_id": endpoint_id, "protocol": protocol,
             "model": model, "mode": mode, "version": version, "baseline": baseline,
+            "scoring_version": scoring, "probe_version": probes,
+            "scoring_label": scoring_label(scoring),
             "count": len(samples), "latest": samples[0], "days": days,
             "history": samples[:12],
         })
