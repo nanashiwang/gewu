@@ -115,6 +115,8 @@ def assess_ranking_eligibility(report: Mapping[str, Any]) -> tuple[bool, str]:
     """Fail closed unless trust metadata and detector evidence are both valid."""
     if report.get("wire_api") == "responses":
         return False, "responses_capability_only"
+    if report.get("wire_api") in {"interactions", "generate_content"}:
+        return False, "gemini_native_capability_only"
     evidence = report.get("ranking_evidence")
     if not isinstance(evidence, Mapping):
         return False, "missing_ranking_evidence"

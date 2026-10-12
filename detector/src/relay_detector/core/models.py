@@ -32,6 +32,7 @@ class DetectionTier(str, Enum):
 class ExecutionConfig(BaseModel):
     mode: Mode = Mode.QUICK
     openai_wire_api: Literal["chat_completions", "responses"] = "chat_completions"
+    gemini_wire_api: Literal["chat_completions", "interactions", "generate_content"] = "chat_completions"
     max_concurrent: int = 3
     request_timeout_s: float = 30.0
     overall_timeout_s: float = 60.0
@@ -131,7 +132,7 @@ class RankingEvidence(BaseModel):
 class DetectionReport(BaseModel):
     # Defaults preserve compatibility with historical Claude-only reports.
     protocol: Protocol = Protocol.ANTHROPIC
-    wire_api: Literal["chat_completions", "responses"] | None = None
+    wire_api: Literal["chat_completions", "responses", "messages", "interactions", "generate_content"] | None = None
     tier: DetectionTier = DetectionTier.SIGNATURE_ROUNDTRIP
     tier_title: str = ""
     tier_message: str = ""

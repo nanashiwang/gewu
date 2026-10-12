@@ -349,6 +349,9 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
         title = "Responses 能力检测报告" if report.get("wire_api") == "responses" else "OpenAI 中转站检测报告"
     elif protocol == "gemini":
         title = "Gemini 中转站检测报告"
+        if report.get("wire_api") in {"interactions", "generate_content"}:
+            from relay_detector.wire_apis import WIRE_APIS
+            title = WIRE_APIS[report["wire_api"]]["label"] + " 检测报告"
     else:
         title = "中转站检测报告"
     d.text((60, 50), title, fill=_TEXT, font=title_font)
@@ -443,16 +446,17 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
     }
 
     labels = _DETECTOR_LABELS.get(protocol, _DETECTOR_LABELS["anthropic"])
-    if report.get("wire_api") == "responses":
-        labels = [("basic_request", "基础回复"), ("responses_stream", "流式完整性"),
-                  ("responses_schema", "结构化输出"), ("responses_tools", "工具调用往返")]
+    if report.get("wire_api") in {"responses", "interactions", "generate_content"}:
+        prefix = "responses" if report.get("wire_api") == "responses" else "gemini"
+        labels = [("basic_request", "基础回复"), (prefix + "_stream", "流式完整性"),
+                  (prefix + "_schema", "结构化输出"), (prefix + "_tools", "工具调用往返")]
     for i, (name, label) in enumerate(labels):
         ry = rows_top + i * row_h
         result = by_name.get(name) or {}
         status = str(result.get("status") or "skip")
         score_v = float(result.get("score", 0.0))
         status_text, status_color = _status_label(status, score_v)
-        if report.get("wire_api") == "responses" and status in {"skip", "error"}:
+        if report.get("wire_api") in {"responses", "interactions", "generate_content"} and status in {"skip", "error"}:
             status_text = "未测试" if status == "skip" else "证据不足"
         if name in {"token_billing", "token_usage"} and status == "skip":
             status_text = "无法判断"
@@ -493,7 +497,7 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
 
     # Plain-language note for share images. Keep it short so the JPG remains
     # readable on mobile and social previews.
-    if report.get("wire_api") == "responses":
+    if report.get("wire_api") in {"responses", "interactions", "generate_content"}:
         note = "只反映本次已测能力，不证明模型身份或实际扣费。"
         if not (report.get("performance") or {}).get("usage_complete", True):
             note = "部分请求缺少用量，Token 数非全部消耗；不证明模型身份或实际扣费。"

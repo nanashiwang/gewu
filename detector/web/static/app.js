@@ -40,6 +40,32 @@
   update();
 })();
 
+(function () {
+  const wire = document.getElementById('gemini-wire-api');
+  if (!wire) return;
+  const mode = document.getElementById('mode');
+  const budget = document.getElementById('gemini-native-budget');
+  const base = document.getElementById('base_url');
+  const update = () => {
+    const native = wire.value !== 'chat_completions';
+    budget.hidden = !native;
+    budget.textContent = `本次最多 ${ {quick: 2, standard: 3, full: 5}[mode.value] } 次请求，每次输出上限 4096 tokens。无额外付费预检、自动重试或接口切换；用量由你的 Key 承担，实际费用以服务商为准。`;
+    base.placeholder = native ? 'https://generativelanguage.googleapis.com/v1beta' : 'https://generativelanguage.googleapis.com/v1beta/openai';
+    const labels = native ? ['快速 · 基础与流式', '标准 · 加测结构化输出', '完整 · 加测工具往返'] : ['快速 · 基础请求', '标准 · 协议与流式检查', '完整 · 全部适用项目'];
+    Array.from(mode.options).forEach((option, index) => { option.textContent = labels[index]; });
+    document.getElementById('gemini-interface-hint').textContent = native
+      ? '原生接口不自动探测兼容模型列表。候选目录不代表本站已开通；地址保留服务商指定的版本前缀，只有根域名时追加 /v1beta。'
+      : '选择与中转站实际文档一致的接口；不会自动切换。';
+    if (native) document.getElementById('model-choice-hint').textContent = '从官方候选目录选择；原生接口不自动读取兼容模型列表。此型号是否可用，以首次检测请求为准。';
+    const intro = document.querySelector('.detect-aside li:first-child p');
+    if (intro) intro.textContent = native ? '填写服务商提供的原生接口地址和 Key，确认所选接口已开放。' : '填写服务商提供的地址和 Key，读取可用模型列表。';
+  };
+  wire.addEventListener('change', () => queueMicrotask(update));
+  [base, document.getElementById('api_key')].forEach(input => input.addEventListener('input', () => queueMicrotask(update)));
+  mode.addEventListener('change', update);
+  update();
+})();
+
 // Mobile navigation closes on outside clicks, links and Escape.
 (function () {
   const toggle = document.querySelector('.nav-toggle');
@@ -193,6 +219,7 @@
   let lastKey = null;
 
   async function runProbe() {
+    if (document.getElementById('gemini-wire-api')?.value && document.getElementById('gemini-wire-api').value !== 'chat_completions') return;
     const baseUrl = baseUrlInput.value.trim();
     const apiKey = apiKeyInput.value.trim();
     if (!baseUrl || !apiKey || apiKey.length < 8) return;
@@ -321,6 +348,16 @@
   }
 
   let lastProbeData = null;
+  document.getElementById('gemini-wire-api')?.addEventListener('change', () => {
+    if (inflight) inflight.abort();
+    inflight = null;
+    lastKey = null;
+    lastProbeData = null;
+    pill.hidden = true;
+    setSubmitEnabled(true);
+    window.gewuBestByProtocol = {};
+    if (window.gewuResetModelChoices) window.gewuResetModelChoices();
+  });
   document.getElementById('wire-api')?.addEventListener('change', () => {
     if (lastProbeData) renderProbeResult(lastProbeData);
   });

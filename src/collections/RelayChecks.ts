@@ -60,6 +60,7 @@ export const RelayChecks: CollectionConfig = {
       ],
     },
     { name: 'protocol', type: 'select', required: true, options: ['openai', 'anthropic', 'gemini'], label: '协议' },
+    { name: 'wireApi', type: 'select', options: ['chat_completions', 'responses', 'messages', 'interactions', 'generate_content'], label: '检测接口' },
     { name: 'model', type: 'text', required: true, label: '模型' },
     { name: 'mode', type: 'select', required: true, options: ['quick', 'standard', 'full'], label: '模式' },
     {

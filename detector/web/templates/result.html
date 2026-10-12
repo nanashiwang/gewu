@@ -72,7 +72,7 @@
     <p class="muted">
       模型:<code>{{ report.target_model }}</code> · 模式 <code>{{ report.mode }}</code> ·
       中转站 <code>{{ report.base_url }}</code>
-      {% if report.wire_api %} · 接口 <code class="report-interface">{{ 'Responses' if report.wire_api == 'responses' else 'Chat Completions' }}</code>{% endif %}
+      {% if report.wire_api %} · 接口 <code class="report-interface">{{ wire_apis.get(report.wire_api, {}).get('label', report.wire_api) }}</code>{% endif %}
     </p>
   </div>
   <div class="result-actions">
@@ -207,7 +207,7 @@
 <p class="muted small">本次检测未完成，尚未汇总完整耗时与用量。已发送的请求仍可能产生费用。</p>
 {% endif %}
 
-{% if report.wire_api == 'responses' %}
+{% if report.wire_api in ['responses', 'interactions', 'generate_content'] %}
 <p class="muted small">Token 数仅汇总上游已返回的 Usage，不代表实际账单。{% if not perf.usage_complete | default(true) %}本次部分请求缺少完整用量，显示值不能代表全部消耗，失败请求也可能产生费用。{% endif %}</p>
 {% endif %}
 
@@ -221,7 +221,15 @@
 
 <section class="card details-card">
   <details>
-    {% if report.wire_api == 'responses' %}
+    {% if report.wire_api in ['interactions', 'generate_content'] %}
+    <summary>Gemini 原生检测项各自检查什么?</summary>
+    <dl class="def-list">
+      <dt>基础回复</dt><dd>发送随机校验文本，检查接口完整响应与指定内容。</dd>
+      <dt>流式完整性</dt><dd>检查所选原生接口的事件顺序、文本增量和正常结束状态；错误、中途断流或未结束的内容不能通过。</dd>
+      <dt>结构化输出</dt><dd>以原生 JSON Schema 参数提交，验证返回值、字段和随机校验内容。</dd>
+      <dt>工具调用往返</dt><dd>验证函数名和参数，保留原始签名历史回传本地随机回执；不执行外部工具。</dd>
+    </dl>
+    {% elif report.wire_api == 'responses' %}
     <summary>Responses 检测项各自检查什么?</summary>
     <dl class="def-list">
       <dt>基础回复</dt>
@@ -259,9 +267,9 @@
     <summary>Gemini 检测项各自检查什么?</summary>
     <dl class="def-list">
       <dt>基础请求</dt>
-      <dd>发送最小 <code>generateContent</code> 请求,确认接口可用且能提取 Gemini 文本响应。</dd>
+      <dd>发送 <code>Chat Completions</code> 请求，确认兼容接口可用且能提取文本响应。</dd>
       <dt>模型响应形状</dt>
-      <dd>检查 <code>modelVersion</code>、<code>responseId</code>、<code>finishReason</code>、candidate 和 safety 字段是否完整。</dd>
+      <dd>检查兼容响应中的 <code>model</code>、<code>choices</code>、<code>finish_reason</code> 等字段。</dd>
       <dt>函数调用</dt>
       <dd>通过 OpenAI 兼容接口发起工具调用，检查函数名、参数和结束原因是否符合请求。</dd>
       <dt>结构化输出</dt>

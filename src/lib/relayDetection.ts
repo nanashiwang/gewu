@@ -2,6 +2,7 @@ import type { Payload } from 'payload'
 import { decryptSecret } from './secrets'
 import { nextRelayCheckAt, relayGrade, relationId } from './relaySite'
 import { reportHasUsableEvidence } from './relayEvidence'
+import { resolveRelayWireApi, sameRelayConfiguration } from './relayWireApi'
 
 const ACTIVE_CHECK_STATUSES = ['queued', 'running']
 const CHECK_SUBMISSION_STALE_MS = 5 * 60 * 1000
@@ -97,6 +98,7 @@ export async function startRelayCheck(
     overrideAccess: true,
   })
   if (active.totalDocs > 0) throw new Error('该中转站已有检测任务正在运行')
+  const wireApi = resolveRelayWireApi(site.protocol, site.wireApi)
 
   const apiKey = decryptSecret(site.apiKeyEncrypted)
   if (!apiKey) throw new Error('中转站尚未配置可用的 API Key')
@@ -111,6 +113,7 @@ export async function startRelayCheck(
         triggeredBy: options.userId || undefined,
         source: options.source,
         protocol: site.protocol,
+        wireApi,
         model: site.model,
         mode: site.mode || 'standard',
         status: 'queued',
@@ -127,6 +130,7 @@ export async function startRelayCheck(
     form.set('api_key', apiKey)
     form.set('model', String(site.model))
     form.set('mode', String(site.mode || 'standard'))
+    form.set('wire_api', wireApi)
     const result = await detectorFetch(`/api/detect/${site.protocol}`, { method: 'POST', body: form }, 45_000)
     const jobId = String(result?.job_id || '')
     if (!jobId || !/^[A-Za-z0-9_-]{8,64}$/.test(jobId)) throw new Error('检测服务未返回有效任务 ID')
@@ -256,6 +260,19 @@ export async function reconcileRelayCheck(payload: Payload, check: any) {
 
   const report = redactRelaySecret(rawReport, apiKey) as Record<string, any>
   const resultUrl = `${detectorPublicUrl()}/r/${encodeURIComponent(String(check.detectorJobId))}`
+  let matchingInterface = false
+  try {
+    matchingInterface = resolveRelayWireApi(String(check.protocol), check.wireApi) === resolveRelayWireApi(String(check.protocol), report.wire_api)
+      && (!report.protocol || report.protocol === check.protocol)
+      && (!report.target_model || report.target_model === check.model)
+      && (!report.mode || report.mode === check.mode)
+      && (check.wireApi == null || (report.protocol === check.protocol && report.target_model === check.model && report.mode === check.mode))
+  } catch { /* Invalid or mismatched metadata never becomes scored evidence. */ }
+  if (!matchingInterface) {
+    return payload.update({ collection: 'relay-checks' as any, id: check.id, overrideAccess: true,
+      data: { status: 'error', score: null, grade: null, verdict: null, report, resultUrl,
+        error: '报告接口、模型或模式与任务不匹配，未写入站点质量档案', finishedAt: new Date().toISOString() } })
+  }
   if (!reportHasUsableEvidence(report, String(check.protocol || site?.protocol || ''))) {
     return payload.update({
       collection: 'relay-checks' as any, id: check.id, overrideAccess: true,
@@ -294,7 +311,8 @@ export async function reconcileRelayCheck(payload: Payload, check: any) {
     },
   }) as any
 
-  if (siteId) {
+  if (siteId && site && sameRelayConfiguration(check, site) &&
+      (!report.base_url || String(report.base_url).replace(/\/+$/, '') === String(site.apiBaseUrl).replace(/\/+$/, ''))) {
     await payload.update({
       collection: 'relay-sites' as any,
       id: siteId,

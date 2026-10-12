@@ -1,0 +1,7 @@
+{
+  "chat_completions": {"label": "Chat Completions（兼容）", "protocols": ["openai", "gemini"], "native": false},
+  "responses": {"label": "Responses", "protocols": ["openai"], "native": true},
+  "messages": {"label": "Messages", "protocols": ["anthropic"], "native": true},
+  "interactions": {"label": "Gemini Interactions", "protocols": ["gemini"], "native": true},
+  "generate_content": {"label": "Gemini generateContent", "protocols": ["gemini"], "native": true}
+}

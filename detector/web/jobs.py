@@ -308,7 +308,7 @@ async def submit(
     job = Job(
         id=job_id,
         protocol=protocol,
-        wire_api=wire_api if protocol == "openai" else None,
+        wire_api=wire_api if protocol in {"openai", "gemini"} else None,
         base_url=redact_text(base_url, api_key),
         target_model=redact_text(model, api_key),
         mode=mode,
@@ -428,7 +428,12 @@ async def _run(
         try:
             _save_state(j)
             cfg = ExecutionConfig.for_mode(Mode(mode), max_concurrent=3)
-            cfg.openai_wire_api = wire_api
+            from relay_detector.wire_apis import resolve_wire_api
+            resolve_wire_api(protocol, wire_api if protocol != "anthropic" else None)
+            if protocol == "openai":
+                cfg.openai_wire_api = wire_api
+            elif protocol == "gemini":
+                cfg.gemini_wire_api = wire_api
             cfg.include_long_context = include_long_context
             cfg.include_long_context_extreme = include_long_context_extreme
             # Long-context probes blow past the regular per-mode wall-clock
@@ -487,6 +492,11 @@ async def _run(
             else:
                 raise ValueError(f"unsupported protocol: {protocol}")
 
+            if protocol == "gemini" and wire_api != "chat_completions":
+                from relay_detector.wire_apis import WIRE_APIS, capability_notes
+                tier_title = WIRE_APIS[wire_api]["label"] + " 能力检测"
+                tier_message = capability_notes(wire_api)[0] + capability_notes(wire_api)[3]
+
             run_error = fatal_run_error(outcome.results)
             score = 0.0 if run_error else compute_total(outcome.results)
             verdict = effective_verdict(score, outcome.results)
@@ -507,7 +517,7 @@ async def _run(
 
             report = DetectionReport(
                 protocol=report_protocol,
-                wire_api=wire_api if protocol == "openai" else None,
+                wire_api=wire_api if protocol in {"openai", "gemini"} else None,
                 tier=report_tier,
                 tier_title=tier_title,
                 tier_message=tier_message,
@@ -529,7 +539,7 @@ async def _run(
                 detected_non_anthropic_brands=brands,
             )
             report_dict = redact_secret(json.loads(report.model_dump_json()), api_key)
-            if wire_api == "responses" and protocol == "openai":
+            if wire_api in {"responses", "interactions", "generate_content"}:
                 report_dict["ranking_evidence"]["baseline_version"] = "not_available"
             _atomic_json(report_path(job_id, protocol), report_dict)
 
@@ -605,7 +615,8 @@ async def _run_gemini(
     )
 
     async with make_client(
-        base_url, api_key, timeout=cfg.request_timeout_s, trust_env=False
+        base_url, api_key, timeout=cfg.request_timeout_s, trust_env=False,
+        wire_api=cfg.gemini_wire_api,
     ) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
         runner.on_progress = on_progress
