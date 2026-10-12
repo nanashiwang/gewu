@@ -33,9 +33,10 @@ describe('explicit interface contracts', () => {
   it('does not compare model, API or depth changes as one series', () => {
     const original = site()
     expect(sameRelayConfiguration(original, { ...original })).toBe(true)
-    for (const change of [{ model: 'other' }, { wireApi: 'generate_content' }, { mode: 'full' }]) {
+    for (const change of [{ model: 'other' }, { wireApi: 'generate_content' }, { mode: 'full' }, { apiBaseUrl: 'https://other.example/v1' }]) {
       expect(sameRelayConfiguration(original, { ...original, ...change })).toBe(false)
     }
+    expect(sameRelayConfiguration(original, { ...original, apiBaseUrl: undefined, report: { base_url: 'https://other.example/v1' } })).toBe(false)
   })
 
   it.each(['manual', 'scheduled'] as const)('snapshots and submits identical native settings for %s checks', async (source) => {

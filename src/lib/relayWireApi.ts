@@ -18,6 +18,9 @@ export function relayWireApiLabel(item: { protocol?: string; wireApi?: unknown }
 
 export function sameRelayConfiguration(a: any, b: any): boolean {
   try {
+    const aUrl = a.apiBaseUrl || a.report?.base_url
+    const bUrl = b.apiBaseUrl || b.report?.base_url
+    if (aUrl && bUrl && String(aUrl).replace(/\/+$/, '') !== String(bUrl).replace(/\/+$/, '')) return false
     return a.protocol === b.protocol && a.model === b.model && (a.mode || 'standard') === (b.mode || 'standard') &&
       resolveRelayWireApi(a.protocol, a.wireApi) === resolveRelayWireApi(b.protocol, b.wireApi)
   } catch { return false }
