@@ -103,7 +103,7 @@
     const control = new AbortController();
     const timeout = setTimeout(() => control.abort(), 15000);
     try {
-      const response = await fetch('/api/jobs/' + id + '/cancel', {method: 'POST', signal: control.signal});
+      const response = await fetch('/api/status/' + id + '/cancel', {method: 'POST', signal: control.signal});
       if (!response.ok) throw new Error('未能确认取消结果，请重新读取进度。');
       controller?.abort();
       render(await response.json());

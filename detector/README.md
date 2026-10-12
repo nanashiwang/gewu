@@ -417,6 +417,10 @@ python3 scripts/smoke_web.py https://<your-domain>
 用户临时 API Key 不落盘，复测需用户主动重新提交。等待页显示实际项目状态，提交者可取消任务；
 分享报告链接不授予取消权限。正式扩容到多进程前仍需引入独立工作队列。
 
+取消接口为 `POST /api/status/{job_id}/cancel`，沿用现有共享域名的检测状态转发路径；
+页面和账号后台统一调用此入口，无需调整 nginx 路由。旧的 `/api/jobs/{job_id}/cancel`
+保留为检测服务内部兼容入口，两者执行相同的 HTTPS 与任务归属校验。
+
 ### 定时质量监控
 
 `monitor-once` 每次只执行一轮检测，将报告原子写入

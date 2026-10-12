@@ -86,6 +86,7 @@ class RequestBodyLimitMiddleware:
             or path == "/api/wishlist"
             or path.startswith("/api/detect")
             or path.startswith("/api/jobs/")
+            or path.startswith("/api/status/")
         )
         if (
             sensitive_endpoint
@@ -998,7 +999,8 @@ async def api_status(job_id: str) -> JSONResponse:
     return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
-@app.post("/api/jobs/{job_id}/cancel")
+@app.post("/api/status/{job_id}/cancel")
+@app.post("/api/jobs/{job_id}/cancel", include_in_schema=False)
 async def cancel_job(request: Request, job_id: str) -> JSONResponse:
     job = await jobs.get(job_id)
     if job is None:
