@@ -12,6 +12,7 @@ import * as migration_20260716_120000_gewu_brand from './20260716_120000_gewu_br
 import * as migration_20260718_120000_relay_backend from './20260718_120000_relay_backend';
 import * as migration_20260718_130000_schema_alignment from './20260718_130000_schema_alignment';
 import * as migration_20260718_140000_relay_check_hardening from './20260718_140000_relay_check_hardening';
+import * as migration_20261012_120000_relay_wire_api from './20261012_120000_relay_wire_api';
 
 export const migrations = [
   {
@@ -83,5 +84,10 @@ export const migrations = [
     up: migration_20260718_140000_relay_check_hardening.up,
     down: migration_20260718_140000_relay_check_hardening.down,
     name: '20260718_140000_relay_check_hardening',
+  },
+  {
+    up: migration_20261012_120000_relay_wire_api.up,
+    down: migration_20261012_120000_relay_wire_api.down,
+    name: '20261012_120000_relay_wire_api',
   },
 ];

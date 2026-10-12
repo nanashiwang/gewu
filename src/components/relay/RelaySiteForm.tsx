@@ -35,6 +35,7 @@ export function RelaySiteForm({ site }: { site?: any }) {
       apiBaseUrl: form.get('apiBaseUrl'),
       description: form.get('description'),
       protocol: form.get('protocol'),
+      wireApi: form.get('wireApi'),
       model: form.get('model'),
       mode: form.get('mode'),
       scheduleEnabled: form.get('scheduleEnabled') === 'on',
@@ -75,7 +76,7 @@ export function RelaySiteForm({ site }: { site?: any }) {
           <input name="apiBaseUrl" type="url" pattern="https://.*" required defaultValue={site?.apiBaseUrl || ''} className="input" placeholder="https://api.example.com/v1" />
           <span className="block text-xs text-[var(--muted)]">必须使用 HTTPS；修改 API 域名后必须重新完成站点认领。</span>
         </label>
-        <RelayModelPicker model={site?.model} protocol={site?.protocol} />
+        <RelayModelPicker model={site?.model} protocol={site?.protocol} wireApi={site?.wireApi} />
         <label className="space-y-1 text-sm">
           <span>检测模式</span>
           <select name="mode" defaultValue={site?.mode || 'standard'} className="input">

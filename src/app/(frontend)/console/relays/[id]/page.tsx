@@ -9,6 +9,7 @@ import { getCurrentUser } from '@/lib/auth'
 import { getPayloadClient } from '@/lib/payload'
 import { relationId, relayClaimRecord } from '@/lib/relaySite'
 import { relayCheckDto, relaySiteDto } from '@/lib/relayApi'
+import { relayWireApiLabel, sameRelayConfiguration } from '@/lib/relayWireApi'
 import { RELAY_CLAIM_LABELS, RELAY_CONTACT_LABELS, RELAY_PROTOCOL_LABELS, RELAY_STATUS_LABELS, relayCheckHasScore, relayStatusClass } from '@/lib/relayUi'
 
 export const dynamic = 'force-dynamic'
@@ -24,7 +25,7 @@ export default async function RelayDetailPage({ params }: { params: Promise<{ id
   const history = await payload.find({ collection: 'relay-checks' as any, where: { site: { equals: id } }, sort: '-createdAt', limit: 50, depth: 0, overrideAccess: true })
   const checks = (history.docs as any[]).map((check) => relayCheckDto(check, true))
   const active = checks.some((check) => ['queued', 'running'].includes(String(check.status)))
-  const latestScored = checks.find(relayCheckHasScore)
+  const latestScored = checks.find((check) => relayCheckHasScore(check) && sameRelayConfiguration(check, site))
   const latestFinished = checks.find((check) => ['done', 'error'].includes(String(check.status)))
   const latestFinishedAt = latestFinished ? new Date(String(latestFinished.finishedAt || latestFinished.createdAt)).toLocaleString('zh-CN') : '—'
   const claim = relayClaimRecord(site.claimDomain, site.claimToken)
@@ -46,7 +47,8 @@ export default async function RelayDetailPage({ params }: { params: Promise<{ id
         <Section title="联系方式"><div className="space-y-2 text-sm">{site.contacts.length ? site.contacts.map((contact: any, index: number) => <div key={index} className="flex justify-between gap-3"><span className="text-[var(--muted)]">{RELAY_CONTACT_LABELS[contact.type] || contact.type}{contact.isPublic ? ' · 公开' : ' · 私密'}</span><span className="break-all text-right">{contact.value}</span></div>) : <span className="text-[var(--muted)]">未填写。</span>}</div></Section>
         <Section title="检测状态"><div className="space-y-2 text-sm"><div className="flex justify-between"><span className="text-[var(--muted)]">下次检测</span><span>{site.nextCheckAt ? new Date(site.nextCheckAt).toLocaleString('zh-CN') : '—'}</span></div><div className="flex justify-between"><span className="text-[var(--muted)]">最近完成时间</span><span>{latestFinishedAt}</span></div><div className="flex justify-between gap-3"><span className="text-[var(--muted)]">最近结论</span><span className="text-right">{!latestFinished ? '暂无报告' : !relayCheckHasScore(latestFinished) ? '证据不足，暂不计分' : latestFinished.verdict === 'passed' ? '已测项目通过' : '存在异常，需复核'}</span></div></div></Section>
       </div>
-      <Section title={`检测历史（共 ${history.totalDocs} 条，显示最近 ${checks.length} 条）`}><RelayTrend checks={checks} /></Section>
+      <p className="text-xs text-[var(--muted)]">当前检测接口：{relayWireApiLabel(site)}；最近得分仅取相同模型、接口和深度。</p>
+      <Section title={`检测历史（共 ${history.totalDocs} 条，显示最近 ${checks.length} 条）`}><RelayTrend checks={checks} selection={site} /></Section>
     </div>
   )
 }

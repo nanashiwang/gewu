@@ -68,6 +68,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Verify additive interface migration
+        run: npx tsx scripts/test-relay-wire-api-migration.ts
       - name: Build
         env:
           NEXT_TELEMETRY_DISABLED: '1'

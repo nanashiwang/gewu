@@ -13,6 +13,7 @@ import {
   relayInputErrorMessage,
 } from '@/lib/relaySite'
 import { rowActionsField } from './fields/rowActions'
+import { relayWireApiOptions, resolveRelayWireApi, sameRelayConfiguration } from '@/lib/relayWireApi'
 
 function isRelayStaff(user: unknown): boolean {
   return Boolean(isActiveAccount(user) && ['admin', 'reviewer'].includes(String((user as any).role || '')))
@@ -99,6 +100,7 @@ export const RelaySites: CollectionConfig = {
         { label: 'Gemini', value: 'gemini' },
       ],
     },
+    { name: 'wireApi', type: 'select', options: relayWireApiOptions.map(({ label, value }) => ({ label, value })), label: '检测接口', admin: { description: '未设置的历史记录沿用原接口，不会自动切换。' } },
     { name: 'model', type: 'text', required: true, label: '主检测模型' },
     {
       name: 'mode',
@@ -229,7 +231,7 @@ export const RelaySites: CollectionConfig = {
             data.claimDomain = relayClaimDomain(String(data.apiBaseUrl))
           }
 
-          const publicInputKeys = ['name', 'description', 'protocol', 'model', 'mode', 'contacts', 'scheduleEnabled', 'scheduleIntervalHours']
+          const publicInputKeys = ['name', 'description', 'protocol', 'wireApi', 'model', 'mode', 'contacts', 'scheduleEnabled', 'scheduleIntervalHours']
           const publicInput = Object.fromEntries(publicInputKeys.filter((key) => Object.prototype.hasOwnProperty.call(data, key)).map((key) => [key, data[key]]))
           if (Object.keys(publicInput).length > 0) {
             const normalized = normalizeRelaySiteInput(publicInput, { partial: true }) as Record<string, unknown>
@@ -237,6 +239,13 @@ export const RelaySites: CollectionConfig = {
               normalized.scheduleIntervalHours = String(normalized.scheduleIntervalHours)
             }
             Object.assign(data, normalized)
+          }
+          const selection = { ...originalDoc, ...data }
+          resolveRelayWireApi(selection.protocol || 'openai', selection.wireApi)
+          if (originalDoc && (!sameRelayConfiguration(originalDoc, selection) || originalDoc.apiBaseUrl !== selection.apiBaseUrl)) {
+            data.lastScore = null
+            data.lastGrade = null
+            data.lastVerdict = null
           }
         } catch (error) {
           throw new APIError(relayInputErrorMessage(error), 400)

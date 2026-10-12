@@ -167,6 +167,8 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATE_DIR))
 templates.env.globals["brand"] = brand
 templates.env.globals["model_catalog"] = catalog_view
+from relay_detector.wire_apis import WIRE_APIS
+templates.env.globals["wire_apis"] = WIRE_APIS
 
 
 _CONTENT_SECURITY_POLICY = "; ".join(
@@ -447,10 +449,12 @@ async def models_page(request: Request) -> HTMLResponse:
 
 @app.get("/gemini", response_class=HTMLResponse)
 async def gemini_index(request: Request) -> HTMLResponse:
+    from relay_detector.wire_apis import WIRE_APIS, capability_notes
     return templates.TemplateResponse(
         request,
         "gemini.html",
-        {"models": _gemini_model_choices()},
+        {"models": _gemini_model_choices(), "gemini_apis": {key: value for key, value in WIRE_APIS.items() if "gemini" in value["protocols"]},
+         "native_scope": " ".join(capability_notes("interactions")[1:])},
     )
 
 
@@ -943,11 +947,21 @@ async def api_detect_gemini(
     api_key: str = Form(...),
     model: str = Form(...),
     mode: str = Form("standard"),
+    wire_api: str = Form("chat_completions"),
 ) -> JSONResponse:
     base_url = await _validated_target_or_400(base_url)
     api_key = _validated_api_key_or_400(api_key)
     model = _validated_model_or_400(model)
     mode = mode.strip().lower()
+
+    from relay_detector.wire_apis import resolve_wire_api
+    try:
+        wire_api = resolve_wire_api("gemini", wire_api)
+        if wire_api != "chat_completions":
+            from relay_detector.protocols.gemini.native import model_id
+            model_id(model)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
     if mode not in _VALID_MODES:
         raise HTTPException(status_code=400, detail=f"mode must be one of {_VALID_MODES}")
@@ -958,9 +972,10 @@ async def api_detect_gemini(
         window_s=_DETECT_RATE_WINDOW_S,
     )
 
-    await _preflight_or_422(request, base_url, api_key, model, "gemini")
+    if wire_api == "chat_completions":
+        await _preflight_or_422(request, base_url, api_key, model, "gemini")
     job_id = await _submit_or_503(
-        base_url, api_key, model, mode, protocol="gemini"
+        base_url, api_key, model, mode, protocol="gemini", wire_api=wire_api
     )
     return _submission_response(request, job_id)
 
@@ -1366,10 +1381,11 @@ def _result_rows(report: dict) -> list[dict]:
     out = []
     protocol = str(report.get("protocol") or "anthropic")
     display = _DETECTOR_DISPLAY.get(protocol, _DETECTOR_DISPLAY["anthropic"])
-    responses = report.get("wire_api") == "responses"
+    responses = report.get("wire_api") in {"responses", "interactions", "generate_content"}
     if responses:
-        display = [("basic_request", "基础回复"), ("responses_stream", "流式完整性"),
-                   ("responses_schema", "结构化输出"), ("responses_tools", "工具调用往返")]
+        prefix = "responses" if report.get("wire_api") == "responses" else "gemini"
+        display = [("basic_request", "基础回复"), (prefix + "_stream", "流式完整性"),
+                   (prefix + "_schema", "结构化输出"), (prefix + "_tools", "工具调用往返")]
     for name, label in display:
         r = by_name.get(name) or {"status": "skip", "score": 0.0}
         status = str(r.get("status") or "skip")
@@ -1415,8 +1431,9 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
     terms a non-implementer can act on.
     """
     protocol = str(report.get("protocol") or "anthropic")
-    if report.get("wire_api") == "responses":
-        notes = [{"title": "Responses 检测范围", "body": "只覆盖本次所选接口和已运行的能力，不验证模型身份、长上下文或实际扣费；暂不参与公共榜单。请求不自动重试或切换接口，工具只在格物本地模拟执行。"}]
+    if report.get("wire_api") in {"responses", "interactions", "generate_content"}:
+        from relay_detector.wire_apis import capability_notes
+        notes = [{"title": WIRE_APIS[report["wire_api"]]["label"] + " 检测范围", "body": " ".join(capability_notes(report["wire_api"]))}]
         for row in report.get("results") or []:
             if row.get("status") == "pass":
                 continue

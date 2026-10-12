@@ -1032,6 +1032,10 @@ export interface RelaySite {
     | boolean
     | null;
   protocol: 'openai' | 'anthropic' | 'gemini';
+  /**
+   * 未设置的历史记录沿用原接口，不会自动切换。
+   */
+  wireApi?: ('chat_completions' | 'responses' | 'messages' | 'interactions' | 'generate_content') | null;
   model: string;
   mode: 'quick' | 'standard' | 'full';
   apiKeyEncrypted?: string | null;
@@ -1067,6 +1071,7 @@ export interface RelayCheck {
   triggeredBy?: (string | null) | User;
   source: 'manual' | 'scheduled';
   protocol: 'openai' | 'anthropic' | 'gemini';
+  wireApi?: ('chat_completions' | 'responses' | 'messages' | 'interactions' | 'generate_content') | null;
   model: string;
   mode: 'quick' | 'standard' | 'full';
   status: 'queued' | 'running' | 'done' | 'error';
@@ -2068,6 +2073,7 @@ export interface RelaySitesSelect<T extends boolean = true> {
   description?: T;
   contacts?: T;
   protocol?: T;
+  wireApi?: T;
   model?: T;
   mode?: T;
   apiKeyEncrypted?: T;
@@ -2100,6 +2106,7 @@ export interface RelayChecksSelect<T extends boolean = true> {
   triggeredBy?: T;
   source?: T;
   protocol?: T;
+  wireApi?: T;
   model?: T;
   mode?: T;
   status?: T;

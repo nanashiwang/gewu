@@ -277,7 +277,7 @@ def detect(
     output: Optional[Path] = typer.Option(
         None, "--output", "-o", help="Write JSON report to this path.",
     ),
-    wire_api: str = typer.Option("chat_completions", "--wire-api", help="OpenAI: chat_completions or responses. Responses has no retries; at most 2/3/5 requests."),
+    wire_api: Optional[str] = typer.Option(None, "--wire-api", help="chat_completions / responses / messages / interactions / generate_content. Omitted: legacy interface."),
     include_long_context: bool = typer.Option(
         False,
         "--long-context/--no-long-context",
@@ -300,10 +300,13 @@ def detect(
 ) -> None:
     """Run a multi-detector quality check against a relay station."""
     proto = _resolve_protocol(protocol, model)
-    if wire_api not in {"chat_completions", "responses"} or (wire_api == "responses" and proto != Protocol.OPENAI):
-        raise typer.BadParameter("--wire-api responses 仅适用于 OpenAI 协议")
-    if wire_api == "responses" and (include_long_context or include_long_context_extreme):
-        raise typer.BadParameter("Responses 暂不提供长上下文检测")
+    from .wire_apis import resolve_wire_api, CAPABILITY_APIS
+    try:
+        wire_api = resolve_wire_api(proto.value, wire_api)
+    except ValueError as error:
+        raise typer.BadParameter(str(error)) from error
+    if wire_api in CAPABILITY_APIS and (include_long_context or include_long_context_extreme):
+        raise typer.BadParameter("所选接口暂不提供长上下文检测")
 
     # Per-protocol envvar fallback so users can keep distinct keys for
     # each provider in the same .env without juggling them on the CLI.
@@ -316,6 +319,8 @@ def detect(
     # testing against the official OpenAI / Gemini APIs.
     if not base_url:
         base_url = _DEFAULT_BASE_URLS.get(proto, "")
+        if proto == Protocol.GEMINI and wire_api != "chat_completions":
+            base_url = "https://generativelanguage.googleapis.com/v1beta"
 
     if not base_url:
         console.print(
@@ -331,7 +336,10 @@ def detect(
         raise typer.Exit(2)
 
     config = ExecutionConfig.for_mode(mode, max_concurrent=max_concurrent)
-    config.openai_wire_api = wire_api
+    if proto == Protocol.OPENAI:
+        config.openai_wire_api = wire_api
+    elif proto == Protocol.GEMINI:
+        config.gemini_wire_api = wire_api
     if timeout is not None:
         config.request_timeout_s = timeout
     config.include_long_context = include_long_context
@@ -413,6 +421,7 @@ def monitor_once(
     retry_now: bool = typer.Option(
         False, "--retry-now", help="After fixing configuration, explicitly bypass cooldown. Makes upstream requests and can consume quota.",
     ),
+    wire_api: Optional[str] = typer.Option(None, "--wire-api", envvar="GEWU_MONITOR_WIRE_API"),
 ) -> None:
     """Run one scheduled probe and atomically persist it for history/leaderboard."""
     try:
@@ -424,6 +433,17 @@ def monitor_once(
     proto = _resolve_protocol(protocol, model)
     config = ExecutionConfig.for_mode(mode, max_concurrent=max_concurrent)
     config.stop_on_auth_failure = True
+    from .wire_apis import resolve_wire_api, CAPABILITY_APIS
+    try:
+        selected_api = resolve_wire_api(proto.value, wire_api)
+    except ValueError as error:
+        raise typer.BadParameter(str(error)) from error
+    if selected_api in CAPABILITY_APIS and include_long_context:
+        raise typer.BadParameter("所选接口暂不提供长上下文检测")
+    if proto == Protocol.OPENAI:
+        config.openai_wire_api = selected_api
+    elif proto == Protocol.GEMINI:
+        config.gemini_wire_api = selected_api
     if timeout is not None:
         config.request_timeout_s = timeout
     config.include_long_context = include_long_context
@@ -589,8 +609,9 @@ async def _run_detect(
 
     detectors = build_detectors(config.mode)
 
+    client_options = {"wire_api": config.gemini_wire_api} if protocol == Protocol.GEMINI else {}
     async with make_client(
-        base_url, api_key, timeout=config.request_timeout_s
+        base_url, api_key, timeout=config.request_timeout_s, **client_options
     ) as client:
         runner = build_runner(client, detectors, config)
         outcome = await runner.run(model)
@@ -624,9 +645,13 @@ async def _run_detect(
     if protocol == Protocol.OPENAI and config.openai_wire_api == "responses":
         from .protocols.openai.responses import TIER_MESSAGE
         tier_title, tier_message = "Responses 能力检测", TIER_MESSAGE
+    if protocol == Protocol.GEMINI and config.gemini_wire_api != "chat_completions":
+        from .wire_apis import WIRE_APIS, capability_notes
+        tier_title = WIRE_APIS[config.gemini_wire_api]["label"] + " 能力检测"
+        tier_message = " ".join(capability_notes(config.gemini_wire_api))
     report = DetectionReport(
         protocol=protocol,
-        wire_api=config.openai_wire_api if protocol == Protocol.OPENAI else None,
+        wire_api=config.openai_wire_api if protocol == Protocol.OPENAI else config.gemini_wire_api if protocol == Protocol.GEMINI else None,
         tier=tier,
         tier_title=tier_title,
         tier_message=tier_message,
@@ -648,7 +673,7 @@ async def _run_detect(
         detected_non_anthropic_brands=detected_brands,
     )
 
-    if report.wire_api == "responses":
+    if report.wire_api in {"responses", "interactions", "generate_content"}:
         report.ranking_evidence.baseline_version = "not_available"
 
     # Persist the machine-readable evidence before terminal presentation. A

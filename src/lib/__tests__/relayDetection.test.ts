@@ -163,6 +163,7 @@ describe('relay detection bridge', () => {
 
     const result: any = await reconcileRelayCheck(payload, {
       id: 'check-1', site: 'site-1', detectorJobId: 'job_12345678', createdAt: '2026-07-18T11:00:00.000Z',
+      protocol: 'openai', model: 'gpt-5.4', mode: 'standard',
     })
     expect(result.score).toBe(98)
     expect(result.grade).toBe('A')

@@ -22,7 +22,7 @@
 2. **能力**:PDF / Tool Use / Thinking / Function Calling 等高级能力有没有被剥离?
 3. **合规**:响应字段、ID 前缀、streaming 协议、usage 用量是否符合官方规范?
 
-支持三大协议:**Anthropic Messages API**、**OpenAI Chat Completions**、**Gemini OpenAI 兼容 API**。
+支持三大协议：**Anthropic Messages**、**OpenAI Chat Completions / Responses**、**Gemini Interactions / generateContent / OpenAI 兼容接口**。检测页和账号管理可显式选择接口；历史任务未设置接口时保留旧行为。
 
 部署后通过 `GEWU_SITE_URL` 配置公开站点地址。
 
@@ -106,6 +106,13 @@ OpenAI / Gemini 没有同等级别的服务端签名机制,验证强度只到**�
 | **加测** | long_context | 三层 needle-in-haystack 探针(详见上方独立子节) |
 
 ### Gemini(OpenAI 兼容协议)— 7 项
+
+Gemini 原生接口另有独立能力检测：`--protocol gemini --wire-api interactions` 或 `--wire-api generate_content`。
+地址填到服务商指定的版本前缀，根域名默认追加 `/v1beta`；不会改写显式 `/v1` 或代理前缀。
+快速 / 标准 / 完整最多 2 / 3 / 5 次请求，每次输出上限 4096 tokens；`store: false`，不重试、无额外付费预检，不自动回退兼容接口。
+依次覆盖随机文本回复、原生流式完整性、结构化 JSON、本地函数调用往返。签名历史只在内存中回传，不写入报告。
+报告保留接口和实际覆盖范围，原生分数暂不进入公共榜单。手动和定时检测使用同一接口快照；旧报告不覆盖已变更模型、接口或深度的站点成绩。
+定时 CLI 可设置 `GEWU_MONITOR_WIRE_API`，不设置时仍使用原接口。
 
 > **杀手锏**:Gemini 3 thinking-by-default 适配 — 真品强制带 thinking 元数据,
 > 假冒包装层经常漏字段或返回结构不符。
@@ -537,7 +544,7 @@ A: `compare` 自动按 `target_model + mode` 在 `data/baselines/` 找。如果�
 A: 这是某些中转站的 routing 约定。它跟 `tool_choice: "any"` 不兼容,会导致 StructuredOutputDetector 报 400。改用不带后缀的模型名即可,detector 自己会按需开 thinking。
 
 **Q: 我想测一个工具没覆盖的模型 / 协议**
-A: 当前覆盖 Anthropic Messages API、OpenAI Chat Completions、Gemini OpenAI 兼容 API。其他协议(Anthropic Bedrock、Vertex AI 原生 API 等)欢迎 PR。
+A: 当前覆盖 Anthropic Messages、OpenAI Chat Completions / Responses、Gemini Interactions / generateContent / OpenAI 兼容接口。其他协议（Anthropic Bedrock、Vertex AI 等）尚未覆盖。
 
 ---
 

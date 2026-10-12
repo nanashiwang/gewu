@@ -1,11 +1,4 @@
-"""Gemini OpenAI-compatible protocol package.
-
-The detector tests Gemini relays through the OpenAI Chat Completions wire shape.
-There is no native `/v1beta/models/X:generateContent` path — almost every
-third-party relay exposes Gemini under `/v1/chat/completions`, and Google's
-own OpenAI-compat endpoint at `/v1beta/openai/chat/completions` speaks the
-same shape.
-"""
+"""Gemini native and OpenAI-compatible probes, selected explicitly."""
 
 from __future__ import annotations
 
@@ -85,8 +78,14 @@ def build_detectors(mode: Mode | None = None) -> list[BaseDetector]:
 
 
 def make_client(
-    base_url: str, api_key: str, timeout: float, *, trust_env: bool = True
+    base_url: str, api_key: str, timeout: float, *, trust_env: bool = True,
+    wire_api: str = "chat_completions",
 ) -> GeminiClient:
+    from ...wire_apis import resolve_wire_api
+    resolve_wire_api("gemini", wire_api)
+    if wire_api != "chat_completions":
+        from .native import NativeGeminiClient
+        return NativeGeminiClient(base_url, api_key, timeout, wire_api=wire_api, trust_env=trust_env)
     return GeminiClient(base_url, api_key, timeout=timeout, trust_env=trust_env)
 
 
@@ -95,6 +94,9 @@ def build_runner(
     detectors: list[BaseDetector],
     config: ExecutionConfig,
 ) -> Runner:
+    if config.gemini_wire_api != "chat_completions":
+        from .native import build_native_runner
+        return build_native_runner(client, config)
     return Runner(client, detectors, config)
 
 

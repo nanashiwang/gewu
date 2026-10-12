@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block body_class %}page-detect{% endblock %}
 
-{% block title %}Gemini API 中转站检测 · OpenAI 兼容协议鉴定 | 格物{% endblock %}
-{% block description %}免费检测 Gemini API 中转站协议合规 — 通过 OpenAI 兼容路径(/v1/chat/completions)探测 7 项维度:协议规范、function calling、structured output、流式一致性、usage 字段、模型可用性。适配 Gemini 3 thinking-by-default 模型。{% endblock %}
-{% block og_title %}Gemini 中转站检测 · 适配 Gemini 3 thinking-by-default 模型{% endblock %}
-{% block og_description %}7 项 OpenAI 兼容协议检测,识别 Gemini 中转站协议合规度。免费、不留 key、可分享报告。{% endblock %}
+{% block title %}Gemini API 中转站检测 · 原生与兼容接口 | 格物{% endblock %}
+{% block description %}选择 Gemini Interactions、generateContent 或 Chat Completions，检查本次接口的回复、流式输出、结构化 JSON 与工具调用。公益检测，不留 Key，不证明模型身份。{% endblock %}
+{% block og_title %}Gemini 中转站检测 · 原生与兼容接口{% endblock %}
+{% block og_description %}显式选择检测接口，报告标明已测范围与用量。公益、不留 Key、可分享报告。{% endblock %}
 {% block canonical %}{{ brand.site_url }}/gemini{% endblock %}
 {% block og_url %}{{ brand.site_url }}/gemini{% endblock %}
 
@@ -21,6 +21,7 @@
   "url": "{{ brand.site_url }}/gemini",
   "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
   "featureList": [
+    "Gemini Interactions 与 generateContent 原生能力检测",
     "OpenAI 兼容协议(POST /chat/completions)合规检查",
     "function calling 结构 + ID 校验",
     "structured output / response_format 校验",
@@ -30,7 +31,7 @@
     "model 字段一致性 + 多次响应稳定性",
     "可分享 JPG / HTML 报告"
   ],
-  "description": "格物 通过 OpenAI 兼容协议(POST /chat/completions)探测 Gemini 中转站,7 项检测覆盖协议合规、tool 调用、结构化输出、流式一致性、usage 字段。适配 Gemini 3 thinking-by-default 模型的特殊处理。"
+  "description": "格物支持选择 Gemini Interactions、generateContent 和 Chat Completions，按所选接口验证已测能力，不证明模型身份。"
 }
 </script>
 <script type="application/ld+json">
@@ -38,11 +39,11 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    {"@type":"Question","name":"为什么 Gemini API 中转站经常 model_not_found?","acceptedAnswer":{"@type":"Answer","text":"可能是接口未代理该型号、当前 Key 无权限、模型 ID 不一致或模型已下架。格物先读取接口模型列表，再做提交前预检；列表声明不保证调用成功，也不会自动替换用户选中的模型。"}},
+    {"@type":"Question","name":"为什么 Gemini API 中转站经常 model_not_found?","acceptedAnswer":{"@type":"Answer","text":"可能是接口未代理该型号、当前 Key 无权限、模型 ID 不一致或模型已下架。候选目录不保证调用成功。原生接口直接以首个检测请求检查可用性，不额外付费预检。"}},
     {"@type":"Question","name":"Gemini 检测为什么可能得到空文本?","acceptedAnswer":{"@type":"Answer","text":"带思考的模型可能把输出额度用于推理，输出预算过小会导致正文为空。应结合 finish_reason、usage 和官方能力说明判断，不能仅凭空文本认定模型有问题。"}},
-    {"@type":"Question","name":"格物 为什么不支持 Gemini 原生 generateContent 路径?","acceptedAnswer":{"@type":"Answer","text":"99% 的第三方 Gemini 中转站只暴露 OpenAI 兼容协议,Google 官方也提供 OpenAI 兼容端点 /v1beta/openai。维护两套独立的检测逻辑成本高且容易引入翻译层导致结果失真,所以 格物 集中在 OpenAI 兼容路径上做透。"}},
+    {"@type":"Question","name":"Gemini 原生接口检测哪些能力？","acceptedAnswer":{"@type":"Answer","text":{{ native_scope | tojson }}}},
     {"@type":"Question","name":"Gemini 中转站怎么挑?","acceptedAnswer":{"@type":"Answer","text":"先确认接口支持你实际使用的型号，再检查请求、流式输出与用量字段等逐项证据，并结合持续可用性判断。单次高分或没有异源字段都不证明模型身份。"}},
-    {"@type":"Question","name":"Google 官方 Gemini API 也能用 格物 测吗?","acceptedAnswer":{"@type":"Answer","text":"可以。base_url 填 https://generativelanguage.googleapis.com/v1beta/openai,api_key 用 Google AI Studio 申请的 AIza... key。Google 官方端点应该全 7 项 100 分,可作为基线对比第三方中转站。"}},
+    {"@type":"Question","name":"Google 官方 Gemini API 也能用 格物 测吗?","acceptedAnswer":{"@type":"Answer","text":"可以。原生接口地址填到 /v1beta，OpenAI 兼容接口填到 /v1beta/openai。官方结果也需要逐项解读，不预设满分。"}},
     {"@type":"Question","name":"为什么 Gemini 没有 Claude 同类签名回放验证?","acceptedAnswer":{"@type":"Answer","text":"Gemini 的 OpenAI 兼容协议没有 Claude thinking block 那样的回放约束信号。格物 对 Gemini 的定位是协议级:验证接口形状、能力完整度和 usage 字段规范,不提供绝对模型真伪证明。"}}
   ]
 }
@@ -71,29 +72,32 @@
 <section class="hero">
   <h1>Gemini API 中转站检测</h1>
   <p class="hero-sub answer-capsule" style="text-align:center;max-width:760px;margin:0 auto 14px;">
-    <strong>格物</strong>通过 OpenAI 兼容协议（<code>POST /chat/completions</code>）探测 Gemini 中转站，
-    <strong>7 项检测</strong>覆盖协议规范、function calling、structured output、流式一致性和 usage 字段。
-    适配 Gemini 3 <strong>thinking-by-default</strong> 模型的特殊处理。免费、API key 不持久化、结果可复核。
+    选择你实际使用的 Gemini 接口，检测回复、流式输出与能力完整性。
+    公益检测、API Key 不持久化，报告注明接口与已测范围。
   </p>
 </section>
 
 <section class="card alert-card">
   <strong>协议级验证：</strong>
-  本检测验证 Gemini 中转站的 OpenAI 兼容协议实现是否完整，不提供签名回放或绝对模型真伪证明。
-  Google 官方 OpenAI 兼容端点是
-  <code>https://generativelanguage.googleapis.com/v1beta/openai</code>；
-  第三方中转站通常在 <code>/v1</code> 暴露同样的协议。
+  仅反映本次所选接口表现，不证明模型身份或实际扣费。不同接口、模型和检测深度的分数不直接比较。
 </section>
 
 <div class="detect-layout">
 <section class="card form-card">
   <form id="detect-form" data-endpoint="/api/detect/gemini" method="post" action="/api/detect/gemini" autocomplete="off">
     <div class="field">
+      <label for="gemini-wire-api">请求接口</label>
+      <select id="gemini-wire-api" name="wire_api">
+        {% for key, api in gemini_apis.items() %}<option value="{{ key }}">{{ api.label }}</option>{% endfor %}
+      </select>
+      <p class="hint" id="gemini-interface-hint">选择与中转站实际文档一致的接口；不会自动切换。</p>
+    </div>
+    <div class="field">
       <label for="base_url">中转站接口地址</label>
       <input type="url" id="base_url" name="base_url" required
              placeholder="https://generativelanguage.googleapis.com/v1beta/openai"
              maxlength="2048" autocomplete="url" autocapitalize="none" spellcheck="false" />
-      <p class="hint">填到 <code>/chat/completions</code> 的上一级。Google 官方填 <code>/v1beta/openai</code>；第三方中转站通常填 <code>/v1</code>。</p>
+      <p class="hint" id="gemini-url-hint">兼容接口填到 /chat/completions 的上一级；原生接口填到 /v1beta 或服务商指定的版本前缀。已填写的地址不会自动改写。</p>
     </div>
 
     <div class="field">
@@ -101,7 +105,7 @@
       <input type="password" id="api_key" name="api_key" required
              placeholder="AIza... 或 sk-..." minlength="8" maxlength="4096"
              autocomplete="new-password" autocapitalize="none" spellcheck="false" />
-      <p class="hint">仅用于本次检测，不写入报告、不持久化。会以 <code>Authorization: Bearer</code> 头发送。</p>
+      <p class="hint">仅用于本次检测，不写入报告、不持久化。原生接口使用 x-goog-api-key，兼容接口使用 Bearer。</p>
     </div>
 
     <div class="field-row">
@@ -119,6 +123,7 @@
       </div>
     </div>
 
+    <p class="hint" id="gemini-native-budget" hidden></p>
     <button type="submit" id="submit-btn" class="btn btn-primary btn-block">
       开始检测
     </button>
@@ -140,7 +145,7 @@
   </div>
   <div class="feature">
     <h3>用量字段</h3>
-    <p>检查 <code>usage.prompt_tokens / completion_tokens / total_tokens</code> 自洽性以及流式 <code>include_usage</code> 是否被中转站如实透传。</p>
+    <p>按所选接口检查用量字段与完成状态。缺失用量会标注；显示值是上游声明，不代表实际扣费。</p>
   </div>
 </section>
 
@@ -151,7 +156,7 @@
     <summary>为什么 Gemini API 中转站经常 model_not_found?</summary>
     <div class="faq-body">
       <p>可能是接口未代理该型号、当前 Key 无权限、模型 ID 不一致或模型已下架。
-        格物先读取接口模型列表，再做提交前预检；列表声明不保证调用成功，也不会自动替换你选中的模型。</p>
+        候选目录不保证调用成功。原生接口直接以首个检测请求检查可用性，不额外付费预检，也不会自动替换模型。</p>
     </div>
   </details>
 
@@ -164,17 +169,16 @@
   </details>
 
   <details class="faq-item">
-    <summary>为什么不支持 Gemini 原生 <code>/v1beta/models/X:generateContent</code> 路径?</summary>
+    <summary>Gemini 原生接口检测哪些能力？</summary>
     <div class="faq-body">
-      <p>本检测器目前只实现 OpenAI 兼容路径，Google 官方也提供
-        <code>/v1beta/openai</code>。该结果只反映兼容接口表现，不代表已验证原生 Gemini API。</p>
+      <p>{{ native_scope }}</p>
     </div>
   </details>
 
   <details class="faq-item">
     <summary>Google 官方 Gemini API 也能用 格物 测吗?</summary>
     <div class="faq-body">
-      <p>可以。base_url 填 <code>https://generativelanguage.googleapis.com/v1beta/openai</code>,
+      <p>可以。原生接口地址填到 <code>/v1beta</code>，OpenAI 兼容接口填到 <code>/v1beta/openai</code>，
         api_key 用 Google AI Studio 申请的 Key。可在同型号、同参数下比较官方与第三方响应；
         官方结果也需要逐项解读，不预设固定满分。</p>
     </div>

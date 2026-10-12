@@ -1,5 +1,6 @@
 import { isIP } from 'node:net'
 import { randomBytes } from 'node:crypto'
+import { relayWireApiOptions, resolveRelayWireApi, type RelayWireApi } from './relayWireApi'
 
 export const RELAY_PROTOCOLS = ['openai', 'anthropic', 'gemini'] as const
 export type RelayProtocol = (typeof RELAY_PROTOCOLS)[number]
@@ -21,6 +22,7 @@ export interface RelaySiteInput {
   apiBaseUrl: string
   description: string
   protocol: RelayProtocol
+  wireApi?: RelayWireApi | null
   model: string
   mode: 'quick' | 'standard' | 'full'
   contacts: RelayContactInput[]
@@ -115,6 +117,12 @@ export function normalizeRelaySiteInput(raw: unknown, options: { partial?: boole
   const body = raw as Record<string, unknown>
   const partial = options.partial === true
   const out: Partial<RelaySiteInput> = {}
+
+  if (Object.prototype.hasOwnProperty.call(body, 'wireApi')) {
+    if (body.wireApi != null && !relayWireApiOptions.some((item) => item.value === body.wireApi)) throw new Error('检测接口类型无效')
+    out.wireApi = body.wireApi as RelayWireApi | null
+  }
+  if (body.protocol && Object.prototype.hasOwnProperty.call(body, 'wireApi')) resolveRelayWireApi(String(body.protocol), body.wireApi)
 
   if (!partial || Object.prototype.hasOwnProperty.call(body, 'name')) {
     const name = String(body.name || '').trim()
@@ -233,6 +241,8 @@ const SAFE_RELAY_INPUT_ERRORS = [
   /^中转站名称需为/,
   /^简介不能超过/,
   /^检测协议无效$/,
+  /^检测接口类型无效$/,
+  /^检测协议与接口类型不匹配$/,
   /^模型名称无效$/,
   /^检测模式无效$/,
   /^联系方式/,
