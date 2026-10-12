@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 from types import SimpleNamespace
 
 import httpx
@@ -102,7 +103,8 @@ async def test_observer_storage_failure_cancels_other_probes():
 
 
 @pytest.mark.asyncio
-async def test_running_cancel_is_owned_idempotent_and_keeps_redacted_evidence(monkeypatch):
+@pytest.mark.parametrize("prefix", ["/api/status", "/api/jobs"])
+async def test_running_cancel_is_owned_idempotent_and_keeps_redacted_evidence(monkeypatch, prefix):
     started, ended = asyncio.Event(), asyncio.Event()
     secret = "sk-adversarial-secret"
 
@@ -121,7 +123,7 @@ async def test_running_cancel_is_owned_idempotent_and_keeps_redacted_evidence(mo
     await started.wait()
     token = jobs.issue_cancel_token(job_id)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app), base_url="https://testserver") as client:
-        path = f"/api/jobs/{job_id}/cancel"
+        path = f"{prefix}/{job_id}/cancel"
         assert (await client.post(path)).status_code == 403
         client.cookies.set(f"gewu_cancel_{job_id}", token)
         assert (await client.post(path, headers={"Origin": "https://evil.example"})).status_code == 403
@@ -284,7 +286,8 @@ async def test_shutdown_closes_running_probes_and_restart_preserves_timestamps(m
 
 
 @pytest.mark.asyncio
-async def test_submission_cookie_is_private_and_internal_cancellation_requires_token(monkeypatch):
+@pytest.mark.parametrize("prefix", ["/api/status", "/api/jobs"])
+async def test_submission_cookie_is_private_and_internal_cancellation_requires_token(monkeypatch, prefix):
     monkeypatch.setattr(jobs, "_SEMA", asyncio.Semaphore(0))
     monkeypatch.setenv("GEWU_INTERNAL_API_TOKEN", "internal-only-token")
     job_id = await jobs.submit("https://relay.example", "sk-test", "test-model", "quick", "openai")
@@ -294,5 +297,35 @@ async def test_submission_cookie_is_private_and_internal_cancellation_requires_t
     assert all(value in response.headers["set-cookie"] for value in ("HttpOnly", "Secure", "SameSite=strict"))
     assert b"cancel_token" not in response.body
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app), base_url="https://testserver") as client:
-        assert (await client.post(f"/api/jobs/{job_id}/cancel", headers={"X-Gewu-Internal-Token": "wrong"})).status_code == 403
-        assert (await client.post(f"/api/jobs/{job_id}/cancel", headers={"X-Gewu-Internal-Token": "internal-only-token"})).json()["status"] == "cancelled"
+        assert (await client.post(f"{prefix}/{job_id}/cancel", headers={"X-Gewu-Internal-Token": "wrong"})).status_code == 403
+        assert (await client.post(f"{prefix}/{job_id}/cancel", headers={"X-Gewu-Internal-Token": "internal-only-token"})).json()["status"] == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_cancel_reaches_detector_through_existing_shared_domain_routes(monkeypatch):
+    from starlette.responses import Response
+
+    # The shared domain routes other /api paths to the account application.
+    async def shared_domain(scope, receive, send):
+        if re.match(r"^/api/(?:wishlist$|probe$|detect(?:/|$)|status/|result/)", scope["path"]):
+            await server.app(scope, receive, send)
+        else:
+            await Response(status_code=404)(scope, receive, send)
+
+    monkeypatch.setattr(jobs, "_SEMA", asyncio.Semaphore(0))
+    job_id = await jobs.submit("https://relay.example", "sk-test", "test-model", "quick", "openai")
+    token = jobs.issue_cancel_token(job_id)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=shared_domain), base_url="https://testserver") as client:
+        client.cookies.set(f"gewu_cancel_{job_id}", token)
+        response = await client.post(f"/api/status/{job_id}/cancel")
+    assert response.status_code == 200 and response.json()["status"] == "cancelled"
+    assert not jobs._TASKS
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("prefix", ["/api/status", "/api/jobs"])
+async def test_cancellation_routes_require_https(monkeypatch, prefix):
+    monkeypatch.delenv("GEWU_ALLOW_INSECURE_API", raising=False)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=server.app), base_url="http://testserver") as client:
+        response = await client.post(f"{prefix}/unknownjob123/cancel")
+    assert response.status_code == 426

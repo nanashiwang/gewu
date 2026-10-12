@@ -61,7 +61,7 @@ describe('relay detection bridge', () => {
     const fetcher = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ status: 'cancelled', error: '你已取消本次检测' })))
     vi.stubGlobal('fetch', fetcher)
     expect((await cancelRelayCheck(payload, 'site-1', 'check-1')).status).toBe('error')
-    expect(fetcher.mock.calls[0][0]).toBe('https://detector.example/api/jobs/job_12345678/cancel')
+    expect(fetcher.mock.calls[0][0]).toBe('https://detector.example/api/status/job_12345678/cancel')
     expect(fetcher.mock.calls[0][1].method).toBe('POST')
     expect(new Headers(fetcher.mock.calls[0][1].headers).get('X-Gewu-Internal-Token')).toBe('internal-test-token')
   })

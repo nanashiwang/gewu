@@ -162,7 +162,7 @@ export async function cancelRelayCheck(payload: Payload, siteId: string, checkId
   if (!ACTIVE_CHECK_STATUSES.includes(check.status)) return check
   if (!check.detectorJobId) throw new Error('任务正在提交，请稍后再取消')
   if (!process.env.GEWU_INTERNAL_API_TOKEN?.trim()) throw new Error('取消服务尚未配置，请联系管理员')
-  await detectorFetch(`/api/jobs/${encodeURIComponent(String(check.detectorJobId))}/cancel`, { method: 'POST' })
+  await detectorFetch(`/api/status/${encodeURIComponent(String(check.detectorJobId))}/cancel`, { method: 'POST' })
   return reconcileRelayCheck(payload, check)
 }
 
