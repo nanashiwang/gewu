@@ -36,6 +36,8 @@ class ExecutionConfig(BaseModel):
     overall_timeout_s: float = 60.0
     use_cache: bool = True
     persist_cache: bool = False
+    # Scheduled monitors check access before launching parallel/costly probes.
+    stop_on_auth_failure: bool = False
     # Opt-in long-context (needle-in-haystack) probe. Off by default because
     # a single full run can cost $0.10–$0.50 (vs ~$0.005 for the rest of the
     # full mode). Detectors that respect this flag must self-skip when False.

@@ -28,6 +28,10 @@ from .models import (
     mask_api_key,
 )
 from .monitor import monitor_output_path, normalize_target_id, resolve_monitor_api_key
+from .monitor_health import (
+    LABELS as MONITOR_LABELS, classify_report, health_snapshot, load_states,
+    monitor_lock, next_state, parse_time, save_state,
+)
 from .ranking import (
     approved_ranking_evidence,
     revoke_report_approval,
@@ -400,48 +404,79 @@ def monitor_once(
         envvar="GEWU_MONITOR_LONG_CONTEXT",
         help="Opt in explicitly; routine monitors keep this costly probe off.",
     ),
+    retry_now: bool = typer.Option(
+        False, "--retry-now", help="After fixing configuration, explicitly bypass cooldown. Makes upstream requests and can consume quota.",
+    ),
 ) -> None:
     """Run one scheduled probe and atomically persist it for history/leaderboard."""
     try:
         safe_target_id = normalize_target_id(target_id)
-        api_key = resolve_monitor_api_key(api_key_env)
     except (ValueError, RuntimeError) as error:
         console.print(f"[red]monitor configuration error:[/red] {error}")
         raise typer.Exit(2) from error
 
     proto = _resolve_protocol(protocol, model)
     config = ExecutionConfig.for_mode(mode, max_concurrent=max_concurrent)
+    config.stop_on_auth_failure = True
     if timeout is not None:
         config.request_timeout_s = timeout
     config.include_long_context = include_long_context
     if include_long_context:
         config.overall_timeout_s = max(config.overall_timeout_s, 300.0)
 
-    path = monitor_output_path(output_root, proto, safe_target_id)
-    report = asyncio.run(
-        _run_detect(
-            proto,
-            base_url,
-            api_key,
-            model,
-            config,
-            path,
-            ranking_evidence=approved_ranking_evidence(
-                proto,
-                model,
-                mode,
-                source="operator_monitor",
-                reviewer=f"systemd-monitor:{safe_target_id}",
-                verification_reference=safe_target_id,
-            ),
-        )
-    )
-    console.print(
-        f"[dim]monitor target={safe_target_id} verdict={report.verdict} "
-        f"score={report.total_score:.1f}[/dim]"
-    )
-    if report.run_error:
-        raise typer.Exit(1)
+    try:
+        with monitor_lock(output_root, safe_target_id):
+            states, _ = load_states(output_root)
+            previous = states.get(safe_target_id, {})
+            until = parse_time(previous.get("next_attempt_at"))
+            if until and until > datetime.now(timezone.utc) and not retry_now:
+                console.print(f"monitor target={safe_target_id} 冷却中，未发起请求；最早重试 {until.isoformat()}")
+                raise typer.Exit(75)
+
+            def record(kind: str, report_id: str | None = None) -> None:
+                save_state(output_root, next_state(
+                    previous, target_id=safe_target_id, protocol=proto.value, model=model,
+                    mode=mode.value, kind=kind, observed_at=datetime.now(timezone.utc), report_id=report_id,
+                ))
+
+            try:
+                api_key = resolve_monitor_api_key(api_key_env)
+            except (ValueError, RuntimeError):
+                record("configuration")
+                console.print("监测凭据不可用；请核查配置。未发起上游请求。")
+                raise typer.Exit(2)
+            path = monitor_output_path(output_root, proto, safe_target_id)
+            try:
+                report = asyncio.run(_run_detect(
+                    proto, base_url, api_key, model, config, path,
+                    ranking_evidence=approved_ranking_evidence(
+                        proto, model, mode, source="operator_monitor",
+                        reviewer=f"systemd-monitor:{safe_target_id}", verification_reference=safe_target_id,
+                    ),
+                ))
+            except Exception:
+                record("execution")
+                console.print("监测执行中断，已记录失败；原始异常不写入健康状态。")
+                raise typer.Exit(1)
+            kind = classify_report(report.model_dump(mode="json"))
+            record(kind, path.stem)
+            console.print(f"monitor target={safe_target_id} {MONITOR_LABELS[kind]}")
+            if kind != "valid":
+                raise typer.Exit(1)
+    except BlockingIOError:
+        console.print("该监测任务正在执行，本次未发起重复请求。")
+        raise typer.Exit(75)
+    except (OSError, ValueError):
+        console.print("监测健康记录不可读写；请核查存储与目录权限。")
+        raise typer.Exit(2)
+
+
+@app.command(name="monitor-health")
+def monitor_health(
+    output_root: Path = typer.Option(Path("/opt/gewu-detector/web_data/jobs"), "--output-root", envvar="GEWU_JOBS_DIR"),
+) -> None:
+    """Read scheduled-monitor health without sending requests or changing state."""
+    console.print_json(data=health_snapshot(output_root))
 
 
 _DEFAULT_BASE_URLS = {

@@ -11,6 +11,16 @@
   <a class="btn btn-primary" href="/#quick-check">开始检测</a>
   <a class="btn btn-ghost" href="/ranking-governance">证据与公益规则</a>
 </section>
+<section class="card monitor-health-summary" aria-labelledby="monitor-health-title">
+  <div><span class="public-ranking-kicker">格物采样状态</span><h2 id="monitor-health-title">{% if not health_available %}监测状态暂时不可读取{% elif not monitor_health.recorded_targets %}尚无运营监测记录{% elif monitor_health.blocked_targets %}部分监测暂未取得有效证据{% else %}已有有效检测证据{% endif %}</h2>
+    <p>这是格物自身的采样情况。鉴权失败或检测中断不等于被测站点故障，也不参与站点评分。</p></div>
+  {% if health_available and monitor_health.recorded_targets %}<dl>
+    <div><dt>最近未完成的监测任务</dt><dd>{{ monitor_health.blocked_targets }} / {{ monitor_health.recorded_targets }}</dd></div>
+    <div><dt>最近一次采样尝试</dt><dd>{{ monitor_health.last_attempt_at[:16].replace('T', ' ') }} UTC</dd></div>
+    <div><dt>最近有效检测</dt><dd>{% if monitor_health.last_valid_at %}{{ monitor_health.last_valid_at[:16].replace('T', ' ') }} UTC{% else %}暂无有效记录{% endif %}</dd></div>
+  </dl>{% endif %}
+  <small>按已留存的运营报告统计，最多回溯 5,000 份；不代表定时器当前在线或长期可用率。{% if monitor_health.history_limited %}较早的历史记录未纳入本次回溯。{% endif %}</small>
+</section>
 <details class="info-disclosure">
   <summary>如何读这张表</summary>
   <p>观测入口按地址区分；服务商内部的账号分组、路由与实际供应商未知，不能据此代表整个站点。不同模型、检测模式、检测器版本及基线分别展示。</p>
