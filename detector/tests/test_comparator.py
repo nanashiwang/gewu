@@ -218,7 +218,7 @@ def test_cmp_knowledge_shows_failed_answers():
 # --- identity --------------------------------------------------------------
 
 
-def test_cmp_identity_competitor_keyword_is_critical():
+def test_cmp_identity_competitor_keyword_needs_review():
     b = _result("identity", 100.0, details={
         "required_hits": ["claude", "anthropic"],
         "competitor_hits": [],
@@ -228,10 +228,10 @@ def test_cmp_identity_competitor_keyword_is_critical():
         "competitor_hits": ["openai"],
     })
     c = _compare_one("identity", b, r)
-    assert c.severity == Severity.CRITICAL
+    assert c.severity == Severity.MAJOR
 
 
-def test_cmp_identity_brand_detection_amazon_q_is_critical():
+def test_cmp_identity_brand_detection_amazon_q_needs_review():
     """Real-world case: relay says 'I'm Amazon Q built by AWS'."""
     b = _result("identity", 100.0, details={
         "required_hits": ["claude", "anthropic"],
@@ -244,7 +244,7 @@ def test_cmp_identity_brand_detection_amazon_q_is_critical():
         "detected_non_anthropic_brands": ["Amazon Q", "AWS"],
     })
     c = _compare_one("identity", b, r)
-    assert c.severity == Severity.CRITICAL
+    assert c.severity == Severity.MAJOR
     assert any("Amazon Q" in f for f in c.findings)
     assert any("AWS" in f for f in c.findings)
 

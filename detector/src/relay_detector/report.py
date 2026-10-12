@@ -36,6 +36,10 @@ class Report:
 
     def render_terminal(self, report: DetectionReport) -> None:
         color = _VERDICT_COLOR.get(report.verdict, "white")
+        assessment = report.assessment
+        score_label = f"{report.total_score:.1f}/100" if assessment["score_usable"] else "—"
+        if not assessment["score_usable"]:
+            color = "yellow"
 
         header = (
             f"[bold]base_url[/bold]: {report.base_url}\n"
@@ -43,8 +47,10 @@ class Report:
             f"[bold]mode[/bold]: {report.mode.value}\n"
             f"[bold]api_key[/bold]:  {report.api_key_masked}    "
             f"[bold]time[/bold]: {report.timestamp.isoformat(timespec='seconds')}\n"
-            f"\n[bold]总分:[/bold] [{color}]{report.total_score:.1f}[/{color}] "
-            f"([{color}]{report.summary}[/{color}])"
+            f"\n[bold]协议质量分:[/bold] [{color}]{score_label}[/{color}] "
+            f"([{color}]{assessment['headline']}[/{color}])"
+            f"\n接口: {assessment['availability']['label']} · 能力: {assessment['capability']['label']}"
+            f"\n身份证据: {assessment['identity']['label']}\n{assessment['identity']['detail']}"
         )
         if report.self_reported_identity:
             snippet = report.self_reported_identity.replace("\n", " ")

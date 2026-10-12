@@ -34,7 +34,7 @@
   {% endfor %}
   </div>
   <p>最新有效检测：{{ row.latest.timestamp.strftime('%Y-%m-%d %H:%M UTC') }} · <a href="/r/{{ row.latest.job_id }}">查看完整证据 →</a></p>
-  <details><summary>最近 {{ row.history|length }} 份报告</summary><ul>{% for item in row.history %}<li><a href="/r/{{ item.job_id }}">{{ item.timestamp.strftime('%Y-%m-%d %H:%M UTC') }} · {{ item.score }} 分 · {{ {'pass':'样本通过','risk':'存在异常','incomplete':'未完成'}[item.state] }}</a></li>{% endfor %}</ul></details>
+  <details><summary>最近 {{ row.history|length }} 份报告</summary><ul>{% for item in row.history %}<li><a href="/r/{{ item.job_id }}">{{ item.timestamp.strftime('%Y-%m-%d %H:%M UTC') }} · {% if item.score is not none %}{{ item.score }} 分{% else %}暂不计分{% endif %} · {{ {'pass':'样本通过','risk':'存在异常','incomplete':'未完成'}[item.state] }}</a></li>{% endfor %}</ul></details>
 </article>
 {% endfor %}
 <section class="card" id="observation-empty" {% if rows %}hidden{% endif %}><h2>暂无匹配的有效观测</h2><p>不使用旧快照或未经审核的用户自测填充监测状态。你仍可发起一次检测，或查看历史参考。</p><a href="/leaderboard#historical-reference">查看历史参考</a></section>

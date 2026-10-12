@@ -97,6 +97,11 @@
 
 <section class="card">
   <h2>先看结论，再看证据</h2>
+  <div class="evidence-grid">
+    {% for title, item in [('接口可用性', assessment.availability), ('实测能力', assessment.capability), ('模型身份证据', assessment.identity)] %}
+    <div><h3>{{ title }}</h3><strong>{{ item.label }}</strong><p class="muted small">{{ item.detail }}</p></div>
+    {% endfor %}
+  </div>
   <p>通过：本次已测项目符合预期。未通过：发现需要复核的异常。错误或跳过：没有足够证据作结论，不能当作通过或模型造假。</p>
   <p>先确认模型名称、接口协议和账号权限；再查看下面每项证据。认证或额度错误请检查 Key 与余额，超时可稍后复测；能力异常请携带脱敏报告联系服务商。</p>
   <p>本报告只覆盖这次请求使用的账号与入口。服务商内部线路及账号分组未知；没有账单或余额对账时，Usage 差异不能证明实际多扣费用。</p>
@@ -118,10 +123,10 @@
 
 <section class="result-card">
   <div class="result-left">
-    <div class="score-ring score-{{ verdict_class }}">
+    <div class="score-ring score-{{ verdict_class if assessment.score_usable else 'warn' }}">
       <div class="score-inner">
-        <div class="score-num"><span>{{ '%.0f' | format(score) }}</span><small>/100</small></div>
-        <div class="score-caption">{{ caption }}</div>
+        <div class="score-num"><span>{{ '%.0f' | format(score) if assessment.score_usable else '—' }}</span>{% if assessment.score_usable %}<small>/100</small>{% endif %}</div>
+        <div class="score-caption">{{ caption if assessment.score_usable else assessment.headline }}</div>
       </div>
     </div>
     <p class="score-meaning">协议质量分,不是模型真伪概率</p>
@@ -198,8 +203,9 @@
 
 {% if protocol == 'anthropic' and report.detected_non_anthropic_brands %}
 <section class="card alert-card">
-  <strong>⚠ 检测到非 Anthropic 后端品牌:</strong>
+  <strong>模型自述提及其他品牌，需复核:</strong>
   {{ report.detected_non_anthropic_brands | join(', ') }}
+  <p>生成文本可能受提示词影响，也可能提及托管平台；不能据此确定实际后端或判定换模。</p>
 </section>
 {% endif %}
 
@@ -233,31 +239,31 @@
       <dt>模型响应形状</dt>
       <dd>检查 <code>modelVersion</code>、<code>responseId</code>、<code>finishReason</code>、candidate 和 safety 字段是否完整。</dd>
       <dt>函数调用</dt>
-      <dd>强制 Gemini 返回 <code>functionCall</code>,检查函数名和 args 是否是结构化对象。</dd>
+      <dd>通过 OpenAI 兼容接口发起工具调用，检查函数名、参数和结束原因是否符合请求。</dd>
       <dt>结构化输出</dt>
-      <dd>使用 <code>responseMimeType=application/json</code> 和 <code>responseSchema</code>,检查返回内容能否按 schema 解析。</dd>
+      <dd>通过兼容接口请求 JSON 输出，检查内容能否解析并满足指定结构。</dd>
       <dt>协议规范性</dt>
-      <dd>被动检查 <code>candidates</code>、<code>content.parts</code>、<code>safetyRatings</code>、<code>usageMetadata</code> 等 Gemini 原生字段。</dd>
+      <dd>检查 OpenAI 兼容响应的字段与类型；本入口不检测 Gemini 原生 API。</dd>
       <dt>流式一致性</dt>
-      <dd>比较同一 prompt 的 <code>generateContent</code> 与 <code>streamGenerateContent</code> 文本、结束原因和用量字段是否一致。</dd>
+      <dd>比较同一 prompt 的流式与非流式兼容请求，复核文本、结束原因和用量字段差异。</dd>
       <dt>Token 用量</dt>
-      <dd>检查 <code>usageMetadata</code> 是否存在、Token 统计是否自洽,以及长短文本带来的 Token 增量是否合理。</dd>
+      <dd>检查兼容响应的 <code>usage</code> 是否完整、统计是否自洽，以及长短文本的 Token 增量是否合理。</dd>
     </dl>
     {% else %}
     <summary>12 项检测各自检查什么?</summary>
     <dl class="def-list">
       <dt>身份一致性 (Identity)</dt>
-      <dd>询问模型自报身份,响应必须包含 "Claude" 与 "Anthropic",且不能自称是其他品牌(如 Kiro、AWS Q 等)。</dd>
+      <dd>记录模型自述与关键词偏差。回答可能受提示词或托管环境影响，不能据此确认身份。</dd>
       <dt>行为签名验证 (Behavioral)</dt>
-      <dd>3 道行为指纹题(markdown 风格、列表偏好、拒绝语气),正版 Claude 有特征鲜明的回答模式。</dd>
+      <dd>用固定问题观察格式、列表与拒绝行为。风格可被模仿，也会随模型版本变化，只作为复核线索。</dd>
       <dt>思维签名验证 (Thinking) ⭐</dt>
       <dd>核心检测:先回传原始 thinking block,再篡改一个签名字节做负向对照;只有原始请求成功且篡改请求被明确拒绝才通过。</dd>
       <dt>模型一致性 (Consistency)</dt>
       <dd>验证 <code>response.model</code> 与请求一致,且多次调用输出长度稳定(变异系数 CV)。</dd>
       <dt>知识准确度 (Knowledge)</dt>
-      <dd>5 道关于 Anthropic 公司的常识题(CEO、HQ、Constitutional AI 等),错答多则说明背后不是真 Claude。</dd>
+      <dd>用固定知识问题检查本次回答；知识错误、信息过时或答题风格都不能单独证明换模。</dd>
       <dt>PDF 文档识别</dt>
-      <dd>提交一份 base64 PDF + magic 字符串,检查模型能否正确提取——剥离 multimodal 的中转站会失败。</dd>
+      <dd>提交含指定字符串的 PDF，检查本次能否提取。失败可能来自格式、权限、代理实现或模型能力，应结合错误详情复核。</dd>
       <dt>结构化输出 (Tool Use)</dt>
       <dd>真实 tool_use 调用,验证 <code>toolu_</code> ID 前缀、JSON schema 匹配、stop_reason 等 5 项子项。</dd>
       <dt>协议规范性 (Protocol)</dt>
@@ -267,9 +273,9 @@
       <dt>Token 用量</dt>
       <dd>检查 Claude Messages 的 <code>usage.input_tokens/output_tokens</code> 是否存在、长短 prompt 增量是否合理、短输出是否没有超报,并用 stream 与 <code>count_tokens</code> 做交叉验证。</dd>
       <dt>消息标识规范 (Message ID)</dt>
-      <dd>消息 <code>id</code> 必须以 <code>msg_</code> 开头、tool 块以 <code>toolu_</code> 开头。UUID 或硬编码 <code>tool_1</code> 是典型造假特征。</dd>
+      <dd>检查消息 <code>id</code> 和工具 ID 的格式。偏差说明接口实现不同；符合格式也不能证明模型身份。</dd>
       <dt>长上下文真实性 (Long Context)</dt>
-      <dd>需在提交时勾选启用 — 用 needle-in-haystack 在 32k → 100k → 200k tokens 三档探针,验证中转站是否真兑现宣传的 context window(识别截断 / 路由到小窗口模型)。Anthropic 路径用官方 <code>count_tokens</code> 端点精准预算 token,极限档可按模型完整上限自适应探到 950k+(Sonnet 4.6 / Opus 4.6/4.7 都是 1M)。</dd>
+      <dd>需在提交时勾选启用 — 用 needle-in-haystack 探针检查不同长度输入的响应表现。失败可能来自截断、额度、超时或入口限制，不能据此确认模型身份。Anthropic 路径用 <code>count_tokens</code> 端点预算 token；极限档参考模型目录中已核对的输入上限。未覆盖的长度不作结论。</dd>
     </dl>
     {% endif %}
   </details>

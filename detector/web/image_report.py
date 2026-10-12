@@ -20,15 +20,17 @@ from PIL import Image, ImageDraw, ImageFont
 _FONT_CANDIDATES_REGULAR = [
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/System/Library/Fonts/PingFang.ttc",
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     "/System/Library/Fonts/Helvetica.ttc",
 ]
 _FONT_CANDIDATES_BOLD = [
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/System/Library/Fonts/PingFang.ttc",
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/System/Library/Fonts/Helvetica.ttc",
 ]
 
@@ -96,7 +98,7 @@ def _status_label(status: str, score: float) -> tuple[str, tuple[int, int, int]]
     if status == "skip":
         return "跳过", _MUTED
     if status == "error":
-        return "异常", _RED
+        return "执行错误", _AMBER
     if score >= 70:
         return "警告", _AMBER
     return "未通过", _RED
@@ -120,7 +122,7 @@ def _verdict_caption(score: float, verdict: str, protocol: str = "anthropic") ->
     caption needs to follow verdict, not raw score thresholds.
     """
     if verdict == "passed" and score >= 95 and protocol == "anthropic":
-        return "完全一致"
+        return "本次检测通过"
     if verdict == "passed" and score >= 85:
         return "协议表现良好" if protocol in {"openai", "gemini"} else "优秀"
     if verdict == "passed":
@@ -156,7 +158,7 @@ def _draw_cross(d: ImageDraw.ImageDraw, cx: int, cy: int, r: int,
 
 
 def _draw_circle_score(d: ImageDraw.ImageDraw, cx: int, cy: int, radius: int,
-                       score: float, caption: str,
+                       score: float | None, caption: str,
                        ring_color: tuple[int, int, int]) -> None:
     """Big ring-style score badge — thick colored border, white interior."""
     ring_thickness = 14
@@ -173,7 +175,7 @@ def _draw_circle_score(d: ImageDraw.ImageDraw, cx: int, cy: int, radius: int,
     )
 
     # score text — keep share images clean and compact.
-    score_text = f"{int(round(score))}%"
+    score_text = f"{int(round(score))}" if score is not None else "—"
     score_font = _load_font(74, bold=True)
     bbox = d.textbbox((0, 0), score_text, font=score_font)
     tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
@@ -247,7 +249,7 @@ def _openai_jpg_note(report: dict[str, Any]) -> str:
         if isinstance(r, dict)
     }
     structured = results.get("structured_output") or {}
-    if structured.get("status") != "pass":
+    if structured.get("status") == "fail":
         details = structured.get("details") or {}
         if isinstance(details, dict) and details.get("markdown_json_seen"):
             return (
@@ -273,7 +275,7 @@ def _openai_jpg_note(report: dict[str, Any]) -> str:
             if isinstance(issue, dict)
         }
         if issue_codes & critical_codes:
-            return "协议高风险: usage 字段出现非 OpenAI 后端指纹,疑似存在转换层。"
+            return "协议需复核: usage 含其他厂商风格的字段,不能据此证明实际后端。"
         if "usage_mixed_token_fields" in issue_codes:
             return "协议提示: usage 字段带有非 OpenAI 适配层痕迹。"
 
@@ -321,7 +323,7 @@ def _gemini_jpg_note(report: dict[str, Any]) -> str:
         if isinstance(r, dict)
     }
     structured = results.get("structured_output") or {}
-    if structured.get("status") != "pass":
+    if structured.get("status") == "fail":
         return "结构化输出未生效: 已要求 JSON,但返回内容无法按 schema 解析。"
     token_usage = results.get("token_usage") or {}
     if token_usage.get("status") == "fail":
@@ -378,10 +380,16 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
     verdict = report.get("verdict", "failed")
     ring = _verdict_color(score, verdict)
     caption = _verdict_caption(score, verdict, protocol)
+    from relay_detector.core.assessment import assess_report
+    assessment = assess_report(report)
+    if not assessment["score_usable"]:
+        ring, caption = _AMBER, "证据不足，暂不计分"
 
     circle_cx, circle_cy = 280, 420
     circle_r = 175
-    _draw_circle_score(d, circle_cx, circle_cy, circle_r, score, caption, ring)
+    _draw_circle_score(d, circle_cx, circle_cy, circle_r, score if assessment["score_usable"] else None, caption, ring)
+    d.text((100, 735), "协议质量分 / 100 · 不是模型真伪概率", fill=_MUTED, font=_load_font(17))
+    d.text((100, 765), assessment["identity"]["label"], fill=_MUTED, font=_load_font(17))
 
     # model + mode line under the circle
     sub_font = _load_font(16)

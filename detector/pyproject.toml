@@ -41,6 +41,7 @@ gewu = "relay_detector.cli:app"
 where = ["src"]
 
 [tool.setuptools.package-data]
+"relay_detector" = ["data/*.json"]
 "relay_detector.protocols.anthropic" = ["data/*.json", "data/*.pdf"]
 
 [tool.pytest.ini_options]

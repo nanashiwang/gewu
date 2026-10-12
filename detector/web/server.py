@@ -23,6 +23,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from . import jobs, leaderboard
 from .observations import monitoring_snapshot
 from relay_detector.ranking import assess_ranking_eligibility
+from relay_detector.core.assessment import assess_report
 from relay_detector.model_catalog import catalog_view, choices as catalog_choices, model_protocol, model_vendor
 from .brand import brand
 from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
@@ -967,6 +968,7 @@ async def api_status(job_id: str) -> JSONResponse:
                     else 0.0
                 ),
                 "verdict": str(report.get("verdict") or "failed"),
+                "assessment": assess_report(report),
                 "completed_checks": completed,
                 "total_checks": len(result_rows),
             }
@@ -995,6 +997,7 @@ async def api_result_json(request: Request, job_id: str) -> JSONResponse:
         raise HTTPException(status_code=404, detail="result not ready")
     report = dict(j.report)
     report.pop("api_key_masked", None)
+    report["assessment"] = assess_report(report)
     return JSONResponse(report, headers={"Cache-Control": "no-store"})
 
 
@@ -1009,7 +1012,7 @@ async def result_jpg(job_id: str) -> Response:
 
     # Cache the JPG next to the JSON. Detection report is immutable, so once
     # generated we always serve from disk to spare the CPU.
-    cache_path = jobs.image_path(job_id, j.protocol)
+    cache_path = jobs.image_path(job_id, j.protocol).with_suffix(".evidence-v1.jpg")
     if not cache_path.exists():
         png_bytes = render_report_jpg(j.report)
         cache_path.write_bytes(png_bytes)
@@ -1046,9 +1049,10 @@ def _seo_meta_for_report(report: dict) -> dict[str, str]:
     proto_label = _PROTOCOL_LABELS.get(protocol, protocol)
 
     model = str(report.get("target_model") or "")
-    score = float(report.get("total_score") or 0)
-    verdict = str(report.get("verdict") or "failed")
-    verdict_zh = _VERDICT_LABELS.get(verdict, verdict)
+    assessment = assess_report(report)
+    verdict_zh = assessment["headline"]
+    score_label = f"{report['total_score']:.0f}/100" if assessment["score_usable"] else ""
+    conclusion = f"{score_label} {verdict_zh}".strip()
 
     results = report.get("results") or []
     pass_count = sum(1 for r in results if isinstance(r, dict) and r.get("status") == "pass")
@@ -1056,16 +1060,16 @@ def _seo_meta_for_report(report: dict) -> dict[str, str]:
     total = len(results)
 
     title = (
-        f"{domain} {proto_label} 中转站检测:{score:.0f}/100 {verdict_zh} | 格物"
+        f"{domain} {proto_label} 中转站检测:{conclusion} | 格物"
     )
     description = (
         f"对 {domain} 进行 {proto_label} 中转站检测的完整报告:"
-        f"模型 {model},总分 {score:.0f}/100,判定为「{verdict_zh}」。"
+        f"请求模型 {model},结论为「{conclusion}」。"
         f"{total} 项检测中 {pass_count} 项通过、{fail_count} 项未通过。"
-        f"格物 字段级穿透,识别中转站真伪与质量。"
+        f"协议与能力证据不等于具体模型身份的证明。"
     )
     og_description = (
-        f"{domain} 检测报告:{score:.0f}/100 {verdict_zh}({pass_count}/{total} 项通过)"
+        f"{domain} 检测报告:{conclusion}({pass_count}/{total} 项通过)"
     )
     return {
         "seo_title": title[:155],
@@ -1095,6 +1099,7 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
         {
             "job_id": job_id,
             "report": j.report,
+            "assessment": assess_report(j.report),
             "rows": _result_rows(j.report),
             "report_notes": _report_notes(j.report),
             "ranking_approved": assess_ranking_eligibility(j.report)[0],
@@ -1310,7 +1315,7 @@ def _result_rows(report: dict) -> list[dict]:
         elif status == "skip":
             label_short, css = "跳过", "muted"
         elif status == "error":
-            label_short, css = "异常", "fail"
+            label_short, css = "执行错误", "warn"
         elif score >= 70:
             label_short, css = "警告", "warn"
         else:
@@ -1395,15 +1400,14 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
         "usage_source_non_openai",
     }
     if impersonation_codes:
-        # Critical-severity adapter fingerprints — the relay is almost
-        # certainly translating from a different upstream backend.
+        # Adapter fields can be copied; they do not authenticate the backend.
         notes.append({
-            "title": "中转站疑似伪装成 OpenAI",
+            "title": "响应字段存在协议差异",
             "body": (
-                "响应的 usage 字段里出现了 Anthropic / Google 后端才会用的字段(如 "
+                "响应的 usage 字段里出现了 Anthropic / Google 风格的字段(如 "
                 "claude_cache_creation_*、gemini_* 或 usage_source 自报非 openai)。"
-                "这强烈暗示中转站把你的请求转发给了别的厂商后端再包装成 OpenAI 响应,"
-                "所谓的 GPT 输出可能并非真正的 OpenAI 模型在生成。"
+                "这些字段可能来自适配层或被复制，建议联系服务商核对转换逻辑。"
+                "字段差异本身不能证明实际后端厂商或模型身份。"
             ),
         })
     elif "usage_mixed_token_fields" in issue_codes:
@@ -1430,7 +1434,7 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
                     "接口没有给出足够完整的 Token 用量信息,所以这次不能确认它有没有多算。"
                 ),
             })
-        elif token_billing.get("status") != "pass":
+        elif token_billing.get("status") == "fail":
             stream_only = td.get("non_stream_supported") is False
             notes.append({
                 "title": (
@@ -1491,7 +1495,7 @@ def _anthropic_report_notes(report: dict) -> list[dict[str, str]]:
             "title": "暂时无法判断 Token 是否虚报",
             "body": "接口没有返回完整 usage 字段,所以这次不能确认它有没有多算。",
         }]
-    if token_usage.get("status") != "pass":
+    if token_usage.get("status") == "fail":
         return [{
             "title": "Token 用量存在风险",
             "body": td.get("evaluation_zh") or (
@@ -1510,7 +1514,7 @@ def _gemini_report_notes(report: dict) -> list[dict[str, str]]:
 
     structured = results.get("structured_output") or {}
     sd = structured.get("details") if isinstance(structured.get("details"), dict) else {}
-    if structured.get("status") != "pass":
+    if structured.get("status") == "fail":
         notes.append({
             "title": "结构化输出没有真正生效",
             "body": sd.get("evaluation_zh") or (
@@ -1525,7 +1529,7 @@ def _gemini_report_notes(report: dict) -> list[dict[str, str]]:
         if isinstance(token_usage.get("details"), dict)
         else {}
     )
-    if token_usage and token_usage.get("status") != "pass":
+    if token_usage.get("status") == "fail":
         notes.append({
             "title": "Token 用量存在风险",
             "body": td.get("evaluation_zh") or (
@@ -1539,7 +1543,7 @@ def _gemini_report_notes(report: dict) -> list[dict[str, str]]:
         if isinstance(integrity.get("details"), dict)
         else {}
     )
-    if integrity and integrity.get("status") != "pass":
+    if integrity.get("status") == "fail":
         notes.append({
             "title": "流式响应存在偏差",
             "body": idetails.get("evaluation_zh") or (
@@ -1547,7 +1551,9 @@ def _gemini_report_notes(report: dict) -> list[dict[str, str]]:
             ),
         })
 
-    if not notes:
+    if not notes and all(results.get(name, {}).get("status") == "pass" for name in (
+        "basic_request", "model_info", "function_calling", "structured_output", "protocol", "integrity", "token_usage",
+    )):
         notes.append({
             "title": "Gemini OpenAI 兼容协议表现良好",
             "body": (

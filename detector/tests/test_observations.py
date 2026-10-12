@@ -137,7 +137,10 @@ def test_incomplete_observation_is_not_shown_as_pass(stage):
     stage("incomplete", report(results=[
         {"name": "basic_request", "status": "pass"}, {"name": "protocol", "status": "error"},
     ]))
-    assert monitoring_snapshot()["rows"][0]["days"][-1]["state"] == "incomplete"
+    snapshot = monitoring_snapshot()
+    assert snapshot["rows"][0]["days"][-1]["state"] == "incomplete"
+    assert snapshot["rows"][0]["latest"]["score"] is None
+    assert list(leaderboard.approved_reports()) == []
 
 
 def test_failed_probe_is_visible_even_with_other_incomplete_probes(stage):

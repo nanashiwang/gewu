@@ -36,14 +36,8 @@ COMPETITOR = [
 ]
 
 
-# Specific product / vendor brand fingerprints. When the model self-describes
-# (or anywhere in the identity response) using one of these patterns, that's a
-# stronger signal than the broad COMPETITOR list — it pinpoints the actual
-# backend implementation. Pairs are (regex, human label). The regex must be
-# tight enough to avoid false positives in normal English (e.g. "AWS S3"
-# tutorial response shouldn't trip it on a "Who are you?" prompt — but in our
-# IdentityDetector context the prompt is always a self-id question so any
-# brand mention is suspect).
+# Words found in generated self-description are review hints, not authenticated
+# backend fingerprints. Hosting platforms and injected text can mention brands.
 NON_ANTHROPIC_BRAND_PATTERNS: list[tuple[str, str]] = [
     # AWS family
     (r"\bamazon\s+q\b", "Amazon Q"),
@@ -92,9 +86,7 @@ class IdentityDetector(ActiveDetector):
         required_hits = [p for p in REQUIRED if re.search(p, text_lc)]
         competitor_hits = [p for p in COMPETITOR if re.search(p, text_lc)]
 
-        # Specific product brand detection — surfaces the actual backend
-        # (e.g. "Amazon Q" / "AWS Bedrock" / "ChatGPT") for the comparator
-        # to flag as critical regardless of the overall identity score.
+        # Retain observed words without claiming to identify the upstream.
         seen_labels: set[str] = set()
         detected_brands: list[str] = []
         for pattern, label in NON_ANTHROPIC_BRAND_PATTERNS:
