@@ -169,7 +169,10 @@
     }
     input.value = previous;
     const hint = document.getElementById('model-choice-hint');
-    if (hint) hint.textContent = '地址或 Key 已更新；当前候选待接口确认，离开输入框后重新读取模型列表。';
+    const geminiWire = document.getElementById('gemini-wire-api')?.value;
+    if (hint) hint.textContent = geminiWire && geminiWire !== 'chat_completions'
+      ? '从官方候选目录选择；原生接口不自动读取兼容模型列表。此型号是否可用，以首次检测请求为准。'
+      : '地址或 Key 已更新；当前候选待接口确认，离开输入框后重新读取模型列表。';
   };
   window.gewuSetModelChoices = function (values) {
     const previous = input.value;
