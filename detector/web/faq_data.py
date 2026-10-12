@@ -170,10 +170,11 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "claude-code-relay",
                 "Claude code 中转站怎么挑?",
-                "关键看 4 点:① 跑一次 格物 看 thinking signature 是否拿到 100 分;"
+                "可以复核 4 类证据:① 原始 thinking 块回放与篡改负向对照是否都完成;"
                 "② 看 usage 里有没有 claude_* 之外的异源字段;"
                 "③ 看 stream / non-stream 一致性(中转站常常在两条路径上做不同处理);"
-                "④ 看消息 id 是否符合 msg_ / toolu_ / srvtoolu_ 前缀规范。",
+                "④ 看消息 id 是否符合 msg_ / toolu_ / srvtoolu_ 前缀规范。"
+                "名称、字段与分数不能单独证明具体模型身份；错误或未完成项应复测。",
             ),
             FAQEntry(
                 "claude-detector-coverage",
@@ -262,7 +263,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
         title="Gemini API 中转站",
         intro=(
             "格物 的 Gemini 检测只走 OpenAI 兼容路径(POST /chat/completions),"
-            "因为 99% 的第三方 Gemini 中转站都用这条。Gemini 3 系列默认开 thinking,"
+            "格物 当前检测的是 Gemini 的 OpenAI 兼容接口。Gemini 3 系列默认开 thinking,"
             "对 max_tokens 设置和 token 用量统计有特殊要求。"
         ),
         entries=(
@@ -283,7 +284,7 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "gemini-no-native",
                 "格物 为什么不支持 Gemini 原生 /v1beta/models/X:generateContent 路径?",
-                "99% 的第三方 Gemini 中转站只暴露 OpenAI 兼容协议,Google 官方也提供 OpenAI 兼容"
+                "格物 此入口使用 OpenAI 兼容协议,Google 官方也提供 OpenAI 兼容"
                 "端点 /v1beta/openai。维护两套独立的检测逻辑成本高且容易引入翻译层导致结果失真,"
                 "所以 格物 集中在 OpenAI 兼容路径上做透。",
             ),
@@ -398,16 +399,17 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "vs-leaderboards",
                 "中转站对比榜单(aiapipk.com / 知乎评测)跟 格物 是什么关系?",
-                "那些是「主观评测」或「广告导向」,格物 是「客观技术检测」。"
-                "可以互补:用榜单初筛信誉好的中转站,再用 格物 做技术验证。",
+                "不同榜单的来源、测试方法与商业关系各不相同，应分别核对。"
+                "格物 展示本次检测证据与方法边界，可作为交叉参考，不替其他榜单作真实性背书。",
             ),
             FAQEntry(
                 "how-to-pick-relay",
                 "怎么挑中转站?有什么硬性指标?",
-                "格物 推荐 5 条硬指标:① thinking signature ≥ 100;"
+                "建议复核这些信号，而不是把单项当作真伪硬指标:① thinking 原始回放及篡改负向对照;"
                 "② protocol critical_issue_count = 0;③ stream / non-stream usage 一致;"
                 "④ 模型 id 字段匹配请求模型(model_consistency pass);"
-                "⑤ 多次请求 completion_tokens CV < 0.10(稳定性)。",
+                "⑤ 多次请求的稳定性。字段、模型名称与统计结果均可能受代理实现影响，"
+                "不能据此确认具体模型；请结合时间、账号、协议与复测结果判断。",
             ),
         ),
     ),

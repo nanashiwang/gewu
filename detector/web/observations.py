@@ -8,12 +8,13 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
 from . import leaderboard
+from relay_detector.core.assessment import assess_report
 
 
 def monitoring_snapshot() -> dict:
     grouped: dict[tuple, list[dict]] = defaultdict(list)
     now = datetime.now(timezone.utc)
-    for path, report in leaderboard.approved_reports(max_age_days=30):
+    for path, report in leaderboard.approved_reports(max_age_days=30, include_incomplete=True):
         endpoint = urlsplit(report["base_url"])
         # Userinfo/query/path can contain secrets; publish only an opaque ID.
         origin = f"{endpoint.scheme.lower()}://{endpoint.netloc.rsplit('@', 1)[-1].lower()}{endpoint.path.rstrip('/')}"
@@ -39,7 +40,7 @@ def monitoring_snapshot() -> dict:
             "job_id": path.stem,
             "timestamp": leaderboard._parse_timestamp(report["timestamp"]).astimezone(timezone.utc),
             "state": state,
-            "score": round(float(report["total_score"]), 1),
+            "score": round(float(report["total_score"]), 1) if assess_report(report)["score_usable"] else None,
         })
     rows = []
     for key, samples in grouped.items():

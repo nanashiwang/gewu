@@ -22,7 +22,7 @@ class Severity(str, Enum):
     OK = "ok"             # within tolerance / matches baseline
     MINOR = "minor"       # small drift; usable
     MAJOR = "major"       # capability degraded
-    CRITICAL = "critical"  # not the model it claims to be
+    CRITICAL = "critical"  # severe observed deviation, not model authentication
 
 
 _SEVERITY_ORDER = {
@@ -169,20 +169,19 @@ def _cmp_identity(b: dict, r: dict) -> tuple[Severity, list[str]]:
 
     competitors = rd.get("competitor_hits") or []
     if competitors:
-        findings.append(f"出现竞品关键词: {competitors}")
-        sev = Severity.CRITICAL
+        findings.append(f"模型自述出现竞品关键词: {competitors}；可能受提示词影响，需复核")
+        sev = Severity.MAJOR
 
-    # Specific backend brands detected on the relay but not on baseline —
-    # the strongest possible identity signal (e.g. "Amazon Q" / "AWS Bedrock"
-    # / "ChatGPT" — pinpoints actual upstream).
+    # Generated text can be injected or name hosting providers. It does not
+    # identify the actual upstream, even when absent from the baseline.
     b_brands = set(bd.get("detected_non_anthropic_brands") or [])
     r_brands = set(rd.get("detected_non_anthropic_brands") or [])
     new_brands = sorted(r_brands - b_brands)
     if new_brands:
         findings.append(
-            f"⚠ 检测到非 Anthropic 后端品牌: {', '.join(new_brands)}"
+            f"模型自述提及其他品牌: {', '.join(new_brands)}；不能据此确定实际后端或判定换模"
         )
-        sev = Severity.CRITICAL
+        sev = Severity.MAJOR
 
     return sev, findings
 
@@ -569,7 +568,7 @@ def _build_summary(
             f"模型不一致: baseline={b_model}, relay={r_model} — 无法可靠对比"
         )
     if overall == Severity.OK:
-        return f"中转站行为与官方基线一致 (总分 {r_total:.1f} vs {b_total:.1f})"
+        return f"本次已测行为与基线一致，不证明具体模型身份 (总分 {r_total:.1f} vs {b_total:.1f})"
     parts = [f"总分 {r_total:.1f} vs baseline {b_total:.1f} ({diff:+.1f})"]
     sev_bits = []
     if crit:
@@ -582,7 +581,7 @@ def _build_summary(
         parts.append("; ".join(sev_bits))
 
     if overall == Severity.CRITICAL:
-        parts.append("中转站极有可能不是声称的 Claude 模型")
+        parts.append("检测到严重协议或能力偏差，需复核原因；不能仅据此判定模型身份")
     elif overall == Severity.MAJOR:
-        parts.append("中转站存在能力剥离或协议显著偏差")
+        parts.append("存在需要复核的行为或协议偏差")
     return " — ".join(parts)

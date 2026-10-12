@@ -340,7 +340,7 @@ def test_result_page_labels_score_as_quality_not_probability(monkeypatch):
         "target_model": "gpt-test",
         "mode": "standard",
         "base_url": "https://relay.example/v1",
-        "results": [],
+        "results": [{"name": "basic_request", "status": "pass", "score": 91, "details": {}}],
         "performance": {},
     }
 

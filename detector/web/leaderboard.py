@@ -215,7 +215,7 @@ def _load_report(path: Path) -> dict | None:
         return None
 
 
-def approved_reports(max_age_days: int | None = None):
+def approved_reports(max_age_days: int | None = None, *, include_incomplete: bool = False):
     """Read only attributable, valid evidence; never expose raw report data."""
     cutoff = (
         datetime.now(timezone.utc) - timedelta(days=max_age_days)
@@ -230,7 +230,12 @@ def approved_reports(max_age_days: int | None = None):
                 continue
             seen.add(path.resolve())
             report = _load_report(path)
-            if not report or not assess_ranking_eligibility(report)[0]:
+            if not report:
+                continue
+            eligible, reason = assess_ranking_eligibility(report)
+            # Monitoring may show a reviewed partial observation without scoring
+            # it. This exception never bypasses provenance/auth/core checks.
+            if not eligible and not (include_incomplete and reason == 'incomplete_evidence'):
                 continue
             domain = _extract_domain(report.get("base_url", ""))
             if not is_valid_domain(domain) or domain in _BLOCKED_DOMAINS:

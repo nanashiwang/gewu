@@ -2,7 +2,14 @@ node_modules
 .next
 .git
 .gitignore
-detector
+detector/*
+!detector/src
+detector/src/*
+!detector/src/relay_detector
+detector/src/relay_detector/*
+!detector/src/relay_detector/data
+detector/src/relay_detector/data/*
+!detector/src/relay_detector/data/model_catalog.json
 docs/*
 !docs/gewu-功能说明书.md
 README.md

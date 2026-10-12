@@ -1,4 +1,24 @@
 /* Detector account surfaces do not inherit the legacy platform theme. */
+.relay-steps { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;list-style:none;margin:0;padding:0; }
+.relay-steps li { display:flex;align-items:flex-start;gap:10px;padding:15px 12px;border:1px solid var(--border);border-radius:12px;background:var(--panel);color:var(--muted); }
+.relay-steps li.is-current { border-color:var(--accent);background:#e7f0e3;color:var(--text); }
+.relay-step-number { display:grid;place-items:center;flex-shrink:0;width:27px;height:27px;border-radius:50%;background:var(--panel-2);border:1px solid var(--border);font-size:12px; }
+.is-current .relay-step-number,.is-complete .relay-step-number { background:var(--accent);color:white;border-color:var(--accent); }
+.relay-steps strong { display:block;font-size:14px;font-weight:600; }
+.relay-steps small { display:block;margin-top:3px;font-size:11px;line-height:1.5; }
+.relay-model-picker { min-width:0;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--panel-2); }
+.relay-dns-value { display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--panel-2); }
+.relay-dns-value code { min-width:0;flex:1;overflow-wrap:anywhere;user-select:all; }
+.relay-dns-value button { flex-shrink:0; }
+.relay-progress { display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 20px;border:1px solid var(--border);border-radius:12px;background:var(--panel);font-size:13px; }
+.relay-progress button { flex-shrink:0; }
+.relay-history { list-style:none;padding:0;margin:0; }
+.relay-history li { padding:16px 0;border-top:1px solid var(--border); }
+.relay-history-heading,.relay-history-meta { display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px 16px;font-size:13px;overflow-wrap:anywhere; }
+.relay-history-heading strong { font-weight:500; }
+.relay-history-meta { margin-top:6px;color:var(--muted);font-size:12px; }
+.relay-history-note { margin:8px 0 0;font-size:12px;color:var(--muted);overflow-wrap:anywhere;white-space:pre-wrap; }
+@media(max-width:680px) { .relay-steps{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.relay-steps li{padding:12px 10px}.relay-progress{align-items:flex-start;flex-direction:column}.relay-model-picker{padding:12px} }
 .detector-frame {
   --bg: #f0f5ee;
   --bg-elev: #fcfdf9;
@@ -14,6 +34,7 @@
   --accent-hover: #265940;
   --accent-2: #2f6d50;
   --danger: #a33f38;
+  --warn: #89621c;
   --ring: #2f6d5030;
   --shadow: none;
   --shadow-sm: none;

@@ -1,3 +1,5 @@
+import { reportHasUsableEvidence } from './relayEvidence'
+
 export const RELAY_STATUS_LABELS: Record<string, string> = {
   draft: '草稿',
   pending: '待审核',
@@ -34,4 +36,18 @@ export function relayStatusClass(status: string): string {
   if (status === 'pending' || status === 'unverified') return 'text-[var(--warn)]'
   if (status === 'rejected' || status === 'suspended' || status === 'failed') return 'text-[var(--danger)]'
   return 'text-[var(--muted)]'
+}
+
+export function relayReportPath(check: any): string | null {
+  const id = String(check.detectorJobId || '')
+  if (/^[A-Za-z0-9_-]{8,64}$/.test(id)) return `/r/${id}`
+  try {
+    const url = new URL(check.resultUrl, 'https://gewu.uk')
+    return /^\/r\/[A-Za-z0-9_-]{8,64}$/.test(url.pathname) ? url.pathname : null
+  } catch { return null }
+}
+
+export function relayCheckHasScore(check: any): boolean {
+  if (check.status !== 'done' || typeof check.score !== 'number' || !Number.isFinite(check.score) || check.score < 0 || check.score > 100) return false
+  return reportHasUsableEvidence(check.report, check.protocol)
 }

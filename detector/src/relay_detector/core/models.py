@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 
 class Mode(str, Enum):
@@ -148,11 +148,19 @@ class DetectionReport(BaseModel):
     # baseline-vs-relay self-id side-by-side in the report header. None when
     # IdentityDetector was skipped or errored.
     self_reported_identity: str | None = None
-    # Detected non-Anthropic backend brand labels found in the identity
-    # response (e.g. ["Amazon Q", "AWS"]). Empty for genuine Anthropic.
-    # Populated by IdentityDetector and lifted here for fast top-level reads
-    # — comparator treats any new brand vs baseline as a CRITICAL signal.
+    # Brand words in generated self-description; not authenticated provenance.
+    # Keep the legacy field name for existing consumers.
     detected_non_anthropic_brands: list[str] = Field(default_factory=list)
+
+    @computed_field
+    @property
+    def assessment(self) -> dict[str, Any]:
+        from .assessment import assess_report
+        return assess_report({
+            "protocol": self.protocol.value, "total_score": self.total_score,
+            "verdict": self.verdict, "run_error": self.run_error,
+            "results": [row.model_dump() for row in self.results],
+        })
 
 
 class StreamEvent(BaseModel):

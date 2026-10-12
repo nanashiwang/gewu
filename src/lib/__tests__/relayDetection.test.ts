@@ -106,6 +106,7 @@ describe('relay detection bridge', () => {
       }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         total_score: 98,
+        results: [{ name: 'basic_request', status: 'pass' }],
         verdict: 'trusted sk-private-relay-key',
         summary: '通过 sk-private-relay-key',
         nested: { reflected: 'sk-private-relay-key' },
@@ -146,6 +147,32 @@ describe('relay detection bridge', () => {
     })
     expect(result.status).toBe('error')
     expect(result.error).toContain('得分无效')
+    expect(updates.some((update) => update.collection === 'relay-sites')).toBe(false)
+  })
+
+  it.each([
+    { run_error: 'quota sk-private-relay-key', results: [{ name: 'basic_request', status: 'pass' }] },
+    { results: [{ name: 'basic_request', status: 'error' }], assessment: { score_usable: true } },
+    { results: [{ name: 'basic_request', status: 'pass' }, { name: 'streaming', status: 'error' }] },
+    { results: [] },
+  ])('keeps incomplete reports out of station scores and preserves a redacted report link (%j)', async (partial) => {
+    vi.stubEnv('PAYLOAD_SECRET', TEST_SECRET)
+    vi.stubEnv('DETECTOR_BASE_URL', 'https://detector.internal')
+    const updates: any[] = []
+    const payload: any = {
+      findByID: vi.fn(async () => encryptedSite()),
+      update: vi.fn(async (args: any) => { updates.push(args); return { id: args.id, ...args.data } }),
+    }
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'done' })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ total_score: 100, verdict: 'passed', ...partial }))))
+    const result: any = await reconcileRelayCheck(payload, {
+      id: 'check-1', site: 'site-1', protocol: 'openai', detectorJobId: 'job_12345678', createdAt: new Date().toISOString(),
+    })
+    expect(result.status).toBe('error')
+    expect(result.score).toBeNull()
+    expect(result.resultUrl).toContain('/r/job_12345678')
+    expect(JSON.stringify(result)).not.toContain('sk-private-relay-key')
     expect(updates.some((update) => update.collection === 'relay-sites')).toBe(false)
   })
 

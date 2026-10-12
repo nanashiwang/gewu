@@ -662,5 +662,5 @@ def test_openai_share_card_prioritizes_critical_backend_fingerprint():
     }
 
     note = _openai_jpg_note(report)
-    assert note.startswith("协议高风险")
-    assert "非 OpenAI 后端指纹" in note
+    assert note.startswith("协议需复核")
+    assert "不能据此证明实际后端" in note

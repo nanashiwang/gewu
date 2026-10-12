@@ -1,6 +1,7 @@
 import type { Payload } from 'payload'
 import { decryptSecret } from './secrets'
 import { nextRelayCheckAt, relayGrade, relationId } from './relaySite'
+import { reportHasUsableEvidence } from './relayEvidence'
 
 const ACTIVE_CHECK_STATUSES = ['queued', 'running']
 const CHECK_SUBMISSION_STALE_MS = 5 * 60 * 1000
@@ -224,8 +225,8 @@ export async function reconcileRelayCheck(payload: Payload, check: any) {
   if (status.status !== 'done') throw new Error(`未知检测任务状态：${String(status.status)}`)
 
   const rawReport = await detectorFetch(`/api/result/${encodeURIComponent(String(check.detectorJobId))}.json`, undefined, 20_000)
-  const score = Number(rawReport.total_score)
-  if (!Number.isFinite(score) || score < 0 || score > 100) {
+  const score = rawReport.total_score
+  if (typeof score !== 'number' || !Number.isFinite(score) || score < 0 || score > 100) {
     return payload.update({
       collection: 'relay-checks' as any,
       id: check.id,
@@ -239,6 +240,19 @@ export async function reconcileRelayCheck(payload: Payload, check: any) {
   }
 
   const report = redactRelaySecret(rawReport, apiKey) as Record<string, any>
+  const resultUrl = `${detectorPublicUrl()}/r/${encodeURIComponent(String(check.detectorJobId))}`
+  if (!reportHasUsableEvidence(report, String(check.protocol || site?.protocol || ''))) {
+    return payload.update({
+      collection: 'relay-checks' as any, id: check.id, overrideAccess: true,
+      data: {
+        status: 'error', score: null, grade: null, verdict: null,
+        error: String(report.run_error || '检测证据不完整，暂不计分。请查看报告并复测。').slice(0, 1000),
+        report, resultUrl,
+        startedAt: epochSecondsToIso(status.started_at) || check.startedAt,
+        finishedAt: epochSecondsToIso(status.finished_at) || new Date().toISOString(),
+      },
+    })
+  }
 
   const safeScore = score
   const startedAt = epochSecondsToIso(status.started_at) || check.startedAt || check.createdAt
@@ -246,7 +260,6 @@ export async function reconcileRelayCheck(payload: Payload, check: any) {
   const durationMs = Math.max(0, new Date(finishedAt).getTime() - new Date(startedAt).getTime())
   const verdict = String(report.verdict || 'unknown').slice(0, 80)
   const grade = relayGrade(safeScore)
-  const resultUrl = `${detectorPublicUrl()}/r/${encodeURIComponent(String(check.detectorJobId))}`
 
   const updated = await payload.update({
     collection: 'relay-checks' as any,
