@@ -902,6 +902,7 @@ async def api_detect_openai(
     mode: str = Form("standard"),
     include_long_context: bool = Form(False),
     include_long_context_extreme: bool = Form(False),
+    wire_api: str = Form("chat_completions"),
 ) -> JSONResponse:
     base_url = await _validated_target_or_400(base_url)
     api_key = _validated_api_key_or_400(api_key)
@@ -910,6 +911,10 @@ async def api_detect_openai(
 
     if mode not in _VALID_MODES:
         raise HTTPException(status_code=400, detail=f"mode must be one of {_VALID_MODES}")
+    if wire_api not in {"chat_completions", "responses"}:
+        raise HTTPException(status_code=400, detail="请选择 Chat Completions 或 Responses 接口")
+    if wire_api == "responses" and (include_long_context or include_long_context_extreme):
+        raise HTTPException(status_code=400, detail="Responses 暂不提供长上下文检测，请关闭高级选项")
     _enforce_rate_limit(
         request,
         scope="detect",
@@ -917,10 +922,14 @@ async def api_detect_openai(
         window_s=_DETECT_RATE_WINDOW_S,
     )
 
-    await _preflight_or_422(request, base_url, api_key, model, "openai")
+    # Responses reuses its first core probe for access checks. Never send a
+    # billable Chat Completions preflight for a different, selected endpoint.
+    if wire_api == "chat_completions":
+        await _preflight_or_422(request, base_url, api_key, model, "openai")
     job_id = await _submit_or_503(
         base_url, api_key, model, mode,
         protocol="openai",
+        wire_api=wire_api,
         include_long_context=include_long_context,
         include_long_context_extreme=include_long_context_extreme,
     )
@@ -964,6 +973,7 @@ async def api_status(job_id: str) -> JSONResponse:
     payload = {
         "job_id": j.id,
         "protocol": j.protocol,
+        "wire_api": j.wire_api,
         "status": j.status,
         "base_url": j.base_url,
         "target_model": j.target_model,
@@ -1356,12 +1366,21 @@ def _result_rows(report: dict) -> list[dict]:
     out = []
     protocol = str(report.get("protocol") or "anthropic")
     display = _DETECTOR_DISPLAY.get(protocol, _DETECTOR_DISPLAY["anthropic"])
+    responses = report.get("wire_api") == "responses"
+    if responses:
+        display = [("basic_request", "基础回复"), ("responses_stream", "流式完整性"),
+                   ("responses_schema", "结构化输出"), ("responses_tools", "工具调用往返")]
     for name, label in display:
         r = by_name.get(name) or {"status": "skip", "score": 0.0}
         status = str(r.get("status") or "skip")
         score = float(r.get("score") or 0.0)
         if status == "pass":
             label_short, css = "通过", "ok"
+        elif responses and status == "skip":
+            reason = str((r.get("details") or {}).get("skip_reason") or "")
+            label_short, css = ("未开放 / 未验证" if "未开放" in reason else "未测试"), "muted"
+        elif responses and status == "error":
+            label_short, css = "证据不足", "warn"
         elif status == "skip" and name == "long_context":
             # long_context is opt-in. Skip can mean "user didn't check the
             # box", "model context too small", or "all tiers rate-limited".
@@ -1396,6 +1415,15 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
     terms a non-implementer can act on.
     """
     protocol = str(report.get("protocol") or "anthropic")
+    if report.get("wire_api") == "responses":
+        notes = [{"title": "Responses 检测范围", "body": "只覆盖本次所选接口和已运行的能力，不验证模型身份、长上下文或实际扣费；暂不参与公共榜单。请求不自动重试或切换接口，工具只在格物本地模拟执行。"}]
+        for row in report.get("results") or []:
+            if row.get("status") == "pass":
+                continue
+            reason = str(row.get("error") or (row.get("details") or {}).get("skip_reason") or "本次响应没有满足该能力探针的预期，请结合脱敏证据复核。")
+            reason = {"mode-excluded": "本次检测深度未包含此项目，未验证这项能力。", "authentication-blocked": "鉴权失败后停止后续请求，此项目未测试。"}.get(reason, reason)
+            notes.append({"title": row.get("display_name", "检测项目"), "body": reason[:400]})
+        return notes
     if protocol == "gemini":
         return _gemini_report_notes(report)
     if protocol == "anthropic":

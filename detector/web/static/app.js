@@ -1,6 +1,46 @@
-// Mobile nav hamburger toggle. Pure aria-expanded toggling; CSS does the
-// rest via the sibling selector. Closes on outside tap, on ESC, and on
-// link tap so the dropdown doesn't linger after navigation.
+// Responses has a separate, bounded probe plan. Changing this UI never sends
+// a model request; the form submit is the sole inference action.
+(function () {
+  const wire = document.getElementById('wire-api');
+  const mode = document.getElementById('mode');
+  const vendor = document.getElementById('model-vendor');
+  if (!wire || !mode) return;
+  const budget = document.getElementById('responses-budget');
+  const advanced = document.getElementById('chat-advanced-options');
+  const plans = {
+    quick: '最多 2 次请求：基础回复与流式完整性',
+    standard: '最多 3 次请求：基础回复、流式完整性、结构化输出',
+    full: '最多 5 次请求：基础回复、流式完整性、结构化输出、工具调用往返',
+  };
+  function update() {
+    const responses = wire.value === 'responses';
+    budget.hidden = !responses;
+    advanced.hidden = responses;
+    advanced.querySelectorAll('input[type="checkbox"]').forEach(input => {
+      input.disabled = responses;
+      if (responses) input.checked = false;
+    });
+    budget.textContent = `Responses ${plans[mode.value]}。每次输出上限 4,096 Token（含推理），不自动重试；由你的 Key 支付，实际费用取决于模型和服务商价格。`;
+    const labels = responses
+      ? ['快速 · 基础与流式', '标准 · 加测结构化输出', '完整 · 加测工具往返']
+      : ['快速 · 基础请求', '标准 · 协议与流式检查', '完整 · 全部适用项目'];
+    Array.from(mode.options).forEach((option, index) => { option.textContent = labels[index]; });
+    if (responses) {
+      const scope = document.getElementById('vendor-scope');
+      if (scope) scope.textContent = '检测 Responses 接口的实际能力；候选型号不代表该入口已开放权限，未完成的能力不作通过结论。';
+    }
+  }
+  wire.addEventListener('change', update);
+  mode.addEventListener('change', update);
+  vendor?.addEventListener('change', () => {
+    wire.value = vendor.value === 'openai' ? 'responses' : 'chat_completions';
+    wire.dispatchEvent(new Event('change', {bubbles:true}));
+    queueMicrotask(update);
+  });
+  update();
+})();
+
+// Mobile navigation closes on outside clicks, links and Escape.
 (function () {
   const toggle = document.querySelector('.nav-toggle');
   const nav = document.getElementById('site-nav');
@@ -199,6 +239,7 @@
   }
 
   function renderProbeResult(data) {
+    lastProbeData = data;
     if (!data.ok) {
       // Auth fail vs other errors — auth_ok=false is the only blocking case
       if (data.auth_ok === false) {
@@ -215,8 +256,10 @@
     }
 
     const selectedVendor = document.getElementById('model-vendor')?.value;
-    const myModels = selectedVendor && data.by_vendor
-      ? (data.by_vendor[selectedVendor] || [])
+    const vendorModels = document.getElementById('wire-api')?.value === 'responses'
+      ? (data.by_responses_vendor || data.by_vendor) : data.by_vendor;
+    const myModels = selectedVendor && vendorModels
+      ? (vendorModels[selectedVendor] || [])
       : ((data.by_protocol && data.by_protocol[protocol]) || []);
     const total = data.raw_count || 0;
 
@@ -277,6 +320,10 @@
     pill.hidden = false;
   }
 
+  let lastProbeData = null;
+  document.getElementById('wire-api')?.addEventListener('change', () => {
+    if (lastProbeData) renderProbeResult(lastProbeData);
+  });
   document.getElementById('model-vendor')?.addEventListener('change', () => {
     if (inflight) inflight.abort();
     inflight = null;
@@ -327,6 +374,7 @@
     inflight = null;
     if (pending) pending.abort();
     lastKey = null;
+    lastProbeData = null;
     window.gewuBestByProtocol = {};
     if (window.gewuResetModelChoices) window.gewuResetModelChoices();
     pill.hidden = true;
@@ -476,7 +524,8 @@
     errBox.hidden = true;
     errBox.classList.remove('form-error-rich', 'form-warning-rich');
     submitBtn.disabled = true;
-    submitBtn.textContent = '正在确认模型可用…';
+    submitBtn.textContent = document.getElementById('wire-api')?.value === 'responses'
+      ? '正在提交检测…' : '正在确认模型可用…';
 
     const fd = new FormData(form);
     try {

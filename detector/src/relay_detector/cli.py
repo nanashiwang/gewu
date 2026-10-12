@@ -277,6 +277,7 @@ def detect(
     output: Optional[Path] = typer.Option(
         None, "--output", "-o", help="Write JSON report to this path.",
     ),
+    wire_api: str = typer.Option("chat_completions", "--wire-api", help="OpenAI: chat_completions or responses. Responses has no retries; at most 2/3/5 requests."),
     include_long_context: bool = typer.Option(
         False,
         "--long-context/--no-long-context",
@@ -299,6 +300,10 @@ def detect(
 ) -> None:
     """Run a multi-detector quality check against a relay station."""
     proto = _resolve_protocol(protocol, model)
+    if wire_api not in {"chat_completions", "responses"} or (wire_api == "responses" and proto != Protocol.OPENAI):
+        raise typer.BadParameter("--wire-api responses 仅适用于 OpenAI 协议")
+    if wire_api == "responses" and (include_long_context or include_long_context_extreme):
+        raise typer.BadParameter("Responses 暂不提供长上下文检测")
 
     # Per-protocol envvar fallback so users can keep distinct keys for
     # each provider in the same .env without juggling them on the CLI.
@@ -326,6 +331,7 @@ def detect(
         raise typer.Exit(2)
 
     config = ExecutionConfig.for_mode(mode, max_concurrent=max_concurrent)
+    config.openai_wire_api = wire_api
     if timeout is not None:
         config.request_timeout_s = timeout
     config.include_long_context = include_long_context
@@ -615,8 +621,12 @@ async def _run_detect(
     if protocol == Protocol.OPENAI and is_generic_chat(model):
         tier_title = "基础兼容检测"
         tier_message = "仅检查基础请求与流式一致性；不验证模型身份、工具能力或计费，不能与完整 GPT 分数直接比较。"
+    if protocol == Protocol.OPENAI and config.openai_wire_api == "responses":
+        from .protocols.openai.responses import TIER_MESSAGE
+        tier_title, tier_message = "Responses 能力检测", TIER_MESSAGE
     report = DetectionReport(
         protocol=protocol,
+        wire_api=config.openai_wire_api if protocol == Protocol.OPENAI else None,
         tier=tier,
         tier_title=tier_title,
         tier_message=tier_message,
@@ -637,6 +647,9 @@ async def _run_detect(
         self_reported_identity=self_id,
         detected_non_anthropic_brands=detected_brands,
     )
+
+    if report.wire_api == "responses":
+        report.ranking_evidence.baseline_version = "not_available"
 
     # Persist the machine-readable evidence before terminal presentation. A
     # renderer/encoding failure must never discard an otherwise completed live
