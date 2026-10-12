@@ -154,9 +154,12 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
         return out
 
     ids = _extract_model_ids(payload)
-    from relay_detector.model_catalog import is_chat_candidate, model_vendor
+    from relay_detector.model_catalog import is_chat_candidate, is_responses_candidate, model_vendor
     by_vendor: dict[str, list[str]] = {}
+    by_responses_vendor: dict[str, list[str]] = {}
     for mid in ids:
+        if is_responses_candidate(mid):
+            by_responses_vendor.setdefault(model_vendor(mid), []).append(mid)
         if is_chat_candidate(mid):
             by_vendor.setdefault(model_vendor(mid), []).append(mid)
     by_proto: dict[str, list[str]] = {p: [] for p in PROTOCOLS}
@@ -183,6 +186,7 @@ async def probe_relay(base_url: str, api_key: str) -> dict[str, Any]:
         "raw_count": len(ids),
         "all_models": ids,
         "by_vendor": by_vendor,
+        "by_responses_vendor": by_responses_vendor,
         "by_protocol": by_proto,
         # Per-protocol preferred default — used by the frontend to pre-fill
         # the model field after a cross-protocol handoff (so a /gemini → /openai

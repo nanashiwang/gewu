@@ -72,6 +72,7 @@
     <p class="muted">
       模型:<code>{{ report.target_model }}</code> · 模式 <code>{{ report.mode }}</code> ·
       中转站 <code>{{ report.base_url }}</code>
+      {% if report.wire_api %} · 接口 <code class="report-interface">{{ 'Responses' if report.wire_api == 'responses' else 'Chat Completions' }}</code>{% endif %}
     </p>
   </div>
   <div class="result-actions">
@@ -206,6 +207,10 @@
 <p class="muted small">本次检测未完成，尚未汇总完整耗时与用量。已发送的请求仍可能产生费用。</p>
 {% endif %}
 
+{% if report.wire_api == 'responses' %}
+<p class="muted small">Token 数仅汇总上游已返回的 Usage，不代表实际账单。{% if not perf.usage_complete | default(true) %}本次部分请求缺少完整用量，显示值不能代表全部消耗，失败请求也可能产生费用。{% endif %}</p>
+{% endif %}
+
 {% if protocol == 'anthropic' and report.detected_non_anthropic_brands %}
 <section class="card alert-card">
   <strong>模型自述提及其他品牌，需复核:</strong>
@@ -216,7 +221,21 @@
 
 <section class="card details-card">
   <details>
-    {% if protocol == 'openai' %}
+    {% if report.wire_api == 'responses' %}
+    <summary>Responses 检测项各自检查什么?</summary>
+    <dl class="def-list">
+      <dt>基础回复</dt>
+      <dd>发送带随机校验文本的 Responses 请求，确认完整响应能准确返回本次指定内容。</dd>
+      <dt>流式完整性</dt>
+      <dd>检查 Responses 类型化事件、文本增量、响应与消息 ID、结束事件是否相互一致；中途断流或错误不能通过。</dd>
+      <dt>结构化输出</dt>
+      <dd>通过 <code>text.format</code> 请求严格 JSON Schema，检查字段、类型和随机校验值。标准和完整档执行。</dd>
+      <dt>工具调用往返</dt>
+      <dd>请求本地模拟函数，校验参数后回传对应 <code>call_id</code> 的随机回执，再检查最终回答。仅完整档执行，不执行模型生成的代码或外部工具。</dd>
+      <dt>检测边界</dt>
+      <dd>未选中的项目显示未测试。这些结果说明本次接口能力，不能证明模型身份、实际扣费或长上下文能力，也不参与公共榜单评分。</dd>
+    </dl>
+    {% elif protocol == 'openai' %}
     <summary>OpenAI 检测项各自检查什么?</summary>
     <dl class="def-list">
       <dt>基础请求 (Basic Request)</dt>

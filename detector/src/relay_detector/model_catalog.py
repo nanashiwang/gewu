@@ -57,12 +57,17 @@ def model_vendor(model: str) -> str:
 
 def is_chat_candidate(model: str) -> bool:
     s = bare_model(model)
+    return is_responses_candidate(model) and "codex" not in s and not re.match(r"gpt-.*-pro(?:-|$)", s)
+
+
+def is_responses_candidate(model: str) -> bool:
+    s = bare_model(model)
     # The list endpoint can mix modalities and Responses-only products.
     return bool(s) and not any(x in s for x in (
         "embedding", "rerank", "image", "audio", "tts", "transcribe", "whisper",
-        "realtime", "-live", "video", "imagine", "nano-banana", "codex",
+        "realtime", "-live", "video", "imagine", "nano-banana",
         "deep-research", "robotics", "computer-use", "moderation", "omni",
-    )) and not re.match(r"gpt-.*-pro(?:-|$)", s)
+    ))
 
 
 def model_protocol(model: str) -> str | None:

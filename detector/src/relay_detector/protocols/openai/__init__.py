@@ -104,6 +104,9 @@ def build_runner(
     detectors: list[BaseDetector],
     config: ExecutionConfig,
 ) -> Runner:
+    if config.openai_wire_api == "responses":
+        from .responses import build_responses_runner
+        return build_responses_runner(client, config)
     return Runner(client, detectors, config)
 
 

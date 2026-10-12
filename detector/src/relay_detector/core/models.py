@@ -31,6 +31,7 @@ class DetectionTier(str, Enum):
 
 class ExecutionConfig(BaseModel):
     mode: Mode = Mode.QUICK
+    openai_wire_api: Literal["chat_completions", "responses"] = "chat_completions"
     max_concurrent: int = 3
     request_timeout_s: float = 30.0
     overall_timeout_s: float = 60.0
@@ -102,6 +103,7 @@ class PerformanceMetrics(BaseModel):
     ttft_ms: int | None = None
     tokens_per_second: float | None = None
     usage: UsageMetrics = Field(default_factory=UsageMetrics)
+    usage_complete: bool = True
     request_count: int = 0
     backoff_events: int = 0
 
@@ -129,6 +131,7 @@ class RankingEvidence(BaseModel):
 class DetectionReport(BaseModel):
     # Defaults preserve compatibility with historical Claude-only reports.
     protocol: Protocol = Protocol.ANTHROPIC
+    wire_api: Literal["chat_completions", "responses"] | None = None
     tier: DetectionTier = DetectionTier.SIGNATURE_ROUNDTRIP
     tier_title: str = ""
     tier_message: str = ""

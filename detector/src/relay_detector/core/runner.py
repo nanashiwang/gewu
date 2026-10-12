@@ -212,6 +212,7 @@ class Runner:
         )
         perf = PerformanceMetrics(
             usage=getattr(client, "total_usage", PerformanceMetrics().usage),
+            usage_complete=getattr(client, "usage_complete", True),
             request_count=getattr(client, "request_count", 0),
             backoff_events=getattr(client, "backoff_events", 0),
             total_latency_ms=total_latency_ms,

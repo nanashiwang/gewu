@@ -1354,6 +1354,7 @@ a.coverage-metric:hover strong { color: var(--accent); }
 }
 .result-head h1 { margin: 0 0 6px; font-size: 28px; letter-spacing: -0.02em; }
 .result-head .muted { font-size: 14px; word-break: break-all; }
+.result-head .report-interface { white-space: nowrap; word-break: normal; }
 .result-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 .result-card {

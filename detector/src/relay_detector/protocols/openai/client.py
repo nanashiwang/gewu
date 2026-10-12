@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import codecs
 import json
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -147,11 +148,35 @@ class OpenAIChatClient:
         body.pop("stream", None)
         body = _sanitize_body(body, responses=True)
         start = time.perf_counter()
-        resp = await self._client.post("/responses", json=body)
+        async with self._client.stream("POST", "/responses", json=body) as resp:
+            chunks = []
+            size = 0
+            async for chunk in resp.aiter_bytes():
+                size += len(chunk)
+                if size > 1024 * 1024:
+                    raise ValueError("Responses 响应超过 1 MiB 安全上限")
+                chunks.append(chunk)
+            payload = b"".join(chunks)
+            if not 200 <= resp.status_code < 300:
+                raise OpenAIAPIError(resp.status_code, payload.decode("utf-8", errors="replace"), resp.headers)
         latency_ms = int((time.perf_counter() - start) * 1000)
-        if resp.status_code >= 400:
-            raise OpenAIAPIError(resp.status_code, resp.text, resp.headers)
-        return body, resp.json(), resp.headers, latency_ms
+        return body, json.loads(payload), resp.headers, latency_ms
+
+    async def responses_stream(self, **body: Any) -> AsyncIterator[tuple[dict[str, Any], int]]:
+        body = _sanitize_body({**body, "stream": True}, responses=True)
+        start = time.perf_counter()
+        async with self._client.stream("POST", "/responses", json=body) as resp:
+            if not 200 <= resp.status_code < 300:
+                error = b""
+                async for chunk in resp.aiter_bytes():
+                    error += chunk[:4096 - len(error)]
+                    if len(error) >= 4096:
+                        break
+                raise OpenAIAPIError(resp.status_code, error.decode("utf-8", errors="replace"), resp.headers)
+            if "text/event-stream" not in resp.headers.get("content-type", "").lower():
+                raise ValueError("Responses 流式请求未返回 text/event-stream")
+            async for event in _parse_openai_sse(_bounded_response_lines(resp)):
+                yield event, int((time.perf_counter() - start) * 1000)
 
     async def chat_completions_create(
         self, **body: Any
@@ -186,6 +211,23 @@ class OpenAIChatClient:
             async for chunk in _parse_openai_sse(resp.aiter_lines()):
                 elapsed = int((time.perf_counter() - start) * 1000)
                 yield chunk, elapsed
+
+
+async def _bounded_response_lines(resp: httpx.Response) -> AsyncIterator[str]:
+    decoder = codecs.getincrementaldecoder("utf-8")()
+    buffer = ""
+    size = 0
+    async for chunk in resp.aiter_bytes():
+        size += len(chunk)
+        if size > 1024 * 1024:
+            raise ValueError("Responses 事件流超过 1 MiB 安全上限")
+        buffer += decoder.decode(chunk)
+        while "\n" in buffer:
+            line, buffer = buffer.split("\n", 1)
+            yield line.rstrip("\r")
+    buffer += decoder.decode(b"", final=True)
+    if buffer:
+        yield buffer.rstrip("\r")
 
 
 async def _parse_openai_sse(lines: AsyncIterator[str]) -> AsyncIterator[dict[str, Any]]:

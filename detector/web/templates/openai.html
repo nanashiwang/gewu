@@ -22,7 +22,7 @@
   "url": "{{ brand.site_url }}/openai",
   "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
   "featureList": [
-    "Chat Completions 协议合规检查",
+    "Responses 或 Chat Completions 接口检测",
     "function calling 结构 + call_ ID 校验",
     "structured output / response_format strict 模式校验",
     "Stream 与 non-stream 一致性比对",
@@ -31,7 +31,7 @@
     "Token 用量异常检测",
     "可分享 JPG / HTML 报告"
   ],
-  "description": "格物 通过 8 项 OpenAI Chat Completions 协议检测(含长上下文能力),评估 OpenAI / GPT 中转站的协议透传质量、能力完整度与异源适配层风险。"
+  "description": "格物按所选接口检测基础回复、流式输出及适用能力。Responses 支持结构化输出和本地模拟工具往返，不以高分证明模型身份。"
 }
 </script>
 <script type="application/ld+json">
@@ -39,8 +39,8 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    {"@type":"Question","name":"我花钱买的是 GPT,怎么知道中转站没偷偷换成更便宜的模型?","acceptedAnswer":{"@type":"Answer","text":"看响应里有没有「穿帮」的字段。OpenAI 官方回包只会出现三个 token 计数字段;如果中转站偷偷把请求转给 Claude 后端、再包装成 OpenAI 格式发回来,Anthropic 那边的字段经常会跟着漏出来。格物 抓到这种本不该出现的字段就会标记成严重问题,把整体评级降到黄色。简单说:正版 GPT 会按 OpenAI 自家说明书回话,冒牌包装层经常露出对面厂家的痕迹。"}},
-    {"@type":"Question","name":"我得了 75 分,为什么圆圈还是黄色而不是绿色?","acceptedAnswer":{"@type":"Answer","text":"分数只是其中一个维度。格物 还会看有没有严重问题 — 哪怕分数到了通过线,只要存在 1 条严重问题(比如字段穿帮),整体结论就会降到黄色「小心使用」。这种情况通常意味着接口能用、能返回结果,但跑的可能不是你以为的那个模型。日常聊天可能没大问题,但跑代码或严肃任务建议换一家。"}},
+    {"@type":"Question","name":"检测能确认中转站实际使用的模型吗？","acceptedAnswer":{"@type":"Answer","text":"不能仅凭模型名称、自述、响应字段或高分确认具体模型身份。格物提供本次接口与能力的可复核证据；字段异常可能来自适配层或非标准扩展，应结合实际请求与服务商说明复核。"}},
+    {"@type":"Question","name":"为什么有分数，报告仍提示异常？","acceptedAnswer":{"@type":"Answer","text":"分数只反映已运行的项目。报告还会列出各项能力异常；核心请求未完成、执行错误或鉴权失败时暂不计分。不同接口和检测深度的分数不能直接比较，也不能作为模型身份证明。"}},
     {"@type":"Question","name":"测完显示「0 个 GPT 模型可用」,是中转站挂了吗?","acceptedAnswer":{"@type":"Answer","text":"大概率不是中转站坏了,而是这把 key 没开通 GPT 模型权限。很多综合中转站把模型按厂家分组卖,有的客户买的是 Claude 卡、有的是 Gemini 卡,没买就调不出对应模型。格物 检测前会先快速看一眼你这把 key 能用哪些模型 — 如果当前是 OpenAI 页但 0 个 GPT,系统会自动提示你这把 key 实际能用 X 个 Claude 模型,直接点过去就行。"}},
     {"@type":"Question","name":"为什么 OpenAI 和 Claude 的检测强度不同?","acceptedAnswer":{"@type":"Answer","text":"Claude 协议提供可回放的 thinking block:格物 会验证原始块被接受、篡改块被明确拒绝。OpenAI 没有同类信号,主要从行为、字段格式和能力完整度等间接线索判断。两者都不是本地公钥验签或 100% 模型身份证明。"}}
   ]
@@ -52,7 +52,6 @@
   "@type": "HowTo",
   "name": "如何检测 OpenAI / GPT 中转站协议合规",
   "totalTime": "PT75S",
-  "estimatedCost": {"@type": "MonetaryAmount", "currency": "USD", "value": "0.005"},
   "step": [
     {"@type": "HowToStep", "name": "打开检测页", "text": "访问 {{ brand.site_url }}/openai"},
     {"@type": "HowToStep", "name": "填中转站地址", "text": "填 OpenAI-compatible base_url,例如 https://api.example.com 或 https://api.example.com/v1"},
@@ -115,14 +114,24 @@
       <div class="field">
         <label for="mode">检测深度</label>
         <select id="mode" name="mode" data-picker>
-          <option value="quick">快速 · 基础请求</option>
-          <option value="standard" selected>标准 · 协议与流式检查</option>
+          <option value="quick"{% if vendor.id == 'openai' %} selected{% endif %}>快速 · 基础检测</option>
+          <option value="standard"{% if vendor.id != 'openai' %} selected{% endif %}>标准 · 协议与流式检查</option>
           <option value="full">完整 · 全部适用项目</option>
         </select>
       </div>
     </div>
 
-    <details class="detect-extra">
+    <div class="field">
+      <label for="wire-api">检测接口</label>
+      <select id="wire-api" name="wire_api" data-picker aria-describedby="wire-api-hint">
+        <option value="responses"{% if vendor.id == 'openai' %} selected{% endif %}>Responses · GPT 推荐</option>
+        <option value="chat_completions"{% if vendor.id != 'openai' %} selected{% endif %}>Chat Completions · 兼容接口</option>
+      </select>
+      <p class="hint" id="wire-api-hint" aria-live="polite">按你的客户端使用的接口选择。只检测所选接口，不会失败后自动切换或重试。</p>
+      <p class="hint" id="responses-budget" aria-live="polite">Responses 快速档最多 2 次请求：基础回复与流式完整性。每次输出上限 4,096 Token（含推理），由你的 Key 支付；实际费用取决于模型和服务商价格。</p>
+    </div>
+
+    <details class="detect-extra" id="chat-advanced-options">
     <summary>高级检测选项 <small>可选 · 额外消耗上游额度</small></summary>
     <div class="field-checkbox">
       <input type="checkbox" id="include_long_context" name="include_long_context" value="true" />
@@ -162,6 +171,10 @@
 <details class="detect-details"><summary>GPT 检测方法与常见问题</summary>
 <p class="hint">以下完整检测方法适用于 GPT。其他兼容厂商当前仅检查基础请求与流式一致性，以报告中实际运行的项目为准。</p>
 <section class="features">
+  <div class="feature">
+    <h3>Responses</h3>
+    <p>检查完整结束事件、流式文本、严格 JSON 结构及工具回传；工具仅在本地模拟，不执行外部操作。</p>
+  </div>
   <div class="feature">
     <h3>Chat Completions</h3>
     <p>验证 <code>chatcmpl-</code>、<code>chat.completion</code>、choices、finish_reason、usage 等官方响应结构。</p>

@@ -69,6 +69,7 @@ class JobQueueFull(RuntimeError):
 class Job:
     id: str
     protocol: str = "anthropic"
+    wire_api: str | None = None
     status: JobStatus = "queued"
     base_url: str = ""
     target_model: str = ""
@@ -143,6 +144,7 @@ def _finish_failure(job: Job, status: JobStatus, message: str) -> None:
     # first probe. run_error prevents this partial report from receiving a score.
     report = DetectionReport(
         protocol=Protocol(job.protocol), tier=DetectionTier.PROTOCOL,
+        wire_api=job.wire_api,
         tier_title="未完成的检测", tier_message="仅保留已经完成的证据，本次暂不计分。",
         base_url=job.base_url, api_key_masked=REDACTED, target_model=job.target_model,
         mode=Mode(job.mode), timestamp=datetime.now(timezone.utc),
@@ -289,6 +291,7 @@ async def submit(
     protocol: str = "anthropic",
     include_long_context: bool = False,
     include_long_context_extreme: bool = False,
+    wire_api: str = "chat_completions",
 ) -> str:
     """Queue a detection job and return the job id immediately.
 
@@ -305,6 +308,7 @@ async def submit(
     job = Job(
         id=job_id,
         protocol=protocol,
+        wire_api=wire_api if protocol == "openai" else None,
         base_url=redact_text(base_url, api_key),
         target_model=redact_text(model, api_key),
         mode=mode,
@@ -322,6 +326,7 @@ async def submit(
         _run(
             job_id, base_url, api_key, model, mode, protocol,
             include_long_context, include_long_context_extreme,
+            wire_api,
         )
     )
     _TASKS[job_id] = task
@@ -348,6 +353,7 @@ async def get(job_id: str) -> Job | None:
         id=job_id,
         status="done",
         protocol=report.get("protocol", "anthropic"),
+        wire_api=report.get("wire_api"),
         base_url=report.get("base_url", ""),
         target_model=report.get("target_model", ""),
         mode=report.get("mode", "full"),
@@ -402,6 +408,7 @@ async def _run(
     protocol: str,
     include_long_context: bool = False,
     include_long_context_extreme: bool = False,
+    wire_api: str = "chat_completions",
 ) -> None:
     async with _SEMA:
         async with _LOCK:
@@ -421,6 +428,7 @@ async def _run(
         try:
             _save_state(j)
             cfg = ExecutionConfig.for_mode(Mode(mode), max_concurrent=3)
+            cfg.openai_wire_api = wire_api
             cfg.include_long_context = include_long_context
             cfg.include_long_context_extreme = include_long_context_extreme
             # Long-context probes blow past the regular per-mode wall-clock
@@ -452,6 +460,10 @@ async def _run(
                         "未验证模型身份、工具能力、计费准确性或该厂商原生协议，"
                         "不能与完整 OpenAI 检测分数直接比较。"
                     )
+                if wire_api == "responses":
+                    from relay_detector.protocols.openai.responses import TIER_MESSAGE
+                    tier_title = "Responses 能力检测"
+                    tier_message = TIER_MESSAGE
             elif protocol == "gemini":
                 outcome = await _run_gemini(base_url, api_key, model, cfg, record_progress)
                 report_protocol = Protocol.GEMINI
@@ -495,6 +507,7 @@ async def _run(
 
             report = DetectionReport(
                 protocol=report_protocol,
+                wire_api=wire_api if protocol == "openai" else None,
                 tier=report_tier,
                 tier_title=tier_title,
                 tier_message=tier_message,
@@ -516,6 +529,8 @@ async def _run(
                 detected_non_anthropic_brands=brands,
             )
             report_dict = redact_secret(json.loads(report.model_dump_json()), api_key)
+            if wire_api == "responses" and protocol == "openai":
+                report_dict["ranking_evidence"]["baseline_version"] = "not_available"
             _atomic_json(report_path(job_id, protocol), report_dict)
 
             async with _LOCK:
