@@ -13,7 +13,8 @@ def job_feedback(job) -> dict[str, str]:
     if job.status == "interrupted":
         return feedback("interrupted", "检测已中断", "服务重启中断了本次检测，已完成证据已保留。系统不会自动重跑，请主动重新提交。")
     report = job.report or {}
-    rows = report.get("results") or []
+    raw_rows = report.get("results")
+    rows = [row for row in raw_rows if isinstance(row, dict)] if isinstance(raw_rows, list) else []
     # Only inspect error/transport fields. A model replying “401” or “rate
     # limit” in response_text must not change the error category.
     fragments = [str(job.error or ""), str(report.get("run_error") or "")]

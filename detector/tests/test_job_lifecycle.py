@@ -204,6 +204,11 @@ def test_model_cannot_inject_transport_error_or_authentication_via_response_text
     assert server.assess_report(job.report)["identity"]["level"] == "unconfirmed"
 
 
+def test_malformed_historical_report_remains_unscored_and_readable():
+    job = jobs.Job(id="malformed01", status="done", report={"results": [None, "not a result"], "total_score": 100})
+    assert job_feedback(job)["code"] == "incomplete"
+
+
 @pytest.mark.asyncio
 async def test_metadata_write_failure_does_not_accept_or_start_job(monkeypatch):
     def unavailable(*_):
