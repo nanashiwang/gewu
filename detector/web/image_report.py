@@ -522,6 +522,8 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
         ("输入 TOKENS", _format_count(usage.get("input_tokens"))),
         ("输出 TOKENS", _format_count(usage.get("output_tokens"))),
     ]
+    if report.get("performance_complete") is False:
+        metrics = [(label, "—") for label, _value in metrics]
     tile_y = H - 150
     tile_h = 90
     tile_gap = 14

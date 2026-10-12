@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { encryptSecret } from '@/lib/secrets'
-import { reconcileRelayCheck, startRelayCheck } from '@/lib/relayDetection'
+import { cancelRelayCheck, reconcileRelayCheck, startRelayCheck } from '@/lib/relayDetection'
 
 const TEST_SECRET = 'relay-detection-test-secret-32-bytes'
 
@@ -17,6 +17,54 @@ function encryptedSite(overrides: Record<string, unknown> = {}) {
 }
 
 describe('relay detection bridge', () => {
+  it.each(['cancelled', 'interrupted'])('retains partial evidence for %s without updating a site score', async (status) => {
+    vi.stubEnv('PAYLOAD_SECRET', TEST_SECRET)
+    vi.stubEnv('DETECTOR_BASE_URL', 'https://detector.example')
+    const writes: any[] = []
+    const payload: any = {
+      findByID: vi.fn(async () => encryptedSite()),
+      update: vi.fn(async (args) => { writes.push(args); return args.data }),
+    }
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('/api/status/')
+      ? { status, error: '任务已中断', result_url: '/r/job_12345678', finished_at: 123 }
+      : { run_error: 'interrupted', results: [{ details: { response_text: 'sk-private-relay-key' } }] }))))
+    const check = await reconcileRelayCheck(payload, { id: 'check-1', site: 'site-1', status: 'running', detectorJobId: 'job_12345678' })
+    expect(check.status).toBe('error')
+    expect(check.score).toBeNull()
+    expect(check.report).toBeTruthy()
+    expect(writes).toHaveLength(1)
+    expect(writes[0].collection).toBe('relay-checks')
+    expect(JSON.stringify(writes)).not.toContain('sk-private-relay-key')
+  })
+
+  it('cannot cancel a check belonging to a different site', async () => {
+    const payload: any = { findByID: vi.fn(async () => ({ id: 'check-1', site: 'other-site', status: 'running' })) }
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    await expect(cancelRelayCheck(payload, 'site-1', 'check-1')).rejects.toThrow('无权操作')
+    expect(fetcher).not.toHaveBeenCalled()
+  })
+
+  it('does not mark a submitting check cancelled without an upstream job id', async () => {
+    const payload: any = { findByID: vi.fn(async () => ({ id: 'check-1', site: 'site-1', status: 'queued' })) }
+    await expect(cancelRelayCheck(payload, 'site-1', 'check-1')).rejects.toThrow('正在提交')
+  })
+
+  it('authenticates cancellation and reconciles the exact selected check', async () => {
+    vi.stubEnv('GEWU_INTERNAL_API_TOKEN', 'internal-test-token')
+    vi.stubEnv('DETECTOR_BASE_URL', 'https://detector.example')
+    const check = { id: 'check-1', site: 'site-1', status: 'running', detectorJobId: 'job_12345678' }
+    const payload: any = {
+      findByID: vi.fn(async ({ collection }) => collection === 'relay-checks' ? check : null),
+      update: vi.fn(async ({ data }) => data),
+    }
+    const fetcher = vi.fn(async (_url: string, _init: RequestInit) => new Response(JSON.stringify({ status: 'cancelled', error: '你已取消本次检测' })))
+    vi.stubGlobal('fetch', fetcher)
+    expect((await cancelRelayCheck(payload, 'site-1', 'check-1')).status).toBe('error')
+    expect(fetcher.mock.calls[0][0]).toBe('https://detector.example/api/jobs/job_12345678/cancel')
+    expect(fetcher.mock.calls[0][1].method).toBe('POST')
+    expect(new Headers(fetcher.mock.calls[0][1].headers).get('X-Gewu-Internal-Token')).toBe('internal-test-token')
+  })
   afterEach(() => {
     vi.useRealTimers()
     vi.restoreAllMocks()

@@ -30,6 +30,7 @@ ThrottledClientFactory = Callable[
     Any,
 ]
 TTFTProbe = Callable[[Any, str], Awaitable[None]]
+ProgressObserver = Callable[[dict[str, Any]], None]
 
 
 @dataclass
@@ -55,6 +56,7 @@ class Runner:
         self._mode_detectors = mode_detectors
         self._throttled_client_factory = throttled_client_factory
         self._ttft_probe = ttft_probe
+        self.on_progress: ProgressObserver | None = None
 
     def _select_detectors(self, model: str) -> list[BaseDetector]:
         mode_set = self._mode_detectors[self._config.mode]
@@ -94,18 +96,44 @@ class Runner:
         for d in selected:
             d.config = self._config
 
+        finished: dict[str, DetectorResult] = {}
+        running: set[str] = set()
+
+        def notify(stage: str) -> None:
+            if self.on_progress is not None:
+                self.on_progress({
+                    "stage": stage,
+                    "checks": [
+                        {"name": d.name, "label": d.display_name,
+                         "status": finished[d.name].status if d.name in finished
+                         else "running" if d.name in running else "pending"}
+                        for d in selected
+                    ],
+                    "results": [r.model_dump(mode="json") for r in [*finished.values(), *skipped]],
+                })
+
         async def run_one(d: ActiveDetector) -> DetectorResult:
-            return await d._timed_run(client, model)
+            running.add(d.name)
+            notify("probing")
+            result = await d._timed_run(client, model)
+            finished[d.name] = result
+            running.discard(d.name)
+            notify("probing")
+            return result
 
         run_started = time.perf_counter()
+        notify("probing")
+        tasks = [asyncio.create_task(run_one(d)) for d in active]
+        timed_out = False
         try:
             active_results = await asyncio.wait_for(
-                asyncio.gather(*(run_one(d) for d in active)),
+                asyncio.gather(*tasks),
                 timeout=self._config.overall_timeout_s,
             )
         except asyncio.TimeoutError:
+            timed_out = True
             active_results = [
-                d._result(
+                finished.get(d.name) or d._result(
                     "error",
                     0.0,
                     {"timeout_s": self._config.overall_timeout_s},
@@ -113,7 +141,16 @@ class Runner:
                 )
                 for d in active
             ]
-        total_latency_ms = int((time.perf_counter() - run_started) * 1000)
+            finished.update({result.name: result for result in active_results})
+            running.clear()
+            notify("probing")
+        finally:
+            # gather does not cancel siblings when one observer raises. Neither
+            # cancellation nor a storage failure may leave upstream work alive.
+            for task in tasks:
+                if not task.done():
+                    task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
 
         # Quick mode contains no streaming detector (integrity is the only one,
         # and it's standard/full only). Without a streaming request the
@@ -121,13 +158,22 @@ class Runner:
         # so TTFT would show as null. Fire one minimal streaming probe here as
         # a fallback — costs ~5 output tokens (~$0.0005 on Haiku). Skip when
         # samples already exist so standard/full pay nothing extra.
-        if self._ttft_probe is not None and not getattr(client, "_ttft_samples_ms", []):
+        remaining = self._config.overall_timeout_s - (time.perf_counter() - run_started)
+        if not timed_out and remaining > 0 and self._ttft_probe is not None and not getattr(client, "_ttft_samples_ms", []):
+            notify("measuring")
             try:
-                await self._ttft_probe(client, model)
+                await asyncio.wait_for(self._ttft_probe(client, model), timeout=remaining)
             except Exception:  # noqa: BLE001 — probe failures must not crash run
                 pass
 
-        passive_results = [d.finalize() for d in passive]
+        notify("summarizing")
+        passive_results = []
+        for d in passive:
+            result = d.finalize()
+            passive_results.append(result)
+            finished[d.name] = result
+            notify("summarizing")
+        total_latency_ms = int((time.perf_counter() - run_started) * 1000)
 
         # TTFT: best-case first-token latency observed across all streamed
         # requests. None when no detector did a stream (e.g. quick mode with

@@ -1,8 +1,8 @@
 """Job queue for HTTP-driven detections.
 
 Wraps the same Runner the CLI uses. Single uvicorn worker, in-process state
-guarded by an asyncio lock. Done jobs are persisted to disk so a server
-restart keeps the shareable result URLs alive. API keys are NEVER stored on a
+guarded by an asyncio lock. Task metadata and completed evidence are persisted;
+restarts mark pending work interrupted without replaying requests. API keys are NEVER stored on a
 Job or persisted — the raw key exists only in the running task's local scope
 and reflected copies are redacted before reports or errors are retained.
 """
@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import hashlib
+import logging
 import os
 import re
 import secrets
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
@@ -35,9 +37,11 @@ from relay_detector.scorer import (
 )
 from relay_detector.ranking import unreviewed_ranking_evidence
 from .security import REDACTED, redact_secret, redact_text
+from relay_detector.core.runner import ProgressObserver
 
 
-JobStatus = Literal["queued", "running", "done", "error"]
+JobStatus = Literal["queued", "running", "done", "error", "cancelled", "interrupted"]
+TERMINAL_STATUSES = {"done", "error", "cancelled", "interrupted"}
 
 JOBS_DIR = Path(
     os.environ.get("GEWU_JOBS_DIR")
@@ -74,10 +78,170 @@ class Job:
     finished_at: float | None = None
     report: dict[str, Any] | None = None
     error: str | None = None
+    progress: dict[str, Any] = field(default_factory=lambda: {"stage": "queued", "checks": []})
+    partial_results: list[dict[str, Any]] = field(default_factory=list)
+    cancel_token_hash: str = ""
 
 
 _JOBS: dict[str, Job] = {}
 _LOCK = asyncio.Lock()
+_TASKS: dict[str, asyncio.Task] = {}
+_STOP_REASONS: dict[str, str] = {}
+_ACCEPTING = True
+
+
+def _atomic_json(path: Path, value: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{secrets.token_hex(6)}.tmp")
+    try:
+        with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w", encoding="utf-8") as stream:
+            json.dump(value, stream, ensure_ascii=False)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _state_path(job_id: str) -> Path:
+    if not is_valid_job_id(job_id):
+        raise ValueError("invalid job id")
+    # Not .json: leaderboard/report scanners must never ingest task metadata.
+    return JOBS_DIR / ".task_state" / f"{job_id}.state"
+
+
+def _save_state(job: Job) -> None:
+    state = {item.name: getattr(job, item.name) for item in fields(Job) if item.name != "report"}
+    _atomic_json(_state_path(job.id), state)
+
+
+def _load_report(job_id: str) -> dict | None:
+    for path in _report_candidates(job_id):
+        try:
+            report = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(report, dict):
+                return report
+        except (OSError, ValueError):
+            continue
+    return None
+
+
+def _finish_failure(job: Job, status: JobStatus, message: str) -> None:
+    job.status, job.error, job.finished_at = status, message, time.time()
+    job.progress["stage"] = status
+    for check in job.progress.get("checks", []):
+        if check["status"] in {"pending", "running"}:
+            check["status"] = "interrupted"
+    completed_names = {row["name"] for row in job.partial_results}
+    unfinished = [
+        {"name": check["name"], "display_name": check["label"], "status": "error",
+         "score": 0, "weight": 0, "error": message, "details": {"interrupted": True}}
+        for check in job.progress.get("checks", [])
+        if check["status"] == "interrupted" and check["name"] not in completed_names
+    ]
+    # Preserve completed evidence, even when cancellation happened before the
+    # first probe. run_error prevents this partial report from receiving a score.
+    report = DetectionReport(
+        protocol=Protocol(job.protocol), tier=DetectionTier.PROTOCOL,
+        tier_title="未完成的检测", tier_message="仅保留已经完成的证据，本次暂不计分。",
+        base_url=job.base_url, api_key_masked=REDACTED, target_model=job.target_model,
+        mode=Mode(job.mode), timestamp=datetime.now(timezone.utc),
+        total_score=0, verdict="failed", results=[*job.partial_results, *unfinished],
+        summary=message, run_error=message,
+        ranking_evidence=unreviewed_ranking_evidence(Protocol(job.protocol), job.target_model, Mode(job.mode)),
+    )
+    job.report = json.loads(report.model_dump_json())
+    job.report["performance_complete"] = False
+    _atomic_json(report_path(job.id, job.protocol), job.report)
+    job.partial_results = []
+    _save_state(job)
+
+
+def _load_state(job_id: str) -> Job | None:
+    try:
+        state = json.loads(_state_path(job_id).read_text(encoding="utf-8"))
+        allowed = {item.name for item in fields(Job)} - {"report"}
+        if not isinstance(state, dict) or state.get("id") != job_id or set(state) - allowed:
+            return None
+        job = Job(**state)
+    except (OSError, ValueError, TypeError):
+        return None
+    job.report = _load_report(job_id)
+    if job.status not in TERMINAL_STATUSES:
+        if job.report is not None:
+            # Process stopped after writing the report but before its state.
+            job.status = "interrupted" if job.report.get("run_error") else "done"
+            job.error = job.report.get("run_error")
+            job.finished_at = time.time()
+            job.partial_results = []
+            _save_state(job)
+        else:
+            _finish_failure(job, "interrupted", "服务重启，本次检测已中断。已完成证据已保留；重新检测需主动提交，系统不会自动重跑。")
+    return job
+
+
+def startup() -> None:
+    global _ACCEPTING
+    for path in (JOBS_DIR / ".task_state").glob("*.state"):
+        if is_valid_job_id(path.stem) and path.stem not in _JOBS:
+            _load_state(path.stem)
+    _ACCEPTING = True
+
+
+def issue_cancel_token(job_id: str) -> str | None:
+    job = _JOBS.get(job_id)
+    if job is None:
+        return None
+    token = secrets.token_urlsafe(32)
+    job.cancel_token_hash = hashlib.sha256(token.encode()).hexdigest()
+    _save_state(job)
+    return token
+
+
+def can_cancel(job: Job, token: str) -> bool:
+    return bool(token and job.cancel_token_hash and secrets.compare_digest(
+        job.cancel_token_hash, hashlib.sha256(token.encode()).hexdigest(),
+    ))
+
+
+async def cancel(job_id: str, *, status: JobStatus = "cancelled") -> Job | None:
+    job = await get(job_id)
+    if job is None or job.status in TERMINAL_STATUSES:
+        return job
+    task = _TASKS.get(job_id)
+    if task is not None:
+        if job_id not in _STOP_REASONS:
+            _STOP_REASONS[job_id] = status
+            task.cancel()
+        status = _STOP_REASONS[job_id]
+        await asyncio.shield(asyncio.gather(task, return_exceptions=True))
+    if job.status not in TERMINAL_STATUSES:
+        message = "你已取消本次检测。已发送的请求仍可能产生费用；重新检测需主动提交。" if status == "cancelled" else "服务正在重启，本次检测已中断。已完成证据已保留，系统不会自动重跑。"
+        _finish_failure(job, status, message)
+    _STOP_REASONS.pop(job_id, None)
+    return job
+
+
+async def shutdown() -> None:
+    global _ACCEPTING
+    _ACCEPTING = False
+    await asyncio.gather(*(cancel(job_id, status="interrupted") for job_id in list(_TASKS)))
+
+
+def _task_finished(job_id: str, task: asyncio.Task) -> None:
+    if _TASKS.get(job_id) is task:
+        _TASKS.pop(job_id, None)
+    if task.cancelled():
+        job = _JOBS.get(job_id)
+        status = _STOP_REASONS.pop(job_id, "interrupted")
+        if job is not None and job.status not in TERMINAL_STATUSES:
+            message = "你已取消本次检测。已发送的请求仍可能产生费用；重新检测需主动提交。" if status == "cancelled" else "服务重启，本次检测已中断。已完成证据已保留，系统不会自动重跑。"
+            try:
+                _finish_failure(job, status, message)
+            except OSError:
+                logging.getLogger("gewu").error("Could not persist interrupted detection state")
+    if not task.cancelled() and task.exception() is not None:
+        logging.getLogger("gewu").error("Detection task could not persist its final state (%s)", type(task.exception()).__name__)
 
 
 def _new_job_id() -> str:
@@ -96,7 +260,7 @@ def _prune_jobs_locked(now: float | None = None) -> None:
     completed = [
         job
         for job in _JOBS.values()
-        if job.status in {"done", "error"} and job.finished_at is not None
+        if job.status in TERMINAL_STATUSES and job.finished_at is not None
     ]
     for job in completed:
         if current - float(job.finished_at) > _JOB_MEMORY_TTL_S:
@@ -109,7 +273,7 @@ def _prune_jobs_locked(now: float | None = None) -> None:
         (
             job
             for job in _JOBS.values()
-            if job.status in {"done", "error"} and job.finished_at is not None
+            if job.status in TERMINAL_STATUSES and job.finished_at is not None
         ),
         key=lambda job: float(job.finished_at or 0),
     )
@@ -141,22 +305,27 @@ async def submit(
     job = Job(
         id=job_id,
         protocol=protocol,
-        base_url=base_url,
-        target_model=model,
+        base_url=redact_text(base_url, api_key),
+        target_model=redact_text(model, api_key),
         mode=mode,
     )
     async with _LOCK:
+        if not _ACCEPTING:
+            raise JobQueueFull("detection service is restarting")
         _prune_jobs_locked()
         pending = sum(job.status in {"queued", "running"} for job in _JOBS.values())
         if pending >= _MAX_PENDING_JOBS:
             raise JobQueueFull("detection queue is full")
+        _save_state(job)
         _JOBS[job_id] = job
-    asyncio.create_task(
+    task = asyncio.create_task(
         _run(
             job_id, base_url, api_key, model, mode, protocol,
             include_long_context, include_long_context_extreme,
         )
     )
+    _TASKS[job_id] = task
+    task.add_done_callback(lambda completed: _task_finished(job_id, completed))
     return job_id
 
 
@@ -169,15 +338,10 @@ async def get(job_id: str) -> Job | None:
         j = _JOBS.get(job_id)
     if j is not None:
         return j
-    report = None
-    for path in _report_candidates(job_id):
-        if not path.exists():
-            continue
-        try:
-            report = json.loads(path.read_text(encoding="utf-8"))
-            break
-        except (json.JSONDecodeError, OSError):
-            continue
+    saved = _load_state(job_id)
+    if saved is not None:
+        return saved
+    report = _load_report(job_id)
     if report is None:
         return None
     return Job(
@@ -187,15 +351,24 @@ async def get(job_id: str) -> Job | None:
         base_url=report.get("base_url", ""),
         target_model=report.get("target_model", ""),
         mode=report.get("mode", "full"),
-        created_at=time.time(),
-        finished_at=time.time(),
+        created_at=_report_timestamp(report),
+        finished_at=_report_timestamp(report),
         report=report,
     )
+
+
+def _report_timestamp(report: dict) -> float:
+    try:
+        return datetime.fromisoformat(str(report.get("timestamp", "")).replace("Z", "+00:00")).timestamp()
+    except (ValueError, OverflowError):
+        return 0.0
 
 
 def report_path(job_id: str, protocol: str) -> Path:
     if not is_valid_job_id(job_id):
         raise ValueError("invalid job id")
+    if protocol not in {item.value for item in Protocol}:
+        raise ValueError("invalid protocol")
     protocol_dir = JOBS_DIR / protocol
     protocol_dir.mkdir(parents=True, exist_ok=True)
     return protocol_dir / f"{job_id}.json"
@@ -237,8 +410,16 @@ async def _run(
                 return
             j.status = "running"
             j.started_at = time.time()
+            j.progress["stage"] = "starting"
+
+        def record_progress(event: dict) -> None:
+            safe = redact_secret(event, api_key)
+            j.progress = {"stage": safe["stage"], "checks": safe["checks"]}
+            j.partial_results = safe["results"]
+            _save_state(j)
 
         try:
+            _save_state(j)
             cfg = ExecutionConfig.for_mode(Mode(mode), max_concurrent=3)
             cfg.include_long_context = include_long_context
             cfg.include_long_context_extreme = include_long_context_extreme
@@ -254,7 +435,7 @@ async def _run(
             elif include_long_context:
                 cfg.overall_timeout_s = max(cfg.overall_timeout_s, 300.0)
             if protocol == "openai":
-                outcome = await _run_openai(base_url, api_key, model, cfg)
+                outcome = await _run_openai(base_url, api_key, model, cfg, record_progress)
                 report_protocol = Protocol.OPENAI
                 report_tier = DetectionTier.BEHAVIORAL
                 tier_title = "行为/协议级验证"
@@ -272,7 +453,7 @@ async def _run(
                         "不能与完整 OpenAI 检测分数直接比较。"
                     )
             elif protocol == "gemini":
-                outcome = await _run_gemini(base_url, api_key, model, cfg)
+                outcome = await _run_gemini(base_url, api_key, model, cfg, record_progress)
                 report_protocol = Protocol.GEMINI
                 report_tier = DetectionTier.PROTOCOL
                 tier_title = "协议级验证"
@@ -282,7 +463,7 @@ async def _run(
                     "它不提供签名回放或绝对模型真伪证明。"
                 )
             elif protocol == "anthropic":
-                outcome = await _run_anthropic(base_url, api_key, model, cfg)
+                outcome = await _run_anthropic(base_url, api_key, model, cfg, record_progress)
                 report_protocol = Protocol.ANTHROPIC
                 report_tier = DetectionTier.SIGNATURE_ROUNDTRIP
                 tier_title = "签名回放验证"
@@ -335,10 +516,7 @@ async def _run(
                 detected_non_anthropic_brands=brands,
             )
             report_dict = redact_secret(json.loads(report.model_dump_json()), api_key)
-            report_path(job_id, protocol).write_text(
-                json.dumps(report_dict, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
+            _atomic_json(report_path(job_id, protocol), report_dict)
 
             async with _LOCK:
                 if job_id in _JOBS:
@@ -346,15 +524,14 @@ async def _run(
                     _JOBS[job_id].protocol = protocol
                     _JOBS[job_id].report = report_dict
                     _JOBS[job_id].finished_at = time.time()
+                    _JOBS[job_id].progress["stage"] = "done"
+                    _JOBS[job_id].partial_results = []
+                    _save_state(_JOBS[job_id])
 
         except Exception as e:  # noqa: BLE001 — bubble error into job state
             async with _LOCK:
                 if job_id in _JOBS:
-                    _JOBS[job_id].status = "error"
-                    _JOBS[job_id].error = redact_text(
-                        f"{type(e).__name__}: {e}", api_key
-                    )
-                    _JOBS[job_id].finished_at = time.time()
+                    _finish_failure(_JOBS[job_id], "error", redact_text(f"{type(e).__name__}: {e}", api_key))
 
 
 async def _run_anthropic(
@@ -362,6 +539,7 @@ async def _run_anthropic(
     api_key: str,
     model: str,
     cfg: ExecutionConfig,
+    on_progress: ProgressObserver | None = None,
 ):
     from relay_detector.protocols.anthropic import (
         build_detectors,
@@ -373,6 +551,7 @@ async def _run_anthropic(
         base_url, api_key, timeout=cfg.request_timeout_s, trust_env=False
     ) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
+        runner.on_progress = on_progress
         return await runner.run(model)
 
 
@@ -381,6 +560,7 @@ async def _run_openai(
     api_key: str,
     model: str,
     cfg: ExecutionConfig,
+    on_progress: ProgressObserver | None = None,
 ):
     from relay_detector.protocols.openai import (
         build_detectors,
@@ -392,6 +572,7 @@ async def _run_openai(
         base_url, api_key, timeout=cfg.request_timeout_s, trust_env=False
     ) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
+        runner.on_progress = on_progress
         return await runner.run(model)
 
 
@@ -400,6 +581,7 @@ async def _run_gemini(
     api_key: str,
     model: str,
     cfg: ExecutionConfig,
+    on_progress: ProgressObserver | None = None,
 ):
     from relay_detector.protocols.gemini import (
         build_detectors,
@@ -411,4 +593,5 @@ async def _run_gemini(
         base_url, api_key, timeout=cfg.request_timeout_s, trust_env=False
     ) as client:
         runner = build_runner(client, build_detectors(cfg.mode), cfg)
+        runner.on_progress = on_progress
         return await runner.run(model)

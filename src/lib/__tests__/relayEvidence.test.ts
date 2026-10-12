@@ -3,11 +3,16 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { RelayTrend } from '@/components/relay/RelayTrend'
 import { RelaySteps } from '@/components/relay/RelaySteps'
-import { initialModelSelection, relayModelCatalog, relayVendors } from '@/lib/relayModelCatalog'
+import { initialModelSelection, isRelayCatalogStale, relayModelCatalog, relayVendors } from '@/lib/relayModelCatalog'
 import { relayCheckHasScore, relayReportPath } from '@/lib/relayUi'
 import { reportHasUsableEvidence } from '@/lib/relayEvidence'
 
 describe('relay account evidence and selection', () => {
+  it('uses UTC review dates and warns only after the review interval has elapsed', () => {
+    const reviewed = Date.parse(`${relayModelCatalog.verified_on}T00:00:00Z`)
+    expect(isRelayCatalogStale(new Date(reviewed + relayModelCatalog.review_interval_days * 86_400_000 + 86_399_999))).toBe(false)
+    expect(isRelayCatalogStale(new Date(reviewed + (relayModelCatalog.review_interval_days + 1) * 86_400_000))).toBe(true)
+  })
   it('preserves an existing alias and its protocol instead of substituting a catalog model', () => {
     expect(initialModelSelection('provider/private-alias', 'anthropic')).toEqual({ vendor: 'other', model: 'provider/private-alias', protocol: 'anthropic' })
     const model = relayModelCatalog.vendors[0].models[0]

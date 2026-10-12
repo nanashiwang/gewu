@@ -24,7 +24,7 @@ class BasicRequestDetector(ActiveDetector):
                 messages=[{"role": "user", "content": "Reply with exactly: pong"}],
             )
         except Exception as e:  # noqa: BLE001
-            return self._result("error", 0.0, error=str(e))
+            return self._result("error", 0.0, error=f"{type(e).__name__}: {e}")
 
         text = message_text(resp)
         ok = "pong" in text.lower()

@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
-import { catalogProtocol, initialModelSelection, modelChoiceLabel, relayModelCatalog, relayVendors } from '@/lib/relayModelCatalog'
+import { useEffect, useState } from 'react'
+import { catalogProtocol, initialModelSelection, isRelayCatalogStale, modelChoiceLabel, relayModelCatalog, relayVendors } from '@/lib/relayModelCatalog'
 
 export function RelayModelPicker({ model, protocol = 'openai' }: { model?: string; protocol?: string }) {
   const [selection, setSelection] = useState(() => initialModelSelection(model, protocol))
   const vendor = relayVendors.find((item) => item.id === selection.vendor)!
   const [custom, setCustom] = useState(Boolean(model && !vendor.models.includes(model)))
+  const [stale, setStale] = useState(false)
+  useEffect(() => { setStale(isRelayCatalogStale()) }, [])
   return <fieldset className="relay-model-picker md:col-span-2">
     <legend className="text-sm font-medium">选择检测模型</legend>
     <div className="mt-3 grid gap-4 md:grid-cols-2">
@@ -27,6 +29,7 @@ export function RelayModelPicker({ model, protocol = 'openai' }: { model?: strin
       <label className="space-y-1 text-sm"><span>请求协议</span><select className="input" name="protocol" value={selection.protocol} onChange={(event) => setSelection({ ...selection, protocol: event.target.value })}><option value="openai">OpenAI 兼容接口</option><option value="anthropic">Claude / Anthropic 原生接口</option><option value="gemini">Gemini 的 OpenAI 兼容接口</option></select></label>
       <div className="self-end text-xs text-[var(--muted)]">目录核对：{relayModelCatalog.verified_on}{vendor.source && <> · <a href={vendor.source} target="_blank" rel="noreferrer" className="text-[var(--accent)]">官方来源 ↗</a></>}</div>
     </div>
+    {stale && <p role="status" className="mt-3 text-xs text-[var(--muted)]">模型目录已超过复核期限，请先查看官方来源，并确认本站实际可用的模型 ID。</p>}
     <p className="mt-3 text-xs text-[var(--muted)]">选择厂商会推荐对应协议；代理站采用其他协议时可手动调整。目录只提供候选名称，不代表此站已开通模型，也不证明实际模型身份。</p>
   </fieldset>
 }

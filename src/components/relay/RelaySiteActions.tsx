@@ -3,19 +3,22 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export function RelaySiteActions({ site, hasActiveCheck = false }: { site: any; hasActiveCheck?: boolean }) {
+export function RelaySiteActions({ site, hasActiveCheck = false, activeCheckId }: { site: any; hasActiveCheck?: boolean; activeCheckId?: string }) {
   const router = useRouter()
   const [pending, setPending] = useState('')
   const [message, setMessage] = useState('')
 
-  async function action(name: 'verify-claim' | 'submit' | 'check') {
+  async function action(name: 'verify-claim' | 'submit' | 'check' | 'cancel-check') {
     setPending(name)
     setMessage('')
     try {
-      const response = await fetch(`/v1/relay-sites/${site.id}/${name}`, { method: 'POST' })
+      const response = await fetch(`/v1/relay-sites/${site.id}/${name}`, {
+        method: 'POST',
+        ...(name === 'cancel-check' ? { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ checkId: activeCheckId }) } : {}),
+      })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || '操作失败')
-      setMessage(name === 'check' ? '检测任务已提交，下方会自动更新进度。' : name === 'verify-claim' ? '域名验证成功，现在可以提交审核。' : '已提交审核，请等待运营复核。')
+      setMessage(name === 'cancel-check' ? '已确认任务结束，结果已同步到历史记录。已发送请求仍可能产生费用。' : name === 'check' ? '检测任务已提交，下方会自动更新进度。' : name === 'verify-claim' ? '域名验证成功，现在可以提交审核。' : '已提交审核，请等待运营复核。')
       router.refresh()
     } catch (error) {
       setMessage((error as Error).message)
@@ -47,6 +50,7 @@ export function RelaySiteActions({ site, hasActiveCheck = false }: { site: any; 
         {!['verified', 'manual'].includes(site.claimStatus) && <button disabled={Boolean(pending)} onClick={() => action('verify-claim')} className="btn btn-primary">{pending === 'verify-claim' ? '验证中…' : '验证 DNS'}</button>}
         {['verified', 'manual'].includes(site.claimStatus) && ['draft', 'rejected'].includes(site.status) && <button disabled={Boolean(pending)} onClick={() => action('submit')} className="btn btn-primary">{pending === 'submit' ? '提交中…' : '提交审核'}</button>}
         {site.status === 'approved' && site.hasApiKey && <button disabled={Boolean(pending) || hasActiveCheck} onClick={() => action('check')} className="btn btn-primary">{hasActiveCheck ? '检测正在进行' : pending === 'check' ? '提交中…' : '立即检测'}</button>}
+        {hasActiveCheck && activeCheckId && <button disabled={Boolean(pending)} onClick={() => action('cancel-check')} className="btn btn-ghost">{pending === 'cancel-check' ? '正在取消…' : '取消本次检测'}</button>}
         {site.status === 'approved' && !site.hasApiKey && <a href={`/console/relays/${site.id}/edit`} className="btn btn-primary">配置检测 Key</a>}
         <a href={`/console/relays/${site.id}/edit`} className="btn btn-secondary">编辑资料</a>
         {['draft', 'rejected'].includes(site.status) && <button disabled={Boolean(pending)} onClick={remove} className="btn btn-ghost text-[var(--danger)]">删除</button>}
