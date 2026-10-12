@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw, ImageFont
 # DejaVu is the Latin fallback; PIL's built-in bitmap font is the last resort
 # so we never crash on a fresh box.
 _FONT_CANDIDATES_REGULAR = [
+    str(Path(__file__).resolve().parents[1] / "report_fonts" / "NotoSansCJK-Regular.ttc"),
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
     "/System/Library/Fonts/PingFang.ttc",
@@ -26,6 +27,7 @@ _FONT_CANDIDATES_REGULAR = [
     "/System/Library/Fonts/Helvetica.ttc",
 ]
 _FONT_CANDIDATES_BOLD = [
+    str(Path(__file__).resolve().parents[1] / "report_fonts" / "NotoSansCJK-Bold.ttc"),
     "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
     "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
     "/System/Library/Fonts/PingFang.ttc",

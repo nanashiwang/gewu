@@ -1012,7 +1012,7 @@ async def result_jpg(job_id: str) -> Response:
 
     # Cache the JPG next to the JSON. Detection report is immutable, so once
     # generated we always serve from disk to spare the CPU.
-    cache_path = jobs.image_path(job_id, j.protocol).with_suffix(".evidence-v1.jpg")
+    cache_path = jobs.image_path(job_id, j.protocol).with_suffix(".evidence-v2.jpg")
     if not cache_path.exists():
         png_bytes = render_report_jpg(j.report)
         cache_path.write_bytes(png_bytes)
