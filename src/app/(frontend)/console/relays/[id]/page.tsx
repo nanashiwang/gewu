@@ -20,6 +20,7 @@ export default async function RelayDetailPage({ params }: { params: Promise<{ id
   const raw = await payload.findByID({ collection: 'relay-sites' as any, id, depth: 1, overrideAccess: true }).catch(() => null) as any
   if (!raw || relationId(raw.owner) !== String(user.id)) notFound()
   const site = relaySiteDto(raw, user) as any
+  const modeLabel = ({ quick: '快速检测', standard: '标准检测', full: '完整检测' } as Record<string, string>)[site.mode] || site.mode
   const history = await payload.find({ collection: 'relay-checks' as any, where: { site: { equals: id } }, sort: '-createdAt', limit: 50, depth: 0, overrideAccess: true })
   const checks = (history.docs as any[]).map((check) => relayCheckDto(check, true))
   const active = checks.some((check) => ['queued', 'running'].includes(String(check.status)))
@@ -33,7 +34,7 @@ export default async function RelayDetailPage({ params }: { params: Promise<{ id
       <RelayCheckRefresh active={active} />
       <div className="card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4"><div><h1 className="text-xl font-bold">{site.name}</h1><a href={site.websiteUrl} target="_blank" rel="noreferrer" className="mt-1 block break-all text-sm text-[var(--accent)]">{site.websiteUrl} ↗</a><div className="mt-2 break-all font-mono text-xs text-[var(--muted)]">{site.apiBaseUrl}</div></div><div className="text-right text-sm"><div className={relayStatusClass(site.status)}>审核：{RELAY_STATUS_LABELS[site.status]}</div><div className={relayStatusClass(site.claimStatus)}>认领：{RELAY_CLAIM_LABELS[site.claimStatus]}</div><div className="mt-2 text-2xl font-bold text-[var(--accent)]">{latestScored ? `${Number(latestScored.score).toFixed(0)} / 100` : '—'}</div><div className="text-xs text-[var(--muted)]">最近有效检测的协议质量分</div></div></div>
-        <div className="mt-4 flex flex-wrap gap-4 text-xs text-[var(--muted)]"><span>{RELAY_PROTOCOL_LABELS[site.protocol]}</span><span>{site.model}</span><span>{site.mode === 'quick' ? '快速检测' : '完整检测'}</span><span>{site.hasApiKey ? '已配置检测 Key' : '未配置检测 Key'}</span><span>{site.scheduleEnabled ? `每 ${site.scheduleIntervalHours} 小时自动检测` : '未启用自动检测'}</span></div>
+        <div className="mt-4 flex flex-wrap gap-4 text-xs text-[var(--muted)]"><span>{RELAY_PROTOCOL_LABELS[site.protocol]}</span><span>{site.model}</span><span>{modeLabel}</span><span>{site.hasApiKey ? '已配置检测 Key' : '未配置检测 Key'}</span><span>{site.scheduleEnabled ? `每 ${site.scheduleIntervalHours} 小时自动检测` : '未启用自动检测'}</span></div>
         {site.description && <p className="mt-4 whitespace-pre-wrap text-sm">{site.description}</p>}
         {site.reviewNotes && <div className="mt-4 rounded-lg border border-[var(--warn)]/40 p-3 text-sm"><b>审核反馈：</b>{site.reviewNotes}</div>}
         <div className="mt-5"><RelaySiteActions site={site} hasActiveCheck={active} /></div>
