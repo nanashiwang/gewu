@@ -8,20 +8,28 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import pytest_asyncio
 
 from relay_detector.core.models import ExecutionConfig
 from web import jobs
 
 
-@pytest.fixture
-def isolated_jobs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+@pytest_asyncio.fixture
+async def isolated_jobs_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Avoid touching real /opt/gewu-detector/web_data/jobs during tests."""
     fake_dir = tmp_path / "jobs"
     fake_dir.mkdir()
     monkeypatch.setattr(jobs, "JOBS_DIR", fake_dir)
     # Reset the shared state that survives across tests.
     monkeypatch.setattr(jobs, "_JOBS", {})
-    return fake_dir
+    monkeypatch.setattr(jobs, "_TASKS", {})
+    monkeypatch.setattr(jobs, "_STOP_REASONS", {})
+    monkeypatch.setattr(jobs, "_SEMA", asyncio.Semaphore(6))
+    monkeypatch.setattr(jobs, "_LOCK", asyncio.Lock())
+    monkeypatch.setattr(jobs, "_ACCEPTING", True)
+    yield fake_dir
+    await jobs.shutdown()
+    assert not jobs._TASKS, "owned detection tasks must all exit"
 
 
 class _CapturedOutcome:

@@ -8,18 +8,26 @@ import time
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 
 from relay_detector.models import DetectorResult, PerformanceMetrics
 from web import jobs
 
 
-@pytest.fixture
-def isolated_jobs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+@pytest_asyncio.fixture
+async def isolated_jobs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     directory = tmp_path / "jobs"
     directory.mkdir()
     monkeypatch.setattr(jobs, "JOBS_DIR", directory)
     monkeypatch.setattr(jobs, "_JOBS", {})
-    return directory
+    monkeypatch.setattr(jobs, "_TASKS", {})
+    monkeypatch.setattr(jobs, "_STOP_REASONS", {})
+    monkeypatch.setattr(jobs, "_SEMA", asyncio.Semaphore(6))
+    monkeypatch.setattr(jobs, "_LOCK", asyncio.Lock())
+    monkeypatch.setattr(jobs, "_ACCEPTING", True)
+    yield directory
+    await jobs.shutdown()
+    assert not jobs._TASKS, "owned detection tasks must all exit"
 
 
 class _Outcome:
