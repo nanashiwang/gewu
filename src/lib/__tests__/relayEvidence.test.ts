@@ -6,8 +6,42 @@ import { RelaySteps } from '@/components/relay/RelaySteps'
 import { initialModelSelection, isRelayCatalogStale, relayModelCatalog, relayVendors } from '@/lib/relayModelCatalog'
 import { relayCheckHasScore, relayReportPath } from '@/lib/relayUi'
 import { reportHasUsableEvidence } from '@/lib/relayEvidence'
+import { sameRelayScoreBasis } from '@/lib/relayWireApi'
+
+const currentReport = () => ({ scoring_version: 'evidence-v2', probe_version: 'calibration-1', total_score: 100,
+  results: [{ name: 'identity', status: 'fail', score: 0, weight: 0, evidence_role: 'observation', details: { core_response_valid: true } },
+    { name: 'consistency', status: 'pass', score: 100, weight: 10, evidence_role: 'scored' }] })
 
 describe('relay account evidence and selection', () => {
+  it('accepts completed evidence despite an unconvincing self-claim and rejects unknown policies', () => {
+    expect(reportHasUsableEvidence(currentReport(), 'anthropic')).toBe(true)
+    expect(reportHasUsableEvidence({ ...currentReport(), scoring_version: 'future-v999' }, 'anthropic')).toBe(false)
+  })
+  it.each(['self_only', 'skipped', 'core_missing', 'weighted_observation', 'hidden_capability', 'forged_total', 'missing_probe', 'duplicate'])('rejects %s evidence even with a forged successful assessment', (scenario) => {
+    const report: any = { ...currentReport(), assessment: { score_usable: true } }
+    if (scenario === 'self_only') report.results.pop()
+    if (scenario === 'skipped') report.results[1].status = 'skip'
+    if (scenario === 'core_missing') report.results[0].details = {}
+    if (scenario === 'weighted_observation') report.results[0].weight = 5
+    if (scenario === 'hidden_capability') report.results[1].evidence_role = 'observation'
+    if (scenario === 'forged_total') report.total_score = 80
+    if (scenario === 'missing_probe') delete report.probe_version
+    if (scenario === 'duplicate') report.results.push({ ...report.results[1] })
+    expect(reportHasUsableEvidence(report, 'anthropic')).toBe(false)
+  })
+  it('isolates scoring and probe versions and picks the newest record independent of input order', () => {
+    const current = { id: 'current', protocol: 'anthropic', model: 'claude-fixture', mode: 'full', status: 'done', score: 100, report: currentReport(), createdAt: '2026-10-12T02:00:00Z' }
+    const legacy = { ...current, id: 'legacy', report: { results: [{ name: 'identity', status: 'pass' }] }, score: 55, createdAt: '2026-10-12T00:00:00Z' }
+    const oldProbe = { ...current, id: 'old-probe', report: { ...currentReport(), probe_version: 'old' }, createdAt: '2026-10-12T01:00:00Z' }
+    expect(sameRelayScoreBasis(current, legacy)).toBe(false)
+    expect(sameRelayScoreBasis(current, oldProbe)).toBe(false)
+    expect(sameRelayScoreBasis(current, current)).toBe(true)
+    const html = renderToStaticMarkup(createElement(RelayTrend, { checks: [legacy, oldProbe, current] }))
+    expect(html).toContain('最近 1 次有效检测')
+    expect(html).toContain('历史评分 v1')
+    expect(html).toContain('证据评分 v2')
+    expect(html).toContain('55 分')
+  })
   it('uses UTC review dates and warns only after the review interval has elapsed', () => {
     const reviewed = Date.parse(`${relayModelCatalog.verified_on}T00:00:00Z`)
     expect(isRelayCatalogStale(new Date(reviewed + relayModelCatalog.review_interval_days * 86_400_000 + 86_399_999))).toBe(false)

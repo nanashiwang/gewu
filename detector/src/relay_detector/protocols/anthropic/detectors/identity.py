@@ -2,7 +2,7 @@
 
 Active. Direct identity probe with no system prompt. The cheapest possible
 sanity check — but trivially defeated by any relay that injects a system
-prompt, which is why the weight is only 5%.
+prompt. It is observation-only and has zero scoring weight.
 """
 
 from __future__ import annotations
@@ -66,8 +66,9 @@ NON_ANTHROPIC_BRAND_PATTERNS: list[tuple[str, str]] = [
 
 class IdentityDetector(ActiveDetector):
     name = "identity"
-    display_name = "身份一致性"
-    weight = 5.0
+    display_name = "模型自述观察"
+    weight = 0.0
+    evidence_role = "observation"
 
     async def run(self, client, model: str) -> DetectorResult:
         try:
@@ -81,6 +82,8 @@ class IdentityDetector(ActiveDetector):
             return self._result("error", 0.0, error=f"{type(e).__name__}: {e}")
 
         text = _join_text(resp.get("content"))
+        if not text.strip():
+            return self._result("error", 0.0, error="基础请求未返回有效文本，不能确认可用性")
         text_lc = text.lower()
 
         required_hits = [p for p in REQUIRED if re.search(p, text_lc)]
@@ -109,6 +112,8 @@ class IdentityDetector(ActiveDetector):
             score = 0.0
 
         details = {
+            "core_response_valid": True,
+            "note": "关键词仅记录模型自述，不计入质量分，也不证明模型身份。",
             "response_text": text[:300],
             "required_hits": required_hits,
             "competitor_hits": competitor_hits,

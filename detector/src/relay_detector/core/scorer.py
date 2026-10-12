@@ -23,14 +23,14 @@ def has_critical_issues(results: Iterable[DetectorResult]) -> bool:
     - `details.critical_issue_count > 0` (passive detectors that aggregate),
     - `details.issues[*].severity == "critical"` (anything that lists raw issues).
 
-    A single critical means the relay does something fundamentally wrong (e.g.
-    impersonates OpenAI by leaking Anthropic backend fingerprints in usage).
+    A critical issue identifies a material protocol inconsistency; it does
+    not authenticate or identify the underlying model.
     The weighted score may still be high — one critical-bearing detector at
     25% can be drowned out by six others at 100% — so we use this as a hard
     veto, separately from the score.
     """
     for r in results:
-        if r.status == "skip":
+        if r.status == "skip" or r.evidence_role == "observation":
             continue
         details = r.details if isinstance(r.details, dict) else {}
         count = details.get("critical_issue_count")
@@ -45,12 +45,8 @@ def has_critical_issues(results: Iterable[DetectorResult]) -> bool:
 def effective_verdict(score: float, results: Iterable[DetectorResult]) -> Verdict:
     """Verdict capped by critical findings.
 
-    A relay scoring 75 with NO critical issues is genuinely "passed". A relay
-    scoring 75 with critical issues (e.g. usage_source_non_openai) is at best
-    "marginal" — its high score comes from passing many cheap structural
-    checks while failing the one check that would have exposed it. The UI
-    reads verdict to pick the score-ring color, so this cap is what stops a
-    detected impersonation from showing up as a green 75% circle.
+    Even a high weighted score is capped at "marginal" when a scored probe
+    reports a critical protocol issue. Observations never trigger this cap.
     """
     base = verdict_for(score)
     if has_critical_issues(list(results)):
@@ -76,7 +72,7 @@ def compute_total(results: Iterable[DetectorResult]) -> float:
         effective_weight = Σ d.weight for d.status != "skip"
         total = Σ (d.score × d.weight) / effective_weight
     """
-    valid = [r for r in results if r.status != "skip"]
+    valid = [r for r in results if r.status != "skip" and r.evidence_role == "scored"]
     if not valid:
         return 0.0
     weight_sum = sum(r.weight for r in valid)

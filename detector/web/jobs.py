@@ -35,9 +35,10 @@ from relay_detector.scorer import (
     fatal_run_error,
     summary_text,
 )
-from relay_detector.ranking import unreviewed_ranking_evidence
+from relay_detector.ranking import unreviewed_ranking_evidence, baseline_reference
 from .security import REDACTED, redact_secret, redact_text
 from relay_detector.core.runner import ProgressObserver
+from relay_detector.core.scoring_policy import SCORING_VERSION, PROBE_VERSION
 
 
 JobStatus = Literal["queued", "running", "done", "error", "cancelled", "interrupted"]
@@ -143,6 +144,7 @@ def _finish_failure(job: Job, status: JobStatus, message: str) -> None:
     # Preserve completed evidence, even when cancellation happened before the
     # first probe. run_error prevents this partial report from receiving a score.
     report = DetectionReport(
+        scoring_version=SCORING_VERSION, probe_version=PROBE_VERSION,
         protocol=Protocol(job.protocol), tier=DetectionTier.PROTOCOL,
         wire_api=job.wire_api,
         tier_title="未完成的检测", tier_message="仅保留已经完成的证据，本次暂不计分。",
@@ -516,6 +518,7 @@ async def _run(
                 break
 
             report = DetectionReport(
+                scoring_version=SCORING_VERSION, probe_version=PROBE_VERSION,
                 protocol=report_protocol,
                 wire_api=wire_api if protocol in {"openai", "gemini"} else None,
                 tier=report_tier,
@@ -539,6 +542,7 @@ async def _run(
                 detected_non_anthropic_brands=brands,
             )
             report_dict = redact_secret(json.loads(report.model_dump_json()), api_key)
+            report_dict["ranking_evidence"]["baseline_version"] = baseline_reference(report_protocol, model, Mode(mode), report=report_dict)
             if wire_api in {"responses", "interactions", "generate_content"}:
                 report_dict["ranking_evidence"]["baseline_version"] = "not_available"
             _atomic_json(report_path(job_id, protocol), report_dict)

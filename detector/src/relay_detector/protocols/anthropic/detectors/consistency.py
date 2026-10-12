@@ -1,17 +1,14 @@
 """ConsistencyDetector — DESIGN.md §3.4.
 
-Active. Two layers:
-  1. response.model field matches the requested model (bidirectional prefix)
-  2. With temperature=0, output_tokens are stable across N runs (CV < 0.1)
-
-Quick mode simplifies to a single call (just the model-field check); the
-stability sub-score is recorded as "skipped" and given full credit so the
-detector's max stays 100. Standard/Full do the full 3-run stability test.
+Every response.model must match the requested model. This checks a declared
+protocol field, not model identity. Completion-length variation is recorded
+as an observation only. Quick mode sends one call; other modes keep the
+existing three-call sample unless the model restricts sampling parameters.
 """
 
 from __future__ import annotations
 
-import statistics
+from ....core.scoring_policy import sampling_observation
 
 from ..config import models_match
 from ....core.models import DetectorResult, Mode
@@ -54,12 +51,15 @@ class ConsistencyDetector(ActiveDetector):
 
         first = responses[0]
         response_model = first.get("model") or ""
-        match = models_match(model, response_model)
-        model_score = 60.0 if match else 0.0
+        response_models = [r.get("model") or "" for r in responses]
+        match = all(models_match(model, value) for value in response_models)
+        model_score = 100.0 if match else 0.0
 
         details: dict = {
             "request_model": model,
             "response_model": response_model,
+            "response_models": response_models,
+            "score_basis": "仅检查每次响应声明的型号是否匹配请求；字段匹配不证明模型身份。",
             "model_match": match,
             "n_runs": n_runs,
         }
@@ -70,29 +70,11 @@ class ConsistencyDetector(ActiveDetector):
                 for r in responses
             ]
             details["output_tokens_seq"] = output_tokens
-            mean = statistics.mean(output_tokens) if output_tokens else 0
-            if mean > 0:
-                stdev = statistics.pstdev(output_tokens)
-                cv = stdev / mean
-                details["stability_cv"] = round(cv, 3)
-                if cv < 0.10:
-                    stability_score = 40.0
-                    details["stability_label"] = "stable"
-                elif cv < 0.30:
-                    stability_score = 20.0
-                    details["stability_label"] = "suspicious"
-                else:
-                    stability_score = 0.0
-                    details["stability_label"] = "highly_anomalous"
-            else:
-                stability_score = 0.0
-                details["stability_label"] = "no_output"
+            details.update(sampling_observation(output_tokens))
         else:
-            # Quick mode: skip stability test, full credit, mark as skipped.
-            stability_score = 40.0
             details["stability_label"] = "not_applicable_sampling_restricted" if sampling_restricted else "skipped_quick_mode"
 
-        score = model_score + stability_score
+        score = model_score
         status = "pass" if score >= 70 else "fail"
         return self._result(status, score, details)
 

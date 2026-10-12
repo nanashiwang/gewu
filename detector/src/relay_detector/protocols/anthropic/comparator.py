@@ -1,10 +1,9 @@
 """Compare a relay-station detect report against an official-API baseline.
 
-The point isn't just "score difference" — it's *what specifically* diverges.
-Per-detector field-level comparisons surface the smoking guns: thinking block
-missing, tool_use stripped, UUID instead of msg_ id, etc. A small score gap
-with a critical-severity finding is more damning than a big gap from minor
-formatting drift.
+Comparable reports surface specific protocol or capability differences, such
+as a missing thinking block or malformed tool call. A difference requires
+review; it does not prove model substitution. Incomparable reports have no
+quality-difference verdict.
 """
 
 from __future__ import annotations
@@ -16,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from .config import models_match
+from ...core.comparison_guard import comparison_reasons
 
 
 class Severity(str, Enum):
@@ -66,8 +66,10 @@ class ComparisonReport:
     baseline_meta: dict[str, Any]
     relay_meta: dict[str, Any]
     detectors: list[DetectorComparison]
-    overall_severity: Severity
+    overall_severity: Severity | None
     summary: str
+    comparable: bool = True
+    reasons: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -75,7 +77,9 @@ class ComparisonReport:
             "relay_path": self.relay_path,
             "baseline_meta": self.baseline_meta,
             "relay_meta": self.relay_meta,
-            "overall_severity": self.overall_severity.value,
+            "overall_severity": self.overall_severity.value if self.overall_severity else None,
+            "comparable": self.comparable,
+            "reasons": self.reasons,
             "summary": self.summary,
             "detectors": [d.to_dict() for d in self.detectors],
         }
@@ -145,11 +149,14 @@ def _cmp_thinking_signature(b: dict, r: dict) -> tuple[Severity, list[str]]:
     if b_sig > 0 and r_sig == 0:
         findings.append(f"signature 缺失 (baseline 长度 {b_sig} chars)")
         sev = Severity.CRITICAL
-    elif b_sig > 0 and 0 < r_sig < b_sig * 0.3:
+    elif b_sig != r_sig and r_sig > 0:
         findings.append(
-            f"signature 异常短: relay {r_sig} chars vs baseline {b_sig}"
+            f"签名长度观察: relay {r_sig} chars vs baseline {b_sig}；长度差异不计为能力异常"
         )
-        sev = _max_severity(sev, Severity.MAJOR)
+    for key, label in (("signature_roundtrip_accepted", "原始签名往返"), ("tampered_rejection_verified", "篡改负向对照")):
+        if bd.get(key) is True and rd.get(key) is not True:
+            findings.append(f"{label}未通过；未证实签名约束，不证明具体模型身份")
+            sev = _max_severity(sev, Severity.MAJOR)
 
     return sev, findings
 
@@ -223,24 +230,12 @@ def _cmp_consistency(b: dict, r: dict) -> tuple[Severity, list[str]]:
     r_seq = rd.get("output_tokens_seq")
 
     if isinstance(b_cv, (int, float)) and isinstance(r_cv, (int, float)):
-        # Always surface the seq + cv pair when the relay's stability falls
-        # into "suspicious" (0.10-0.30) or "unstable" (>0.30) range, OR when
-        # it's noticeably worse than baseline. This way score drops always
-        # come with a concrete number to look at.
-        cv_label = (
-            "高度不稳定" if r_cv > 0.30
-            else "可疑波动" if r_cv > 0.10
-            else "略有波动" if r_cv > b_cv * 2 + 0.03
-            else None
-        )
-        if cv_label:
+        # Describe differing sample lengths without a quality inference.
+        if r_cv != b_cv:
             findings.append(
-                f"输出稳定性 {cv_label}: relay CV={r_cv:.3f} vs baseline CV={b_cv:.3f}"
+                f"输出长度观察: relay CV={r_cv:.3f} vs baseline CV={b_cv:.3f}；不据此扣分或判断换模"
                 + (f"; output_tokens seq baseline={b_seq} relay={r_seq}"
                    if b_seq is not None or r_seq is not None else "")
-            )
-            sev = _max_severity(
-                sev, Severity.MAJOR if r_cv > 0.30 else Severity.MINOR
             )
     return sev, findings
 
@@ -438,6 +433,10 @@ def _compare_one(
     findings: list[str] = []
     severity = Severity.OK
 
+    if any(item and item.get("evidence_role") == "observation" for item in (b, r)):
+        return DetectorComparison(name, display_name, b_score, r_score, diff, Severity.OK,
+                                  ["仅作观察，不参与质量评分；自述、风格和知识问答不证明模型身份。"])
+
     # If only one side exists, that's already a signal.
     if b is None and r is not None:
         findings.append("baseline 缺少该检测项")
@@ -494,6 +493,16 @@ def compare(
     baseline_path: str = "",
     relay_path: str = "",
 ) -> ComparisonReport:
+    reasons = comparison_reasons(baseline, relay)
+    baseline = baseline if isinstance(baseline, dict) else {}
+    relay = relay if isinstance(relay, dict) else {}
+    if baseline.get("protocol") != "anthropic" or relay.get("protocol") != "anthropic":
+        reasons.append("此比较器仅支持 Anthropic 检测报告")
+    if reasons:
+        metadata = lambda item: {key: item.get(key) for key in ("target_model", "mode", "protocol", "wire_api", "scoring_version", "probe_version", "timestamp")}
+        return ComparisonReport(baseline_path, relay_path, metadata(baseline), metadata(relay), [], None,
+                                "不可直接比较：" + "；".join(reasons) + "。历史原分保留，不生成差分结论。",
+                                comparable=False, reasons=reasons)
     b_idx = _index_results(baseline)
     r_idx = _index_results(relay)
 

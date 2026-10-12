@@ -7,9 +7,8 @@ patterns; a signature 'hits' when expected match AND no unexpected match.
 
 Score = sum(weight where hit) / sum(weight) × 100.
 
-Limitations: behaviors can be coaxed by sufficient prompt engineering, which
-is why the weight is 15% (not 25%). The detector is a reasonable indicator,
-not proof.
+Patterns are diagnostic observations only. Behaviors depend on prompts and
+sampling; the detector has zero quality-scoring weight and proves no identity.
 """
 
 from __future__ import annotations
@@ -36,8 +35,9 @@ def _load_signatures() -> list[dict]:
 
 class BehavioralSignatureDetector(ActiveDetector):
     name = "behavioral_signature"
-    display_name = "行为签名验证"
-    weight = 15.0
+    display_name = "行为风格观察"
+    weight = 0.0
+    evidence_role = "observation"
 
     async def run(self, client, model: str) -> DetectorResult:
         signatures = _load_signatures()

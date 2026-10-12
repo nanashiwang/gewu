@@ -25,3 +25,14 @@ export function sameRelayConfiguration(a: any, b: any): boolean {
       resolveRelayWireApi(a.protocol, a.wireApi) === resolveRelayWireApi(b.protocol, b.wireApi)
   } catch { return false }
 }
+
+export function sameRelayScoreBasis(a: any, b: any): boolean {
+  return ['weighted-v1', 'evidence-v2'].includes(a.report?.scoring_version || 'weighted-v1') && sameRelayConfiguration(a, b) &&
+    (a.report?.scoring_version || 'weighted-v1') === (b.report?.scoring_version || 'weighted-v1') &&
+    (a.report?.probe_version || '') === (b.report?.probe_version || '')
+}
+
+export function relayScoringLabel(check: any): string {
+  const version = check.report?.scoring_version
+  return version === 'evidence-v2' ? '证据评分 v2' : !version || version === 'weighted-v1' ? '历史评分 v1' : '未知评分版本'
+}

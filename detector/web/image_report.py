@@ -395,6 +395,7 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
     _draw_circle_score(d, circle_cx, circle_cy, circle_r, score if assessment["score_usable"] else None, caption, ring)
     d.text((100, 735), "协议质量分 / 100 · 不是模型真伪概率", fill=_MUTED, font=_load_font(17))
     d.text((100, 765), assessment["identity"]["label"], fill=_MUTED, font=_load_font(17))
+    d.text((100, 792), assessment["scoring_label"], fill=_MUTED, font=_load_font(17))
 
     # model + mode line under the circle
     sub_font = _load_font(16)
@@ -460,6 +461,10 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
             status_text = "未测试" if status == "skip" else "证据不足"
         if name in {"token_billing", "token_usage"} and status == "skip":
             status_text = "无法判断"
+        if report.get("scoring_version") == "evidence-v2" and result.get("evidence_role") == "observation":
+            label = result.get("display_name") or label
+            if status not in {"skip", "error"}:
+                status_text, status_color, status = "仅观察", _MUTED, "skip"
 
         # icon
         icon_cx = rows_x + 22

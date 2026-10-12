@@ -13,11 +13,11 @@ from ...core.models import Mode
 # --- Weights (DESIGN.md §2) -----------------------------------------------
 
 DETECTOR_WEIGHTS: dict[str, float] = {
-    "identity": 5.0,
-    "behavioral_signature": 15.0,
+    "identity": 0.0,
+    "behavioral_signature": 0.0,
     "thinking_signature": 25.0,
     "consistency": 10.0,
-    "knowledge": 10.0,
+    "knowledge": 0.0,
     "pdf": 8.0,
     "structured_output": 12.0,
     "protocol": 5.0,

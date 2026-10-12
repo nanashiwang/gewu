@@ -1,38 +1,36 @@
 # Baselines
 
-This directory holds **ground-truth detection reports** collected by running
+This directory holds **historical reference reports** collected by running
 `bench.sh` against the official Anthropic API (`https://api.anthropic.com`)
 with a real `sk-ant-...` key.
 
 Each file `<model>_<mode>.json` is the raw output of `gewu detect`
 in that mode, against that model, on the official API. These represent what
-the detector should see when there is no relay involvement: an unaltered
-Claude API response, scored 100/100 when our detectors are healthy.
+the detector observed at capture time. An official endpoint is not guaranteed
+to score 100; a failure can also identify a detector assumption that needs review.
 
 ## Purpose
 
-Treat these as templates for future comparisons. Specific signals worth
-diffing against:
+Current `evidence-v2` excludes identity claims, writing style and knowledge
+questions from the quality score. Output-length CV and opaque signature length
+are observations, not evidence of substitution. Signature evidence requires
+successful original replay and a verified rejection of the tampered control.
 
-- `thinking_signature.signature_length` — expected to be ~600–900 chars on
-  Anthropic. A relay returning 0 means thinking was stripped.
-- `consistency.output_tokens_seq` — expected coefficient of variation < 0.05
-  on Anthropic. Higher CV suggests load-balancing across different upstream
-  models.
-- `pdf.response_text` — should contain the magic identifier on Anthropic.
-- `structured_output.sub_checks.caller.value.<keys>` — currently `["type"]`
-  on Anthropic (note: this is a dict, not the string-enum the docs claim —
-  Anthropic schema drift discovered during M4 verification).
-- `protocol.issues` and `message_id.violations` — empty on Anthropic. Any
-  entry on a relay is a real protocol-layer signal.
+Direct comparison requires matching model, protocol, interface, mode, scoring
+and probe versions, and the same executed scored probes and weights. Both
+reports need valid evidence and timezone-aware timestamps within 30 days;
+future timestamps and inconsistent totals are rejected before computing diffs.
+Quick and standard never fall back to a full-mode baseline.
 
-A relay-station report that diverges materially from the corresponding model
-baseline is strong evidence of impersonation, model substitution, or
-capability stripping.
+The existing JSON files retain their original scores and bytes. Files lacking
+the required metadata cannot calibrate current reports. New public scores
+remain ineligible until a comparable baseline is available; approved historical
+evidence is kept separate. Protocol differences do not prove a model's identity.
 
 ## Refreshing
 
-Re-run `./bench.sh` whenever:
+With explicit permission to spend the official API key's quota, re-run
+`./bench.sh` whenever:
 - A new Claude snapshot ships (e.g. Haiku 4.5 → 4.6)
 - Anthropic API behavior changes (e.g. a field's shape is updated)
 - Detector logic changes meaningfully

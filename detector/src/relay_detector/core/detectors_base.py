@@ -22,6 +22,7 @@ class BaseDetector(ABC):
     name: str = ""
     display_name: str = ""
     weight: float = 0.0
+    evidence_role: str = "scored"
     modes: set[Mode] = {Mode.QUICK, Mode.STANDARD, Mode.FULL}
     # Injected by Runner before run() is called. Detectors that need to
     # branch on mode (e.g. simplified vs full) read this.
@@ -45,6 +46,7 @@ class BaseDetector(ABC):
             status=status,
             score=score,
             weight=self.weight,
+            evidence_role=self.evidence_role,
             details=details or {},
             duration_ms=duration_ms,
             error=error,

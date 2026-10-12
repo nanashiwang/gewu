@@ -35,6 +35,7 @@
 <article class="card observation-row" data-observation-row data-model="{{ row.model }}" data-search="{{ (row.domain ~ ' ' ~ row.model)|lower }}">
   <div class="relay-section-head"><div><h2>{{ row.model }}</h2><a href="/leaderboard/{{ row.domain }}">{{ row.domain }}</a></div><span>{{ {'anthropic':'Claude','openai':'OpenAI','gemini':'Gemini'}.get(row.protocol, row.protocol) }} · {{ {'quick':'快速','standard':'标准','full':'完整'}.get(row.mode, '未知模式') }} · {{ row.count }} 个有效样本</span></div>
   <p class="muted">观测入口 {{ row.endpoint_id }} · 账号分组未知 · 检测器 {{ row.version }} · 基线 {{ '未提供' if row.baseline == 'not_available' else row.baseline }}</p>
+  <p class="muted small">{{ row.scoring_label }} · 探针 {{ row.probe_version }} · 不同版本分开展示</p>
   <div class="observation-days">
   {% for day in row.days %}
     {% set labels = {'pass':'样本通过', 'risk':'存在异常', 'incomplete':'未完成', 'no_data':'无有效样本'} %}
