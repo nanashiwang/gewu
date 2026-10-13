@@ -29,7 +29,7 @@ evidence is kept separate. Protocol differences do not prove a model's identity.
 
 ## Refreshing
 
-Run `gewu baseline-audit` for an offline inventory. `/sources` exposes the same
+Run `gewu baseline-audit` for an offline inventory. `/leaderboard/sources` exposes the same
 availability reasons. Submitted reports cannot approve themselves: an operator
 must verify the sampling provenance and add the exact file SHA-256 and official
 source URL to the separate, version-controlled `approvals.json` manifest:

@@ -448,7 +448,7 @@ async def models_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "models.html", {"catalog": catalog_view()})
 
 
-@app.get("/sources", response_class=HTMLResponse)
+@app.get("/leaderboard/sources", response_class=HTMLResponse)
 async def sources_page(request: Request) -> HTMLResponse:
     from .provider_status import SOURCES, HUB_URL
     from relay_detector.baselines import baseline_inventory
@@ -458,13 +458,13 @@ async def sources_page(request: Request) -> HTMLResponse:
     })
 
 
-@app.get("/api/provider-status")
+@app.get("/api/status/provider-status")
 async def provider_status_api() -> JSONResponse:
     from .provider_status import cached_status
     return JSONResponse(await run_in_threadpool(cached_status), headers={"Cache-Control": "no-store"})
 
 
-@app.get("/api/detection-scope")
+@app.get("/api/status/detection-scope")
 async def detection_scope_api(
     protocol: Literal["anthropic", "openai", "gemini"],
     model: str = Query(min_length=1, max_length=128),
@@ -1280,7 +1280,7 @@ _STATIC_SITEMAP_URLS = [
     ("/openai",      "weekly",  "0.9",  "openai.html"),
     ("/gemini",      "weekly",  "0.9",  "gemini.html"),
     ("/leaderboard/models", "weekly", "0.8", "models.html"),
-    ("/sources",     "weekly", "0.7", "sources.html"),
+    ("/leaderboard/sources", "weekly", "0.7", "sources.html"),
     ("/leaderboard", "daily",   "0.85", "leaderboard.html"),
     ("/leaderboard/monitor", "daily", "0.85", "monitor.html"),
     ("/ranking-governance", "monthly", "0.65", "ranking_governance.html"),
