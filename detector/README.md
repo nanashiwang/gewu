@@ -275,7 +275,7 @@ OFFICIAL_KEY=sk-ant-XXXXX  ./bench.sh --models 'claude-opus-4-7 claude-haiku-4-5
 
 费用取决于所选模型、深度与实际请求。采集文件须经来源审核，将完整 SHA-256 与官方端点写入 `data/baselines/approvals.json`；报告自填官方地址不能自动获得信任。
 
-厂商稳定性参考已有服务：`/sources` 引用 AI Status Hub 的官方通告聚合，并提供 Oken 与 ModelUptime 入口。格物只按访问读取公开 JSON，缓存 5 分钟，超过 30 分钟或读取失败显示未知；不消耗模型额度，不将外部状态用于评分。Gemini 聚合仅覆盖 Google Cloud / Vertex，AI Studio 另有官方链接。
+厂商稳定性参考已有服务：`/leaderboard/sources` 引用 AI Status Hub 的官方通告聚合，并提供 Oken 与 ModelUptime 入口。格物只按访问读取公开 JSON，缓存 5 分钟，超过 30 分钟或读取失败显示未知；不消耗模型额度，不将外部状态用于评分。Gemini 聚合仅覆盖 Google Cloud / Vertex，AI Studio 另有官方链接。
 
 ---
 

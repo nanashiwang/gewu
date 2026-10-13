@@ -7,7 +7,7 @@
   function loadStatus() {
     if (!statusPromise || Date.now() - statusLoadedAt > 300000) {
       statusLoadedAt = Date.now();
-      statusPromise = fetch('/api/provider-status', {signal: AbortSignal.timeout(12000)})
+      statusPromise = fetch('/api/status/provider-status', {signal: AbortSignal.timeout(12000)})
       .then(response => { if (!response.ok) throw new Error('status unavailable'); return response.json(); })
       .catch(() => ({providers: {}}));
     }
@@ -85,7 +85,7 @@
     const controller = pending;
     const timeout = setTimeout(() => controller.abort(), 7000);
     try {
-      const response = await fetch(`/api/detection-scope?${params}`, {signal: controller.signal});
+      const response = await fetch(`/api/status/detection-scope?${params}`, {signal: controller.signal});
       if (!response.ok) throw new Error('scope unavailable');
       const data = await response.json();
       if (generation !== current) return;

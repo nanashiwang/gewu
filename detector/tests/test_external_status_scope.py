@@ -147,15 +147,27 @@ def test_public_routes_have_boundaries_and_never_require_external_state(monkeypa
         pytest.fail("page render must not wait for an external source")
     monkeypatch.setattr(ps, "_fetch", no_network)
     client = TestClient(app)
-    response = client.get("/sources")
+    response = client.get("/leaderboard/sources")
     assert response.status_code == 200
     assert "OpenRouter" in response.text and "外部状态不进入检测分数" in response.text
     assert "当前聚合源未覆盖：" in response.text
-    response = client.get("/api/detection-scope", params={"protocol": "openai", "model": "gpt-6-luna", "wire_api": "responses"})
+    response = client.get("/api/status/detection-scope", params={"protocol": "openai", "model": "gpt-6-luna", "wire_api": "responses"})
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store"
     for invalid in [{"protocol": "../../x", "model": "gpt-x"}, {"protocol": "openai", "model": "x", "wire_api": "messages"}, {"protocol": "gemini", "model": "x", "wire_api": "interactions", "include_long_context": True}]:
-        assert client.get("/api/detection-scope", params=invalid).status_code == 422
+        assert client.get("/api/status/detection-scope", params=invalid).status_code == 422
+
+
+def test_status_routes_take_precedence_over_job_lookup(monkeypatch):
+    snapshot = ps.status_snapshot(feed(), now=NOW)
+    monkeypatch.setattr(ps, "cached_status", lambda: snapshot)
+    client = TestClient(app)
+    response = client.get("/api/status/provider-status")
+    assert response.status_code == 200
+    assert response.json() == snapshot
+    assert response.headers["cache-control"] == "no-store"
+    assert client.get("/api/status/detection-scope").status_code == 422
+    assert client.get("/api/status/nonexistent-status-test").status_code == 404
 
 
 def test_cli_explicit_report_cannot_claim_official_source(approved_baseline):
