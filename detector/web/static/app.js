@@ -533,6 +533,7 @@
             modelInput.add(new Option(recommended, recommended));
           }
           modelInput.value = recommended;
+          modelInput.dispatchEvent(new Event('change', {bubbles: true}));
         }
         errBox.hidden = true;
         errBox.classList.remove('form-warning-rich');

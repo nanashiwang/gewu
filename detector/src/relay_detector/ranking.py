@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import os
@@ -15,8 +14,7 @@ from urllib.parse import urlsplit
 from . import __version__
 from .core.models import Mode, Protocol, RankingEvidence
 from .core.assessment import CORE_DETECTORS, assess_report
-from .core.scoring_policy import SCORING_VERSION, PROBE_VERSION
-from .core.comparison_guard import comparison_reasons
+from .core.scoring_policy import SCORING_VERSION
 from .model_catalog import is_generic_chat
 
 
@@ -45,30 +43,15 @@ def detector_version() -> str:
 
 def baseline_reference(protocol: str | Protocol, model: str, mode: str | Mode, *, report: Mapping | None = None) -> str:
     """Return a reproducible baseline filename + content hash, or an honest sentinel."""
+    from .baselines import baseline_status
     protocol_value = protocol.value if isinstance(protocol, Protocol) else str(protocol)
     mode_value = mode.value if isinstance(mode, Mode) else str(mode)
-    detector_root = Path(__file__).resolve().parents[2]
-    baseline_root = detector_root / "data" / "baselines"
-    candidates = [
-        baseline_root / protocol_value / f"{model}_{mode_value}.json",
-        baseline_root / f"{model}_{mode_value}.json",
-    ]
-    for path in candidates:
-        if not path.is_file():
-            continue
-        try:
-            content = path.read_bytes()
-            candidate = json.loads(content)
-            if not isinstance(candidate, dict) or any(candidate.get(key) != expected for key, expected in {
-                "protocol": protocol_value, "target_model": model, "mode": mode_value,
-                "scoring_version": SCORING_VERSION, "probe_version": PROBE_VERSION,
-            }.items()) or comparison_reasons(candidate, report if report is not None else candidate):
-                continue
-            digest = hashlib.sha256(content).hexdigest()[:12]
-        except (OSError, ValueError, TypeError):
-            continue
-        return f"{path.name}#sha256:{digest}"
-    return "not_available"
+    try:
+        return baseline_status(protocol_value, model, mode_value,
+                               report.get("wire_api") if report is not None else None,
+                               report=report, root=Path(__file__).resolve().parents[2] / "data/baselines")["reference"]
+    except (ValueError, TypeError, OSError):
+        return "not_available"
 
 
 def unreviewed_ranking_evidence(

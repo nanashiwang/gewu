@@ -100,6 +100,9 @@ def find_baseline_for(
     """Auto-discover baseline file by model + mode in `baseline_dir`."""
     if not baseline_dir.is_dir():
         return None
+    import re
+    if not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", model) or mode not in {"quick", "standard", "full"}:
+        return None
     direct = baseline_dir / f"{model}_{mode}.json"
     if direct.is_file():
         return direct
@@ -108,9 +111,7 @@ def find_baseline_for(
             d = json.loads(f.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             continue
-        if d.get("mode") == mode and models_match(
-            model, d.get("target_model", "")
-        ):
+        if isinstance(d, dict) and d.get("mode") == mode and d.get("target_model") == model:
             return f
     return None
 

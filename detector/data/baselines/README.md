@@ -29,6 +29,27 @@ evidence is kept separate. Protocol differences do not prove a model's identity.
 
 ## Refreshing
 
+Run `gewu baseline-audit` for an offline inventory. `/sources` exposes the same
+availability reasons. Submitted reports cannot approve themselves: an operator
+must verify the sampling provenance and add the exact file SHA-256 and official
+source URL to the separate, version-controlled `approvals.json` manifest:
+
+```json
+{"version": 1, "approvals": {"MODEL_full.json": {
+  "sha256": "FULL_64_CHARACTER_SHA256", "source_url": "https://api.anthropic.com"
+}}}
+```
+
+The manifest is intentionally empty until real samples have been reviewed.
+Matching a report's self-declared `base_url` alone is not proof of origin.
+Review approval changes as trusted operator configuration, not uploaded data.
+Changing the sample invalidates approval. Optional long-context coverage must
+also match the final report; an available candidate is not a pre-test guarantee.
+
+External status pages and AI Status Hub only provide incident context. They
+cannot replace protocol baselines or authorize public scoring. No recurring
+paid provider stability probes are needed for this integration.
+
 With explicit permission to spend the official API key's quota, re-run
 `./bench.sh` whenever:
 - A new Claude snapshot ships (e.g. Haiku 4.5 → 4.6)
@@ -36,7 +57,7 @@ With explicit permission to spend the official API key's quota, re-run
 - Detector logic changes meaningfully
 
 ```bash
-OFFICIAL_KEY=sk-ant-...  ./bench.sh
+OFFICIAL_KEY=sk-ant-... ./bench.sh --models 'EXPLICIT_REVIEWED_CLAUDE_MODEL' --mode quick
 ```
 
 After running on the deploy host, copy the output back into this directory:

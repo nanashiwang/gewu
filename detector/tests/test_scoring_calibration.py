@@ -190,8 +190,13 @@ def test_baseline_lookup_never_falls_back_to_full_or_mismatched_coverage(tmp_pat
     root = tmp_path / "data/baselines"
     root.mkdir(parents=True)
     data = calibrated_report()
+    data["base_url"] = "https://api.anthropic.com"
     file = root / "claude-opus-4-6_full.json"
     file.write_text(json.dumps(data))
+    import hashlib
+    (root / "approvals.json").write_text(json.dumps({"version": 1, "approvals": {
+        file.name: {"sha256": hashlib.sha256(file.read_bytes()).hexdigest(), "source_url": data["base_url"]}
+    }}))
     assert ranking.baseline_reference("anthropic", data["target_model"], "full", report=data).startswith(file.name + "#sha256:")
     assert ranking.baseline_reference("anthropic", data["target_model"], "quick") == "not_available"
     changed = deepcopy(data)

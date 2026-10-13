@@ -16,6 +16,7 @@
   <link rel="canonical" href="{% block canonical %}{{ brand.url('/') }}{% endblock %}" />
   <link rel="stylesheet" href="/static/style.css?v=20261012-task-state" />
   <link rel="stylesheet" href="/static/interface.css?v=20261012-evidence-catalog" />
+  <link rel="stylesheet" href="/static/scope.css?v=20261014-1" />
   <link rel="icon" href="/static/favicon.svg?v=20261011-4" type="image/svg+xml" />
   {% block head_extra %}{% endblock %}
   {% if brand.analytics_id %}
@@ -64,10 +65,11 @@
   <footer class="site-footer footer-compact">
     <div class="footer-compact-inner">
       <span>© {{ brand.name }} · 公益检测 · 结果可复核</span>
-      <nav aria-label="页脚"><a href="/#security-and-trust">检测与隐私</a><a href="/faq">常见问题</a></nav>
+      <nav aria-label="页脚"><a href="/#security-and-trust">检测与隐私</a><a href="/sources">外部状态与基线</a><a href="/faq">常见问题</a></nav>
     </div>
   </footer>
-  <script src="/static/app.js?v=20261012-native-interfaces-2" defer></script>
+  <script src="/static/app.js?v=20261014-scope" defer></script>
   <script src="/static/select.js?v=20261011-4" defer></script>
+  <script src="/static/scope.js?v=20261014-1" defer></script>
 </body>
 </html>
