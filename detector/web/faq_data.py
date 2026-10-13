@@ -318,9 +318,10 @@ FAQ_CATEGORIES: tuple[FAQCategory, ...] = (
             FAQEntry(
                 "modes-difference",
                 "standard / quick / full 三档模式有什么区别?",
-                "quick (~15s, 3-5 项) 适合快速摸排;standard (~40s, 7-8 项) 是默认推荐;"
-                "full (~70s, 全 10 项) 是完整检测,推荐拿来跟官方基线 1:1 对比。"
-                "所有模式都会跑 thinking signature 这种核心项。",
+                "检测范围随模型与接口变化，选择后表单会显示计划项目。"
+                "Responses 与 Gemini 原生接口：quick 检查基础与流式，standard 增加结构化输出，full 增加工具往返。"
+                "Claude Messages 才有适用的 thinking signature 回放检查；观察项不参与质量分。"
+                "官方对比还需要同配置、同计分范围、近期且经过独立审核的基线。",
             ),
             FAQEntry(
                 "how-to-read-score",

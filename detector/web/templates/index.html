@@ -23,7 +23,7 @@
   "featureList": [
     "thinking block 原始/篡改回放验证",
     "12 项独立检测维度(身份/行为/知识/PDF/工具调用/协议/流式/Token 用量/长上下文)",
-    "字段级跟官方 Anthropic baseline 1:1 对比",
+    "逐项协议证据；官方对比需要有效且可比的已审核基线",
     "Stream / non-stream 一致性校验",
     "tool_use ID 前缀合规检查",
     "PDF 多模态能力检测",
@@ -138,6 +138,7 @@
     </div>
 
     </details>
+    {% include "_detection_scope.html" %}
     <button type="submit" id="submit-btn" class="btn btn-primary btn-block">
       开始检测
     </button>
@@ -154,8 +155,8 @@
     <p>不只检查 <code>signature</code> 是否存在:原始 thinking block 必须能回放,篡改单个字符的对照块必须被明确拒绝。这是高强度协议证据,但不是本地公钥验签或绝对真伪证明。</p>
   </div>
   <div class="feature">
-    <h3>字段级 baseline 对比</h3>
-    <p>逐字段比对 <code>input_tokens</code>、<code>tool_use</code> ID、SSE 事件序列、stream/non-stream 一致性,与官方 Anthropic 接口 1:1 对照。</p>
+    <h3>逐项检测证据</h3>
+    <p>检查用量字段、工具调用、流式事件与响应一致性。仅有同配置、近期且经过审核的官方基线时才能对照；没有基线不代表服务商异常。</p>
   </div>
   <div class="feature">
     <h3>一键分享报告</h3>

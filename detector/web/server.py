@@ -11,9 +11,10 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 from xml.sax.saxutils import escape as xml_escape
 
-from fastapi import FastAPI, Form, HTTPException, Request
+from fastapi import FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import (
     HTMLResponse, JSONResponse, Response,
 )
@@ -445,6 +446,40 @@ async def openai_index(request: Request) -> HTMLResponse:
 @app.get("/leaderboard/models", response_class=HTMLResponse)
 async def models_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "models.html", {"catalog": catalog_view()})
+
+
+@app.get("/sources", response_class=HTMLResponse)
+async def sources_page(request: Request) -> HTMLResponse:
+    from .provider_status import SOURCES, HUB_URL
+    from relay_detector.baselines import baseline_inventory
+    return templates.TemplateResponse(request, "sources.html", {
+        "catalog": catalog_view(), "sources": SOURCES, "hub_url": HUB_URL,
+        "baselines": await run_in_threadpool(baseline_inventory),
+    })
+
+
+@app.get("/api/provider-status")
+async def provider_status_api() -> JSONResponse:
+    from .provider_status import cached_status
+    return JSONResponse(await run_in_threadpool(cached_status), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/detection-scope")
+async def detection_scope_api(
+    protocol: Literal["anthropic", "openai", "gemini"],
+    model: str = Query(min_length=1, max_length=128),
+    mode: Literal["quick", "standard", "full"] = "full",
+    wire_api: str | None = Query(default=None, max_length=32),
+    include_long_context: bool = False,
+    include_long_context_extreme: bool = False,
+) -> JSONResponse:
+    from .detection_scope import detection_scope
+    try:
+        result = await run_in_threadpool(detection_scope, protocol, model, mode, wire_api,
+                                        include_long_context, include_long_context_extreme)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/gemini", response_class=HTMLResponse)
@@ -1092,7 +1127,7 @@ async def result_jpg(job_id: str) -> Response:
 
     # Cache the JPG next to the JSON. Detection report is immutable, so once
     # generated we always serve from disk to spare the CPU.
-    cache_path = jobs.image_path(job_id, j.protocol).with_suffix(".calibration-v2.jpg")
+    cache_path = jobs.image_path(job_id, j.protocol).with_suffix(".scope-v2.jpg")
     if not cache_path.exists():
         png_bytes = render_report_jpg(j.report)
         cache_path.write_bytes(png_bytes)
@@ -1245,6 +1280,7 @@ _STATIC_SITEMAP_URLS = [
     ("/openai",      "weekly",  "0.9",  "openai.html"),
     ("/gemini",      "weekly",  "0.9",  "gemini.html"),
     ("/leaderboard/models", "weekly", "0.8", "models.html"),
+    ("/sources",     "weekly", "0.7", "sources.html"),
     ("/leaderboard", "daily",   "0.85", "leaderboard.html"),
     ("/leaderboard/monitor", "daily", "0.85", "monitor.html"),
     ("/ranking-governance", "monthly", "0.65", "ranking_governance.html"),

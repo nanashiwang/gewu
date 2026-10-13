@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}外部状态与基线来源 | 格物{% endblock %}
+{% block description %}格物引用已有厂商故障通告，公开来源、覆盖边界及基线审核状态，不重复进行付费稳定性巡检。{% endblock %}
+{% block content %}
+<a class="detect-back" href="/">← 返回检测</a>
+<section class="hero"><h1>外部状态与基线来源</h1><p class="hero-sub">官方故障看原始通告，中转表现看本次证据。</p></section>
+<section class="card">
+  <h2>厂商故障通告</h2>
+  <p>引用 <a href="{{ hub_url }}" target="_blank" rel="noopener noreferrer">AI Status Hub ↗</a> 对官方状态页的聚合。按访问需要缓存 5 分钟；来源采样超过 30 分钟、读取失败或未覆盖时显示未知。格物不为此发送付费模型请求。</p>
+  <p>这是厂商综合通告，可能包含网页、控制台等产品，不能直接判定某个 API 或中转线路故障。外部状态不进入检测分数、榜单或官方基线。</p>
+  <div class="source-grid" id="provider-directory">
+  {% for v in catalog.vendors if v.id in sources %}
+    {% set source = sources.get(v.id) %}
+    <article class="source-item" data-provider="{{ v.id }}"><h3>{{ v.label }}</h3>
+      <p data-status-label>尚未取得状态</p><p class="hint" data-status-time></p>
+      <p>{{ source.scope if source else '当前聚合源未覆盖此厂商，不据此推断正常或故障。' }}</p>
+      {% if source %}<a href="{{ source.url }}" target="_blank" rel="noopener noreferrer">官方原始通告 ↗</a>{% endif %}
+      {% if source and source.extra_url %}<a href="{{ source.extra_url }}" target="_blank" rel="noopener noreferrer">{{ source.extra_label }} ↗</a>{% endif %}
+    </article>
+  {% endfor %}
+  </div>
+  <p class="hint">当前聚合源未覆盖：{% for v in catalog.vendors if v.id != 'other' and v.id not in sources %}{{ v.label }}{% if not loop.last %}、{% endif %}{% endfor %}。状态未知，不据此推断正常或故障；可通过下面的第三方线路观测入口查询。</p>
+</section>
+<section class="card"><h2>第三方线路观测</h2>
+  <p><a href="https://oken.ai/zh" target="_blank" rel="noopener noreferrer">Oken.ai ↗</a> 提供模型与供应商线路观测，可到原站查看其样本和更新情况。</p>
+  <p><a href="https://www.modeluptime.com/" target="_blank" rel="noopener noreferrer">ModelUptime ↗</a> 明确使用经 OpenRouter 路径的观察数据，不能视为官方直连稳定性。<a href="https://www.modeluptime.com/methodology/" target="_blank" rel="noopener noreferrer">查看采样方法 ↗</a></p>
+  <p class="muted">这些入口仅供交叉排查，不复制为格物实测，也不据此认定模型身份或故障责任。页面加载不会向外部来源发送你的 Key、接口地址或检测报告。</p>
+</section>
+<section class="card"><h2>官方基线库存</h2>
+  <p>基线是可复核的协议采样，不是线路稳定性。必须经过独立来源审核，并匹配模型、接口、深度、评分版本、探针版本、实际计分项目及 30 天时效，才能用于官方对比。</p>
+  <p>当前保留历史样本；没有合格基线时仍可自测接口，但不宣称已经与官方对照。外部状态页不能补足这类证据。</p>
+  {% for row in baselines %}<details class="baseline-item"><summary><code>{{ row.file }}</code> · {{ '可用候选' if row.state == 'available' else '暂不可用' }}</summary>
+    <p>采样时间：{{ row.timestamp or '未记录' }}</p><ul>{% for reason in row.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+  </details>{% else %}<p>尚未收录基线样本。</p>{% endfor %}
+</section>
+{% endblock %}

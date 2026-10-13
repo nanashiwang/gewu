@@ -21,7 +21,7 @@ PY="$HERE/venv/bin/python"
 
 OUT="${OUT:-/tmp/baselines}"
 MODE="${MODE:-full}"
-MODELS="${MODELS:-claude-opus-4-7 claude-sonnet-4-6 claude-haiku-4-5 claude-opus-4-6}"
+MODELS="${MODELS:-}"
 OFFICIAL_BASE="${OFFICIAL_BASE:-https://api.anthropic.com}"
 
 print_usage() {
@@ -33,8 +33,7 @@ Collect official Anthropic API baselines for the latest Claude models.
 Options:
   -o, --out PATH         Output directory (default: $OUT)
   -m, --mode MODE        quick / standard / full (default: $MODE)
-      --models "..."     Space-separated model list
-                         (default: $MODELS)
+      --models "..."     Required explicit model list; no automatic paid sweep
       --base URL         Official API base URL
                          (default: $OFFICIAL_BASE)
   -h, --help             Show this help and exit
@@ -59,6 +58,22 @@ while [[ $# -gt 0 ]]; do
     -h|--help)   print_usage; exit 0 ;;
     *) echo "unknown arg: $1" >&2; print_usage >&2; exit 2 ;;
   esac
+done
+
+if [[ -z "$MODELS" ]]; then
+  echo "Specify --models explicitly after reviewing the request budget; no requests sent." >&2
+  exit 2
+fi
+if [[ "$OFFICIAL_BASE" != "https://api.anthropic.com" ]]; then
+  echo "Official baseline collection requires https://api.anthropic.com; no requests sent." >&2
+  exit 2
+fi
+case "$MODE" in quick|standard|full) ;; *) echo "Invalid mode; no requests sent." >&2; exit 2 ;; esac
+for m in $MODELS; do
+  if [[ ! "$m" =~ ^claude-[a-zA-Z0-9._-]+$ ]]; then
+    echo "Invalid model ID; no requests sent." >&2
+    exit 2
+  fi
 done
 
 OFFICIAL_KEY="${OFFICIAL_KEY:-${ANTHROPIC_KEY:-}}"
@@ -121,4 +136,5 @@ echo "✓ done — $(ls "$OUT"/*.json 2>/dev/null | wc -l | tr -d ' ') file(s) i
 ls -lh "$OUT"/*.json 2>/dev/null || true
 echo
 echo "Next: from your local machine,"
-echo "  scp -r <host>:$OUT/*.json gewu/detector/data/baselines/"
+echo "  Review source and budget evidence, then approve the exact SHA-256 in data/baselines/approvals.json."
+echo "  Run gewu baseline-audit before allowing public comparisons."

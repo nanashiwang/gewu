@@ -396,6 +396,9 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
     d.text((100, 735), "协议质量分 / 100 · 不是模型真伪概率", fill=_MUTED, font=_load_font(17))
     d.text((100, 765), assessment["identity"]["label"], fill=_MUTED, font=_load_font(17))
     d.text((100, 792), assessment["scoring_label"], fill=_MUTED, font=_load_font(17))
+    baseline_ref = (report.get("ranking_evidence") or {}).get("baseline_version")
+    baseline_note = "已记录基线来源；可比范围见完整报告" if baseline_ref and baseline_ref != "not_available" else "未记录可比官方基线 · 外部状态不计分"
+    d.text((100, 819), baseline_note, fill=_MUTED, font=_load_font(16))
 
     # model + mode line under the circle
     sub_font = _load_font(16)

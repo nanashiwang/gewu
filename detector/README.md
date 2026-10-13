@@ -249,7 +249,7 @@ gewu detect [OPTIONS]
 gewu compare <relay_report.json> [-b baseline.json] [-o diff.json]
 ```
 
-自动从 `data/baselines/{model}_full.json` 找对应基线。
+自动按模型与深度找基线；不使用 full 替代 quick / standard，也不接受不同接口、版本或实际计分范围的对比。
 
 ### `ping`
 
@@ -263,17 +263,19 @@ gewu ping --model claude-haiku-4-5
 
 ## 收集官方基线(bench.sh)
 
-工具自带 `bench.sh` 跑官方 Anthropic API 收集"真品参考"。**只在 baseline 缺失或需要刷新时才需要跑**。
+工具自带 `bench.sh` 采集官方 Anthropic 协议参考。先运行 `gewu baseline-audit` 离线检查库存，再明确模型、深度和额度预算；脚本不再默认扫描模型列表。只有明确授权消耗官方额度后才进行采样。
 
 ```bash
-# 用真官方 API key(不能是中转站 key)
-OFFICIAL_KEY=sk-ant-XXXXX  ./bench.sh -o data/baselines
+# 不消耗额度：检查库存、审核、版本和时效
+gewu baseline-audit
 
 # 仅跑指定模型
 OFFICIAL_KEY=sk-ant-XXXXX  ./bench.sh --models 'claude-opus-4-7 claude-haiku-4-5'
 ```
 
-跑一次成本约 $0.15(4 个模型 × full 模式)。
+费用取决于所选模型、深度与实际请求。采集文件须经来源审核，将完整 SHA-256 与官方端点写入 `data/baselines/approvals.json`；报告自填官方地址不能自动获得信任。
+
+厂商稳定性参考已有服务：`/sources` 引用 AI Status Hub 的官方通告聚合，并提供 Oken 与 ModelUptime 入口。格物只按访问读取公开 JSON，缓存 5 分钟，超过 30 分钟或读取失败显示未知；不消耗模型额度，不将外部状态用于评分。Gemini 聚合仅覆盖 Google Cloud / Vertex，AI Studio 另有官方链接。
 
 ---
 
@@ -540,7 +542,7 @@ python3 -m venv venv
 ## 常见问题
 
 **Q: `compare` 报错"找不到基线文件"**
-A: `compare` 自动按 `target_model + mode` 在 `data/baselines/` 找。如果你测的 model 没有对应基线,跑 `bench.sh` 收集,或显式 `-b baseline.json` 指定一个相近的。
+A: `compare` 自动按 `target_model + mode` 在 `data/baselines/` 找。没有同配置的有效样本时暂不能对比；不能使用相近型号代替。先用 `gewu baseline-audit` 检查库存，实际采样需明确授权上游额度。
 
 **Q: 中转站的 model 名带 `-thinking` 后缀**
 A: 这是某些中转站的 routing 约定。它跟 `tool_choice: "any"` 不兼容,会导致 StructuredOutputDetector 报 400。改用不带后缀的模型名即可,detector 自己会按需开 thinking。

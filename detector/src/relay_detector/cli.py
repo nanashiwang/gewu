@@ -58,6 +58,17 @@ app.add_typer(openai_app, name="openai")
 console = Console()
 
 
+@app.command("baseline-audit")
+def baseline_audit() -> None:
+    """离线列出基线审核、版本、时效与证据问题；不发送模型请求。"""
+    from .baselines import baseline_inventory
+    table = Table("文件", "状态", "原因")
+    for row in baseline_inventory():
+        table.add_row(row["file"], "可用" if row["state"] == "available" else "不可用",
+                      "；".join(row["reasons"]) or "已审核；实际报告仍须匹配检测范围")
+    console.print(table)
+
+
 @app.command()
 def version() -> None:
     """Print the version and exit."""
@@ -767,6 +778,15 @@ def compare_cmd(
         baseline_data, relay,
         baseline_path=str(baseline), relay_path=str(relay_report),
     )
+    from .baselines import inspect_baseline
+    approval_root = baseline_dir if baseline.is_relative_to(baseline_dir) else baseline.parent
+    baseline_check = inspect_baseline(baseline, approval_root)
+    if baseline_check["state"] != "available":
+        cmp.comparable = False
+        cmp.reasons = list(dict.fromkeys([*baseline_check["reasons"], *cmp.reasons]))
+        cmp.detectors = []
+        cmp.overall_severity = None
+        cmp.summary = "官方基线未通过来源、版本或时效审核，本次不输出相对官方的结论。"
 
     _render_comparison(cmp)
 
