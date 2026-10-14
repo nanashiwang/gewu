@@ -10,7 +10,7 @@
 gewu baseline-collect --protocol openai --model gpt-4.1 --wire-api responses --mode quick --max-requests 2 --max-output-tokens 8192 --max-payload-bytes 65536
 ```
 
-模型 ID 仅作命令示例，执行前核对账号当前可用型号；程序不自动选模。默认只输出计划，不读凭据、不联网、不写文件。Claude 使用 `anthropic/messages`；OpenAI 使用 `openai/chat_completions` 或 `openai/responses`；Gemini 使用 `gemini/chat_completions`、`gemini/interactions` 或 `gemini/generate_content`。
+模型 ID 仅作命令示例，执行前核对账号当前可用型号；程序不自动选模。默认只输出计划，不联网、不写文件、不发送或显示凭据。CLI 沿用项目原有的当前目录 `.env` 加载行为；预览不要求 Key。Claude 使用 `anthropic/messages`；OpenAI 使用 `openai/chat_completions` 或 `openai/responses`；Gemini 使用 `gemini/chat_completions`、`gemini/interactions` 或 `gemini/generate_content`。
 
 ## 2. 明确预算后执行
 
