@@ -1211,11 +1211,14 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
     domain = leaderboard._extract_domain(base_url)  # noqa: SLF001
     if domain and not leaderboard.is_valid_domain(domain):
         domain = ""
+    from relay_detector.baselines import official_comparison
+    comparison = await run_in_threadpool(official_comparison, j.report)
     return templates.TemplateResponse(
         request, "result.html",
         {
             "job_id": job_id,
             "report": j.report,
+            "official_comparison": comparison,
             "assessment": assess_report(j.report),
             "rows": _result_rows(j.report),
             "report_notes": _report_notes(j.report),

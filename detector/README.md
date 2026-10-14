@@ -261,19 +261,19 @@ gewu ping --model claude-haiku-4-5
 
 ---
 
-## 收集官方基线(bench.sh)
+## 收集与审核官方基线
 
-工具自带 `bench.sh` 采集官方 Anthropic 协议参考。先运行 `gewu baseline-audit` 离线检查库存，再明确模型、深度和额度预算；脚本不再默认扫描模型列表。只有明确授权消耗官方额度后才进行采样。
+使用 `baseline-collect` 预览 Claude、OpenAI 或 Gemini 的官方采样计划。明确模型、接口、深度和预算，配置专用官方凭据后，只有追加 `--execute` 才会发送请求。默认不联网、不写文件，不新增定时采样。
 
 ```bash
 # 不消耗额度：检查库存、审核、版本和时效
 gewu baseline-audit
 
-# 仅跑指定模型
-OFFICIAL_KEY=sk-ant-XXXXX  ./bench.sh --models 'claude-opus-4-7 claude-haiku-4-5'
+# 离线预览，模型仅作示例，执行前核对账号可用型号
+gewu baseline-collect --protocol openai --model gpt-4.1 --wire-api responses --mode quick --max-requests 2 --max-output-tokens 8192 --max-payload-bytes 65536
 ```
 
-费用取决于所选模型、深度与实际请求。采集文件须经来源审核，将完整 SHA-256 与官方端点写入 `data/baselines/approvals.json`；报告自填官方地址不能自动获得信任。
+每次请求发送前检查固定端点、指定模型和累计预算，超限或鉴权/网络失败即停止。输入字节和最大输出预留不是实际账单，仍需设置官方账号支出上限。候选文件脱敏且不自动获信任；人工核实来源后用 `baseline-approve` 确认完整 SHA256，发布到独立接口目录并原子更新审核清单。详见 [官方采样操作说明](docs/OFFICIAL_BASELINES.md)。旧 `bench.sh` 仅保留兼容，不作为新审核流程的入口。
 
 厂商稳定性参考已有服务：`/leaderboard/sources` 引用 AI Status Hub 的官方通告聚合，并提供 Oken 与 ModelUptime 入口。格物只按访问读取公开 JSON，缓存 5 分钟，超过 30 分钟或读取失败显示未知；不消耗模型额度，不将外部状态用于评分。Gemini 聚合仅覆盖 Google Cloud / Vertex，AI Studio 另有官方链接。
 
@@ -542,7 +542,7 @@ python3 -m venv venv
 ## 常见问题
 
 **Q: `compare` 报错"找不到基线文件"**
-A: `compare` 自动按 `target_model + mode` 在 `data/baselines/` 找。没有同配置的有效样本时暂不能对比；不能使用相近型号代替。先用 `gewu baseline-audit` 检查库存，实际采样需明确授权上游额度。
+A: `compare` 按模型、协议、接口和深度查找已审核样本，并核对版本、实际计分项及 30 天时效。没有同配置的有效样本时暂不能对比；不能使用相近型号代替。先用 `gewu baseline-audit` 检查库存，再按官方采样操作说明预览、执行和审核。
 
 **Q: 中转站的 model 名带 `-thinking` 后缀**
 A: 这是某些中转站的 routing 约定。它跟 `tool_choice: "any"` 不兼容,会导致 StructuredOutputDetector 报 400。改用不带后缀的模型名即可,detector 自己会按需开 thinking。
