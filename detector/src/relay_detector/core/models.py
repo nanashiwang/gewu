@@ -40,6 +40,8 @@ class ExecutionConfig(BaseModel):
     persist_cache: bool = False
     # Scheduled monitors check access before launching parallel/costly probes.
     stop_on_auth_failure: bool = False
+    # Official collection must not trigger unbudgeted, auxiliary API clients.
+    allow_reference_collection: bool = True
     # Opt-in long-context (needle-in-haystack) probe. Off by default because
     # a single full run can cost $0.10–$0.50 (vs ~$0.005 for the rest of the
     # full mode). Detectors that respect this flag must self-skip when False.

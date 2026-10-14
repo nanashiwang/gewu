@@ -159,7 +159,7 @@ class TokenBillingDetector(ActiveDetector):
         if stream_ok and not stream_only:
             score += 20.0
 
-        reference = await _get_reference(model)
+        reference = await _get_reference(model, allow_collection=self.config is None or self.config.allow_reference_collection)
         reference_result = _compare_reference(
             short_usage,
             long_usage,
@@ -305,13 +305,15 @@ def _evaluation_text(
     return "Token 数明显异常: usage 字段、token 增量或流式/非流式统计存在明显问题,有虚报或统计错误风险。"
 
 
-async def _get_reference(model: str) -> dict[str, Any] | None:
+async def _get_reference(model: str, *, allow_collection: bool = True) -> dict[str, Any] | None:
     cache = _read_reference_cache()
     models = cache.setdefault("models", {})
     cached = models.get(model)
     if isinstance(cached, dict) and cached.get("version") == REFERENCE_VERSION:
         return cached
 
+    if not allow_collection:
+        return None
     api_key = _openai_api_key()
     if not api_key:
         return None

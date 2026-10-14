@@ -20,15 +20,17 @@
   {% endfor %}
   </div>
   <p class="hint">当前聚合源未覆盖：{% for v in catalog.vendors if v.id != 'other' and v.id not in sources %}{{ v.label }}{% if not loop.last %}、{% endif %}{% endfor %}。状态未知，不据此推断正常或故障；可通过下面的第三方线路观测入口查询。</p>
+  <p class="small"><a href="https://status.deepseek.com/" target="_blank" rel="noopener noreferrer">DeepSeek 官方状态 ↗</a> 可分别查看 API 与网页服务通告；此入口不依赖聚合源，格物暂不自动读取其状态。</p>
 </section>
 <section class="card"><h2>第三方线路观测</h2>
   <p><a href="https://oken.ai/zh" target="_blank" rel="noopener noreferrer">Oken.ai ↗</a> 提供模型与供应商线路观测，可到原站查看其样本和更新情况。</p>
   <p><a href="https://www.modeluptime.com/" target="_blank" rel="noopener noreferrer">ModelUptime ↗</a> 明确使用经 OpenRouter 路径的观察数据，不能视为官方直连稳定性。<a href="https://www.modeluptime.com/methodology/" target="_blank" rel="noopener noreferrer">查看采样方法 ↗</a></p>
+  <p><a href="https://artificialanalysis.ai/" target="_blank" rel="noopener noreferrer">Artificial Analysis ↗</a> 可补充查看模型与供应商的速度、延迟和评测；需核对其模型、访问路径、样本日期及方法，不替代本次官方对照。</p>
   <p class="muted">这些入口仅供交叉排查，不复制为格物实测，也不据此认定模型身份或故障责任。页面加载不会向外部来源发送你的 Key、接口地址或检测报告。</p>
 </section>
 <section class="card"><h2>官方基线库存</h2>
   <p>基线是可复核的协议采样，不是线路稳定性。必须经过独立来源审核，并匹配模型、接口、深度、评分版本、探针版本、实际计分项目及 30 天时效，才能用于官方对比。</p>
-  <p>当前保留历史样本；没有合格基线时仍可自测接口，但不宣称已经与官方对照。外部状态页不能补足这类证据。</p>
+  <p>官方直连检测保留。新样本须按预算采样、人工核实来源并审核后，才会出现在报告的逐项对照中；不同接口单独存档，历史样本保留。没有合格基线时仍可自测接口，但不宣称已经与官方对照。</p>
   {% for row in baselines %}<details class="baseline-item"><summary><code>{{ row.file }}</code> · {{ '可用候选' if row.state == 'available' else '暂不可用' }}</summary>
     <p>采样时间：{{ row.timestamp or '未记录' }}</p><ul>{% for reason in row.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
   </details>{% else %}<p>尚未收录基线样本。</p>{% endfor %}

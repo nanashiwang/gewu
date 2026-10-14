@@ -18,6 +18,9 @@ report*.json
 out/
 tmp/
 web_data/
+private_baseline_candidates/
+data/baselines/.approval.lock
+data/baselines/.approvals-*
 
 # Maintainer-only tools — kept locally, not in public tree
 scripts/push-both.sh

@@ -9,11 +9,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .core.comparison_guard import comparison_reasons
 from .core.scoring_policy import SCORING_VERSION, PROBE_VERSION
-from .wire_apis import resolve_wire_api
+from .wire_apis import WIRE_APIS, resolve_wire_api
 
 ROOT = Path(__file__).resolve().parents[2] / "data/baselines"
 OFFICIAL = {
@@ -38,6 +39,8 @@ def inspect_baseline(path: Path, root: Path = ROOT) -> dict:
     name = path.relative_to(root).as_posix()
     info = {"file": name, "state": "invalid", "reasons": [], "reference": "not_available"}
     try:
+        if any((root / part).is_symlink() for part in (Path(name), *Path(name).parents)):
+            raise ValueError("symlink baseline path")
         content, data = _read(path)
         digest = hashlib.sha256(content).hexdigest()
         try:
@@ -58,21 +61,27 @@ def inspect_baseline(path: Path, root: Path = ROOT) -> dict:
         info.update(state="unavailable" if reasons else "available", reasons=list(dict.fromkeys(reasons)),
                     sha256=digest,
                     timestamp=data.get("timestamp") if isinstance(data.get("timestamp"), str) else None,
+                    protocol=protocol, wire_api=data.get("wire_api"), mode=data.get("mode"),
                     model=data.get("target_model") if isinstance(data.get("target_model"), str) else None)
         if not reasons:
-            info["reference"] = f"{path.name}#sha256:{digest[:12]}"
+            info["reference"] = f"{name}#sha256:{digest[:12]}"
         return info
-    except (OSError, ValueError, TypeError, KeyError):
+    except (OSError, ValueError, TypeError, KeyError, RecursionError):
         info["reasons"] = ["文件不可读或格式无效"]
         return info
 
 
 def baseline_status(protocol: str, model: str, mode: str, wire_api: str | None = None, *, report: dict | None = None, root: Path = ROOT) -> dict:
     missing = {"state": "missing", "reference": "not_available", "reasons": ["没有同模型、同深度的已审核基线"]}
-    if protocol not in OFFICIAL or mode not in {"quick", "standard", "full"} or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", model):
+    if not isinstance(protocol, str) or protocol not in OFFICIAL or not isinstance(mode, str) or mode not in {"quick", "standard", "full"} or not isinstance(model, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", model):
         return missing
-    wire = resolve_wire_api(protocol, wire_api)
-    paths = [root / protocol / f"{model}_{mode}.json", root / f"{model}_{mode}.json"]
+    try:
+        wire = resolve_wire_api(protocol, wire_api)
+    except (ValueError, TypeError):
+        return missing
+    directory = root / protocol / wire
+    paths = sorted(directory.glob(f"{model}_{mode}_*.json"), reverse=True)
+    paths += [directory / f"{model}_{mode}.json", root / protocol / f"{model}_{mode}.json", root / f"{model}_{mode}.json"]
     fallback = missing
     for path in paths:
         if not path.is_file() or path.parent.is_symlink():
@@ -97,5 +106,33 @@ def baseline_status(protocol: str, model: str, mode: str, wire_api: str | None =
 
 
 def baseline_inventory(root: Path = ROOT) -> list[dict]:
-    paths = sorted(root.glob("*.json")) + sorted(root.glob("*/*.json"))
+    paths = sorted(root.glob("*.json")) + sorted(root.glob("*/*.json")) + sorted(root.glob("*/*/*.json"))
     return [inspect_baseline(path, root) for path in paths if path.name != "approvals.json" and not path.parent.is_symlink()]
+
+
+def official_comparison(report: dict, root: Path = ROOT) -> dict:
+    """A fresh, offline view; never change the saved report or ranking score."""
+    info = baseline_status(report.get("protocol"), report.get("target_model"),
+                           report.get("mode"), report.get("wire_api"), report=report, root=root)
+    if info["state"] != "available":
+        return {**info, "rows": []}
+    try:
+        content, baseline = _read(root / info["file"])
+        if hashlib.sha256(content).hexdigest() != info["sha256"]:
+            raise ValueError("baseline changed")
+        current = {row["name"]: row for row in report["results"]}
+        rows = []
+        for row in baseline["results"]:
+            if row.get("evidence_role", "scored") != "scored" or row["weight"] <= 0 or row.get("status") == "skip":
+                continue
+            other = current[row["name"]]
+            rows.append({"name": row["name"], "label": other.get("display_name") or row["name"],
+                         "official_score": row["score"], "current_score": other["score"],
+                         "official_status": row.get("status"), "current_status": other.get("status"),
+                         "delta": round(other["score"] - row["score"], 2)})
+        sampled_at = datetime.fromisoformat(baseline["timestamp"].replace("Z", "+00:00"))
+        return {**info, "rows": rows, "source_url": baseline["base_url"],
+                "sampled_at": sampled_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+                "wire_label": WIRE_APIS[resolve_wire_api(baseline["protocol"], baseline.get("wire_api"))]["label"]}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {"state": "unavailable", "reasons": ["基线读取或一致性校验失败"], "rows": []}

@@ -59,14 +59,63 @@ console = Console()
 
 
 @app.command("baseline-audit")
-def baseline_audit() -> None:
+def baseline_audit(baseline_dir: Optional[Path] = typer.Option(None, "--baseline-dir")) -> None:
     """离线列出基线审核、版本、时效与证据问题；不发送模型请求。"""
-    from .baselines import baseline_inventory
+    from .baselines import ROOT, baseline_inventory
     table = Table("文件", "状态", "原因")
-    for row in baseline_inventory():
+    for row in baseline_inventory(baseline_dir or ROOT):
         table.add_row(row["file"], "可用" if row["state"] == "available" else "不可用",
                       "；".join(row["reasons"]) or "已审核；实际报告仍须匹配检测范围")
     console.print(table)
+
+
+@app.command("baseline-collect")
+def baseline_collect(
+    protocol: str = typer.Option(..., "--protocol"),
+    model: str = typer.Option(..., "--model"),
+    mode: str = typer.Option("quick", "--mode"),
+    wire_api: Optional[str] = typer.Option(None, "--wire-api"),
+    max_requests: int = typer.Option(40, "--max-requests"),
+    max_output_tokens: int = typer.Option(65536, "--max-output-tokens"),
+    max_payload_bytes: int = typer.Option(1048576, "--max-payload-bytes"),
+    candidate_dir: Path = typer.Option(Path("private_baseline_candidates"), "--candidate-dir"),
+    execute: bool = typer.Option(False, "--execute", help="明确发送官方 API 请求；默认只预览"),
+) -> None:
+    """为明确的模型及接口收集官方样本，默认不联网、不收费、不写文件。"""
+    from .official_baselines import Limits, collect, collection_plan
+    try:
+        plan = collection_plan(protocol, model, mode, wire_api, Limits(max_requests, max_output_tokens, max_payload_bytes))
+        console.print_json(data={"execute": execute, **plan})
+        console.print("上限按每次请求声明的最大输出预留；输入限制为累计 JSON 字节，不是 token 或货币预算。请同时设置官方账号支出上限。")
+        if execute:
+            result = asyncio.run(collect(plan, candidate_dir))
+            console.print_json(data=result)
+            if not result["eligible_for_review"]:
+                raise typer.Exit(1)
+    except (ValueError, OSError, TypeError, KeyError):
+        console.print("[red]采样未完成：请检查模型、接口、预算、专用官方凭据及目录权限。错误候选不能审核发布。[/red]")
+        raise typer.Exit(2)
+
+
+@app.command("baseline-approve")
+def baseline_approve(
+    candidate: Path = typer.Argument(..., exists=True, dir_okay=False),
+    sha256: str = typer.Option(..., "--sha256", help="人工审阅过的候选文件完整 SHA256"),
+    confirm_official_source: bool = typer.Option(False, "--confirm-official-source", help="确认凭据、采样记录与官方直连来源已经人工核实"),
+    baseline_dir: Optional[Path] = typer.Option(None, "--baseline-dir"),
+) -> None:
+    """独立审核后发布同接口的版本化样本，不覆盖旧样本，不自动进入榜单。"""
+    from .baselines import ROOT
+    from .official_baselines import approve
+    if not confirm_official_source:
+        console.print("[red]必须先人工核实官方来源，再加 --confirm-official-source；采样记录本身不构成官方证明。[/red]")
+        raise typer.Exit(2)
+    try:
+        result = approve(candidate, sha256, baseline_dir or ROOT)
+    except (ValueError, OSError, TypeError, KeyError):
+        console.print("[red]审核失败：请核对哈希、采样记录、完整性、版本、时效和目录权限；未更新审核清单。[/red]")
+        raise typer.Exit(2)
+    console.print_json(data=result)
 
 
 @app.command()
@@ -588,14 +637,16 @@ async def _run_detect(
     config: ExecutionConfig,
     output_path: Optional[Path],
     ranking_evidence: RankingEvidence | None = None,
+    *, client_setup=None, quiet: bool = False,
 ) -> DetectionReport:
     masked = mask_api_key(api_key)
-    console.print(
-        f"[bold]Detecting[/bold] protocol=[cyan]{protocol.value}[/cyan] "
-        f"base_url=[cyan]{base_url}[/cyan] "
-        f"model=[cyan]{model}[/cyan] mode=[cyan]{config.mode.value}[/cyan] "
-        f"key=[dim]{masked}[/dim]"
-    )
+    if not quiet:
+        console.print(
+            f"[bold]Detecting[/bold] protocol=[cyan]{protocol.value}[/cyan] "
+            f"base_url=[cyan]{base_url}[/cyan] "
+            f"model=[cyan]{model}[/cyan] mode=[cyan]{config.mode.value}[/cyan] "
+            f"key=[dim]{masked}[/dim]"
+        )
 
     # Per-protocol module gives us build_detectors / build_runner / make_client
     # with identical signatures, so the dispatch below is essentially mechanical.
@@ -623,9 +674,13 @@ async def _run_detect(
     detectors = build_detectors(config.mode)
 
     client_options = {"wire_api": config.gemini_wire_api} if protocol == Protocol.GEMINI else {}
+    if client_setup is not None:
+        client_options["trust_env"] = False
     async with make_client(
         base_url, api_key, timeout=config.request_timeout_s, **client_options
     ) as client:
+        if client_setup is not None:
+            await client_setup(client)
         runner = build_runner(client, detectors, config)
         outcome = await runner.run(model)
 
@@ -697,9 +752,10 @@ async def _run_detect(
     if output_path:
         Report().write_json(report, output_path)
 
-    Report(console).render_terminal(report)
+    if not quiet:
+        Report(console).render_terminal(report)
 
-    if output_path:
+    if output_path and not quiet:
         console.print(f"[dim]Wrote JSON report to {output_path}[/dim]")
     return report
 
@@ -746,7 +802,6 @@ def compare_cmd(
     """对比一份 relay detect 报告与一个官方基线,输出字段级差异。"""
     from .comparator import (
         compare,
-        find_baseline_for,
         load_report,
     )
 
@@ -760,14 +815,17 @@ def compare_cmd(
     if baseline is None:
         target_model = relay.get("target_model", "")
         mode = relay.get("mode", "")
-        found = find_baseline_for(target_model, mode, baseline_dir)
+        from .baselines import baseline_status
+        match = baseline_status(relay.get("protocol"), target_model, mode,
+                                relay.get("wire_api"), report=relay, root=baseline_dir)
+        found = baseline_dir / match["file"] if match["state"] == "available" else None
         if found is None:
             console.print(
                 f"[red]找不到基线文件:[/red] model={target_model!r}, "
                 f"mode={mode!r} 在 {baseline_dir}"
             )
             console.print(
-                "[dim]显式指定 --baseline,或先用 ./bench.sh 收集官方基线[/dim]"
+                "[dim]使用 baseline-collect 采样，再经 baseline-approve 审核；可用 baseline-audit 查看原因。[/dim]"
             )
             raise typer.Exit(2)
         baseline = found

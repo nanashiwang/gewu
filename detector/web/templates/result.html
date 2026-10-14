@@ -99,7 +99,11 @@
   本报告可分享，但不会自动参与公共榜单评分或改变站点排名。
   {% endif %}
   {% if report.scoring_version == 'evidence-v2' and ranking.baseline_version == 'not_available' %}
+  {% if official_comparison and official_comparison.state == 'available' %}
+  <p class="muted small">本报告未保存官方基线引用；下方按当前已审核样本补充对照，原分与榜单资格不变。</p>
+  {% else %}
   <p class="muted small">尚无满足同模型、接口、版本及检测范围要求的近期基线，本次分数不能作为相对官方基线的结论。</p>
+  {% endif %}
   {% endif %}
 </section>
 {% endif %}
@@ -118,6 +122,31 @@
   <p>本报告只覆盖这次请求使用的账号与入口。服务商内部线路及账号分组未知；没有账单或余额对账时，Usage 差异不能证明实际多扣费用。</p>
   <p>排查厂商故障可查看<a href="/leaderboard/sources">外部状态来源</a>。通告可能覆盖其他产品或访问路径，不能据此改分、证明模型身份或认定本次异常责任；当前通告也不代表本报告采样时的状态。</p>
 </section>
+
+{% if official_comparison %}
+<section class="card official-comparison">
+  <h2>与官方样本逐项对照</h2>
+  {% if official_comparison.state == 'available' %}
+  <p class="muted small">已审核 · {{ official_comparison.sampled_at }} · {{ official_comparison.wire_label }}</p>
+  <details class="small"><summary>样本来源与校验标识</summary><p>来源：<code>{{ official_comparison.source_url }}</code><br>样本：<code>{{ official_comparison.reference }}</code></p></details>
+  <div class="comparison-scroll" role="region" aria-label="官方样本对照表" tabindex="0">
+    <table class="comparison-table"><caption>同模型、接口、深度、版本及计分项目；差值为本次减官方。</caption>
+      <thead><tr><th scope="col">计分项目</th><th scope="col">官方样本</th><th scope="col">本次检测</th><th scope="col">差值</th></tr></thead>
+      <tbody>{% for row in official_comparison.rows %}<tr>
+        <th scope="row">{{ row.label }}</th><td>{{ '%.1f' | format(row.official_score) }} · {{ {'pass':'通过','fail':'未通过','error':'错误','skip':'跳过'}.get(row.official_status, '未知') }}</td>
+        <td>{{ '%.1f' | format(row.current_score) }} · {{ {'pass':'通过','fail':'未通过','error':'错误','skip':'跳过'}.get(row.current_status, '未知') }}</td>
+        <td>{{ '%+.1f' | format(row.delta) }}</td>
+      </tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  <p class="muted small">此处使用当前可用的已审核样本，保留原报告分数和榜单状态。差异是复核线索，不证明模型被替换；观察项、延迟和实际账单不在这张表中比较。</p>
+  {% else %}
+  <p>暂缺可用于本报告的官方样本，本次实测证据仍可查看。</p>
+  <ul class="small">{% for reason in official_comparison.reasons %}<li>{{ reason }}</li>{% endfor %}</ul>
+  <p class="muted small">只对照已审核且 30 天内、模型与检测范围一致的样本。<a href="/leaderboard/sources">查看来源与基线库存</a></p>
+  {% endif %}
+</section>
+{% endif %}
 
 {% if report.run_error %}
 <section class="card alert-card">
