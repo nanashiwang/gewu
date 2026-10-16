@@ -145,6 +145,14 @@ jobs:
           IMAGE: ghcr.io/nanashiwang/gewu-detector:${{ github.sha }}
         run: |
           set -euo pipefail
+          release_exists=false
+          if gh release view "detector-${REVISION}" --json isDraft --jq .isDraft > /tmp/gewu-release-draft; then
+            if test "$(cat /tmp/gewu-release-draft)" = false; then
+              echo 'This commit already has an immutable published release; keeping its original image and assets.'
+              exit 0
+            fi
+            release_exists=true
+          fi
           docker push "$IMAGE"
           mkdir release-detector
           docker save "$IMAGE" | gzip > release-detector/detector-image.tar.gz
@@ -160,10 +168,14 @@ jobs:
           pathlib.Path('release-detector/release.json').write_text(json.dumps(data, indent=2) + '\n')
           PY
           printf '%s\n' '经完整 CI 与隔离容器检查的格物检测服务。服务器按提交版本和 SHA256 校验部署。镜像不包含服务器密钥、报告或私有基线。' > release-detector/notes.md
-          gh release create "detector-${REVISION}" \
-            --target "$REVISION" --title "检测服务容器发布 ${REVISION:0:12}" \
-            --notes-file release-detector/notes.md --latest=false \
+          if test "$release_exists" = false; then
+            gh release create "detector-${REVISION}" --draft \
+              --target "$REVISION" --title "检测服务容器发布 ${REVISION:0:12}" \
+              --notes-file release-detector/notes.md --latest=false
+          fi
+          gh release upload "detector-${REVISION}" --clobber \
             release-detector/detector-image.tar.gz release-detector/release.json release-detector/container_release.py
+          gh release edit "detector-${REVISION}" --draft=false --latest=false
       - name: Ensure no temporary detector test containers remain
         if: always()
         run: |

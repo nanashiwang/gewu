@@ -37,6 +37,8 @@ OWNER = 'org.gewu.component=detector'
 PROTECTED = [Path('/etc/gewu.env'), Path('/etc/nginx'),
              Path('/etc/systemd/system/gewu.service'), Path('/etc/gewu-monitor'),
              Path('/etc/systemd/system/gewu-monitor@.service'),
+             Path('/etc/systemd/system/gewu-monitor@.timer'),
+             Path('/opt/gewu-platform/shared/.env'),
              ROOT / 'data/baselines', ROOT / 'src/data/baselines',
              ROOT / 'private_monitor', ROOT / 'private_baseline_candidates',
              ROOT / 'report_fonts']
@@ -140,9 +142,9 @@ def protected_snapshot():
     # Existing report evidence must stay byte-for-byte intact. New reports are allowed.
     reports = {str(p): sha(p) for p in (ROOT / 'web_data/jobs').rglob('*.json') if p.is_file()}
     ids = run('docker', 'ps', '-aq').stdout.split()
-    containers = json.loads(run('docker', 'inspect', *ids).stdout) if ids else []
-    other = {c['Name']: (c['Id'], c['State']['StartedAt']) for c in containers
-             if c['Name'].lstrip('/') not in {NAME, SMOKE}}
+    rows = run('docker', 'inspect', '--format', '{{.Name}} {{.Id}} {{.State.StartedAt}}', *ids).stdout.splitlines() if ids else []
+    other = {name: (identity, started) for name, identity, started in map(str.split, rows)
+             if name.lstrip('/') not in {NAME, SMOKE}}
     return {'files': files, 'reports': reports, 'containers': other,
             'account_release': str(Path('/opt/gewu-platform/current').resolve())}
 
