@@ -1,9 +1,9 @@
 """Fail closed before calculating baseline differences; no historical rewrites."""
 from datetime import datetime, timedelta, timezone
-import math
 from collections.abc import Mapping
 
 from .assessment import assess_report
+from .score_validation import is_finite_number, saved_weighted_score
 from .scoring_policy import SCORING_VERSION, LEGACY_SCORING_VERSION
 from ..wire_apis import resolve_wire_api
 
@@ -49,15 +49,14 @@ def comparison_reasons(baseline: Mapping, relay: Mapping, *, now: datetime | Non
         if valid:
             names = [row.get("name") for row in rows]
             valid = all(isinstance(name, str) and name for name in names) and len(set(names)) == len(names)
-            valid = valid and all(isinstance(row.get(key), (int, float)) and not isinstance(row.get(key), bool) and math.isfinite(row[key]) and row[key] >= 0 and (key != "score" or row[key] <= 100) for row in rows for key in ("score", "weight"))
+            valid = valid and all(is_finite_number(row.get(key)) and row[key] >= 0 and (key != "score" or row[key] <= 100) for row in rows for key in ("score", "weight"))
         if not valid or not assess_report(report)["score_usable"]:
             reasons.append(f"{label}证据不完整或无效")
             profiles.append(None)
             continue
         profile = {row["name"]: row["weight"] for row in rows if row.get("evidence_role", "scored") == "scored" and row.get("status") != "skip" and row["weight"] > 0}
         profiles.append(profile)
-        denominator = sum(profile.values())
-        expected = sum(row["score"] * profile.get(row["name"], 0) for row in rows) / denominator if denominator else None
+        expected = saved_weighted_score(rows)
         if expected is None or abs(expected - report["total_score"]) > 0.01:
             reasons.append(f"{label}总分与保存的计分项不一致")
     if len(profiles) == 2 and profiles[0] != profiles[1]:

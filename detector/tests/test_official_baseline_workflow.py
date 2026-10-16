@@ -268,3 +268,55 @@ async def test_stream_interruption_blocks_followups():
         await t.handle_async_request(request(p))
     assert t.requests == 1
     await t.aclose()
+
+
+@pytest.mark.parametrize("stage", ["request", "stream", "error_close"])
+@pytest.mark.asyncio
+async def test_cancellation_latches_budget_without_swallowing_cancel(stage):
+    import asyncio
+
+    before = set(asyncio.all_tasks())
+    p = plan()
+    entered = asyncio.Event()
+    sent = []
+    closed = []
+
+    class WaitingStream(httpx.AsyncByteStream):
+        async def __aiter__(self):
+            entered.set()
+            await asyncio.Event().wait()
+            yield b"unreachable"
+
+        async def aclose(self):
+            closed.append(True)
+            if stage == "error_close":
+                entered.set()
+                await asyncio.Event().wait()
+
+    async def upstream(req):
+        sent.append(req)
+        if len(sent) > 1:
+            return httpx.Response(200, json={})
+        if stage == "request":
+            entered.set()
+            await asyncio.Event().wait()
+        return httpx.Response(429 if stage == "error_close" else 200, stream=WaitingStream())
+
+    transport = BudgetTransport(p, httpx.MockTransport(upstream))
+    async with httpx.AsyncClient(transport=transport) as client:
+        task = asyncio.create_task(client.send(request(p)))
+        try:
+            await asyncio.wait_for(entered.wait(), timeout=2)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+            with pytest.raises(ValueError, match="取消|HTTP 429"):
+                await client.send(request(p))
+            assert transport.receipt()["halted"]
+            assert len(sent) == transport.requests == 1
+            if stage == "stream":
+                assert closed == [True]
+        finally:
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+    assert set(asyncio.all_tasks()) == before

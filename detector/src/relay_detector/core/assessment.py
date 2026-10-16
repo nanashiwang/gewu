@@ -7,8 +7,8 @@ Neither a model name, self description nor copied metadata authenticates a model
 from __future__ import annotations
 
 from collections.abc import Mapping
-import math
 from .evidence_errors import contains_auth_failure
+from .score_validation import is_finite_number, saved_weighted_score
 from .scoring_policy import SCORING_VERSION, LEGACY_SCORING_VERSION, OBSERVATION_DETECTORS, scoring_label
 
 CORE_DETECTORS = {
@@ -44,20 +44,18 @@ def assess_report(report: Mapping) -> dict:
     core_complete = bool(required) and required.issubset({row.get("name") for row in core if completed_core(row)})
     known_statuses = isinstance(raw, list) and sum(all_counts.values()) == len(rows) == len(raw)
     known_policy = version in {SCORING_VERSION, LEGACY_SCORING_VERSION}
+    score = report.get("total_score")
+    valid_score = is_finite_number(score) and 0 <= score <= 100
     valid_roles = all(row.get("evidence_role", "scored") == "scored" for row in scored)
     if version == SCORING_VERSION:
         names = [row.get("name") for row in rows]
         valid_roles = valid_roles and all(row.get("evidence_role") == "observation" and row.get("weight") == 0 for row in observations)
         valid_roles = valid_roles and all(isinstance(name, str) and name for name in names) and len(set(names)) == len(names)
         valid_roles = valid_roles and isinstance(report.get("probe_version"), str) and bool(report["probe_version"].strip())
-        valid_roles = valid_roles and all(isinstance(row.get(key), (int, float)) and not isinstance(row.get(key), bool) and math.isfinite(row[key]) and row[key] >= 0 and (key != "score" or row[key] <= 100) for row in rows for key in ("score", "weight"))
+        valid_roles = valid_roles and all(is_finite_number(row.get(key)) and row[key] >= 0 and (key != "score" or row[key] <= 100) for row in rows for key in ("score", "weight"))
         if valid_roles:
-            executed = [row for row in scored if row.get("status") in ("pass", "fail") and row["weight"] > 0]
-            weight = sum(row["weight"] for row in executed)
-            total = report.get("total_score")
-            valid_roles = bool(weight and isinstance(total, (int, float)) and abs(sum(row["score"] * row["weight"] for row in executed) / weight - total) <= 0.01)
-    score = report.get("total_score")
-    valid_score = isinstance(score, (int, float)) and not isinstance(score, bool) and math.isfinite(score) and 0 <= score <= 100
+            expected = saved_weighted_score(rows)
+            valid_roles = valid_score and expected is not None and abs(expected - score) <= 0.01
     blocked = bool(report.get("run_error") or contains_auth_failure(rows))
     usable = bool(valid_score and core_complete and known_statuses and known_policy and valid_roles and scored and not all_counts["error"] and not blocked and not any(row.get("error") for row in rows))
     state = "invalid" if blocked else "complete" if usable else "incomplete"

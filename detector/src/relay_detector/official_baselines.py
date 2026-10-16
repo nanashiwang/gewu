@@ -137,11 +137,16 @@ class BudgetTransport(httpx.AsyncBaseTransport):
             self.payload_bytes += size
         try:
             response = await self.inner.handle_async_request(request)
+        except asyncio.CancelledError:
+            self.halted = self.halted or "官方采样请求被取消，停止后续请求"
+            raise
         except httpx.TransportError:
             self.stop("官方采样网络失败，停止后续请求")
         if response.status_code in {401, 403, 408, 429} or response.status_code >= 500 or 300 <= response.status_code < 400:
+            # Closing a response is cancellable too; latch the failure first.
+            self.halted = f"官方采样收到 HTTP {response.status_code}，停止后续请求"
             await response.aclose()
-            self.stop(f"官方采样收到 HTTP {response.status_code}，停止后续请求")
+            self.stop(self.halted)
         response.stream = _BoundedStream(response.stream, self)
         return response
 
@@ -165,6 +170,9 @@ class _BoundedStream(httpx.AsyncByteStream):
                 if size > 2 * 1024 * 1024:
                     self.budget.stop("官方采样响应超过大小限制")
                 yield chunk
+        except asyncio.CancelledError:
+            self.budget.halted = self.budget.halted or "官方采样响应被取消，停止后续请求"
+            raise
         except httpx.TransportError:
             self.budget.stop("官方采样响应中断，停止后续请求")
 
