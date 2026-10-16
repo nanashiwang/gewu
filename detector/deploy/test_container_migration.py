@@ -28,7 +28,7 @@ def main():
     image = os.environ['IMAGE']
     revision = os.environ['REVISION']
     info = json.loads(r.run('docker', 'image', 'inspect', image).stdout)[0]
-    data = {'image_id': info['Id'], 'revision': revision}
+    data = {'image_id': info['Id'], 'runtime_image_id': info['Id'], 'revision': revision}
     r.acquire = lambda _: data
     original_wait = r.wait_health
     try:
@@ -89,7 +89,7 @@ HTTPServer(("127.0.0.1",8765), Handler).serve_forever()
         r.healthy_service()
         print('PASS: failed real cutover automatically restores original healthy service')
     finally:
-        r.run('systemctl', 'stop', 'gewu.service', check=False)
+        r.run('systemctl', 'stop', 'gewu.service', timeout=r.STOP_TIMEOUT, check=False)
         for name in [r.NAME, r.SMOKE]:
             r.remove_owned(name)
             assert r.inspect(name) is None

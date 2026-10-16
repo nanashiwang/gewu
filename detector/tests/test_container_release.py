@@ -152,7 +152,7 @@ def test_failed_cutover_restores_previous_service(monkeypatch, tmp_path):
     monkeypatch.setattr(release, 'preflight', lambda: (123, 456, set()))
     monkeypatch.setattr(release, 'healthy_service', lambda: None)
     monkeypatch.setattr(release, 'protected_snapshot', lambda: {})
-    monkeypatch.setattr(release, 'acquire', lambda r: manifest())
+    monkeypatch.setattr(release, 'acquire', lambda r: {**manifest(), 'runtime_image_id': 'sha256:' + 'e' * 64})
     monkeypatch.setattr(release, 'smoke_image', lambda *a: None)
     monkeypatch.setattr(release, 'remove_owned', lambda n: None)
     monkeypatch.setattr(release, 'idle', lambda: None)
@@ -184,3 +184,206 @@ def test_rollback_catches_container_created_after_service_stop(monkeypatch):
     monkeypatch.setattr(release, 'remove_owned', removed.append)
     release.settle_stopped_container()
     assert removed == [release.NAME]
+
+
+def image_info(runtime_id=None):
+    data = manifest()
+    return {'Id': runtime_id or data['image_id'], 'RepoDigests': [data['image']],
+            'Os': 'linux', 'Architecture': 'amd64',
+            'Config': {'Labels': {'org.opencontainers.image.revision': REVISION,
+                                  'org.opencontainers.image.source': f'https://github.com/{release.REPO}'}}}
+
+
+def setup_acquisition(monkeypatch, tmp_path, responses, data=None):
+    data = data or manifest()
+    directory = tmp_path / REVISION
+    directory.mkdir()
+    (directory / 'release.json').write_text(json.dumps(data))
+    monkeypatch.setattr(release, 'RELEASES', tmp_path)
+    calls = []
+    pending = iter(responses)
+    def fake_run(*args, **kwargs):
+        calls.append(args)
+        expected, code, info = next(pending)
+        assert args == expected
+        output = info if isinstance(info, str) else json.dumps([info]) if info else ''
+        result = subprocess.CompletedProcess(args, code, output, 'secret stderr')
+        if code and kwargs.get('check', True):
+            raise release.DeploymentError('expected command failure')
+        return result
+    monkeypatch.setattr(release, 'run', fake_run)
+    monkeypatch.setattr(release, 'download', lambda *a: pytest.fail('unexpected download'))
+    return calls, directory
+
+
+@pytest.mark.parametrize('runtime_id', [manifest()['image_id'], 'sha256:' + 'd' * 64])
+@pytest.mark.parametrize('cached', [True, False])
+def test_acquire_registry_digest_works_across_image_stores(monkeypatch, tmp_path, runtime_id, cached):
+    data = manifest()
+    responses = [] if cached else [
+        (('docker', 'image', 'inspect', data['image']), 1, None),
+        (('docker', 'image', 'inspect', data['image_id']), 1, None),
+        (('docker', 'pull', data['image']), 0, None),
+    ]
+    responses.append((('docker', 'image', 'inspect', data['image']), 0, image_info(runtime_id)))
+    calls, _ = setup_acquisition(monkeypatch, tmp_path, responses)
+    actual = release.acquire(REVISION)
+    assert actual == {**data, 'runtime_image_id': runtime_id}
+    assert len(calls) == len(responses)
+    assert not any('load' in call for call in calls)
+
+
+def test_acquire_cached_publisher_id_does_not_need_network(monkeypatch, tmp_path):
+    data = manifest()
+    info = image_info()
+    info['RepoDigests'] = []
+    calls, _ = setup_acquisition(monkeypatch, tmp_path, [
+        (('docker', 'image', 'inspect', data['image']), 1, None),
+        (('docker', 'image', 'inspect', data['image_id']), 0, info),
+    ])
+    assert release.acquire(REVISION)['runtime_image_id'] == data['image_id']
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize('runtime_id', [manifest()['image_id'], 'sha256:' + 'e' * 64])
+def test_archive_fallback_loads_checked_bytes_before_resolving_tag(monkeypatch, tmp_path, runtime_id):
+    import hashlib
+    archive_bytes = b'checksum-covered fixture'
+    data = {**manifest(), 'archive_sha256': hashlib.sha256(archive_bytes).hexdigest()}
+    archive = tmp_path / REVISION / 'detector-image.tar.gz'
+    info = image_info(runtime_id)
+    info['RepoDigests'] = []  # docker save/load need not retain registry digests.
+    responses = [
+        (('docker', 'image', 'inspect', data['image']), 1, None),
+        (('docker', 'image', 'inspect', data['image_id']), 1, None),
+        (('docker', 'pull', data['image']), 1, None),
+        (('docker', 'load', '--input', str(archive)), 0, f'Loaded image: {release.IMAGE}:{REVISION}\n'),
+        (('docker', 'image', 'inspect', f'{release.IMAGE}:{REVISION}'), 0, info),
+    ]
+    calls, _ = setup_acquisition(monkeypatch, tmp_path, responses, data)
+    archive.write_bytes(archive_bytes)
+    assert release.acquire(REVISION)['runtime_image_id'] == runtime_id
+    assert len(calls) == 5
+
+
+def test_corrupt_archive_never_loaded(monkeypatch, tmp_path):
+    data = manifest()
+    responses = [
+        (('docker', 'image', 'inspect', data['image']), 1, None),
+        (('docker', 'image', 'inspect', data['image_id']), 1, None),
+        (('docker', 'pull', data['image']), 1, None),
+    ]
+    calls, directory = setup_acquisition(monkeypatch, tmp_path, responses)
+    (directory / 'detector-image.tar.gz').write_bytes(b'corrupt cache')
+    def corrupt_download(url, path, limit):
+        assert not path.exists()
+        path.write_bytes(b'corrupt download')
+    monkeypatch.setattr(release, 'download', corrupt_download)
+    with pytest.raises(release.DeploymentError, match='archive checksum mismatch'):
+        release.acquire(REVISION)
+    assert len(calls) == 3
+
+
+@pytest.mark.parametrize('field,value,error', [
+    ('RepoDigests', [], 'registry digest mismatch'),
+    ('RepoDigests', [release.IMAGE + '@sha256:' + 'e' * 64], 'registry digest mismatch'),
+    ('Id', 'latest', 'resolved image ID'),
+    ('Architecture', 'arm64', 'platform mismatch'),
+    ('Os', 'windows', 'platform mismatch'),
+    ('Config', {'Labels': {'org.opencontainers.image.revision': 'f' * 40}}, 'commit label mismatch'),
+    ('Config', {'Labels': {'org.opencontainers.image.revision': REVISION}}, 'source label mismatch'),
+])
+def test_registry_identity_is_not_weakened(monkeypatch, tmp_path, field, value, error):
+    info = image_info()
+    info[field] = value
+    setup_acquisition(monkeypatch, tmp_path, [
+        (('docker', 'image', 'inspect', manifest()['image']), 0, info),
+    ])
+    with pytest.raises(release.DeploymentError, match=error):
+        release.acquire(REVISION)
+
+
+def test_cached_id_mismatch_rejected(monkeypatch, tmp_path):
+    data = manifest()
+    setup_acquisition(monkeypatch, tmp_path, [
+        (('docker', 'image', 'inspect', data['image']), 1, None),
+        (('docker', 'image', 'inspect', data['image_id']), 0, image_info('sha256:' + 'e' * 64)),
+    ])
+    with pytest.raises(release.DeploymentError, match='Cached image ID mismatch'):
+        release.acquire(REVISION)
+
+
+@pytest.mark.parametrize('timeout', [False, True])
+def test_command_failures_name_operation_but_never_disclose_arguments(monkeypatch, timeout):
+    def fail(args, **kwargs):
+        if timeout:
+            raise subprocess.TimeoutExpired(args, 3, output='secret-output', stderr='secret-error')
+        return subprocess.CompletedProcess(args, 7, 'secret-output', 'secret-error')
+    monkeypatch.setattr(release.subprocess, 'run', fail)
+    with pytest.raises(release.DeploymentError) as captured:
+        release.run('docker', 'image', 'inspect', 'secret-argument', timeout=3)
+    assert str(captured.value) == ('docker image inspect timed out after 3s' if timeout
+                                   else 'docker image inspect failed (exit 7)')
+
+
+def test_archive_must_confirm_overwriting_expected_tag(monkeypatch, tmp_path):
+    import hashlib
+    data = {**manifest(), 'archive_sha256': hashlib.sha256(b'fixture').hexdigest()}
+    archive = tmp_path / REVISION / 'detector-image.tar.gz'
+    responses = [
+        (('docker', 'image', 'inspect', data['image']), 1, None),
+        (('docker', 'image', 'inspect', data['image_id']), 1, None),
+        (('docker', 'pull', data['image']), 1, None),
+        (('docker', 'load', '--input', str(archive)), 0, 'Loaded image: unrelated:latest'),
+    ]
+    calls, _ = setup_acquisition(monkeypatch, tmp_path, responses, data)
+    archive.write_bytes(b'fixture')
+    with pytest.raises(release.DeploymentError, match='did not load the expected revision tag'):
+        release.acquire(REVISION)
+    assert len(calls) == 4  # Never inspect/trust a possibly stale revision tag.
+
+
+def test_deploy_uses_resolved_id_everywhere_and_preserves_publisher_id(monkeypatch, tmp_path):
+    runtime_id = 'sha256:' + 'e' * 64
+    data = {**manifest(), 'runtime_image_id': runtime_id}
+    for name, path in [('ROOT', tmp_path), ('BACKUPS', tmp_path / 'backups'),
+                       ('DROPIN', tmp_path / '50-container.conf'), ('STATE', tmp_path / 'state.json')]:
+        monkeypatch.setattr(release, name, path)
+    monkeypatch.setattr(release, 'preflight', lambda: (123, 456, set()))
+    monkeypatch.setattr(release, 'healthy_service', lambda: None)
+    monkeypatch.setattr(release, 'protected_snapshot', lambda: {})
+    monkeypatch.setattr(release, 'verify_protected', lambda _: None)
+    monkeypatch.setattr(release, 'acquire', lambda _: data)
+    seen = []
+    monkeypatch.setattr(release, 'smoke_image', lambda image, *a: seen.append(image))
+    monkeypatch.setattr(release, 'base_args', lambda name, image, *a: seen.append(image) or ['docker', 'run'])
+    monkeypatch.setattr(release, 'unit_override', lambda image, *a: seen.append(image) or 'unit')
+    monkeypatch.setattr(release, 'remove_owned', lambda _: None)
+    monkeypatch.setattr(release, 'inspect', lambda _: None)
+    monkeypatch.setattr(release, 'idle', lambda: None)
+    monkeypatch.setattr(release, 'wait_health', lambda _: None)
+    calls = []
+    monkeypatch.setattr(release, 'run', lambda *a, **k: calls.append(a))
+    release.deploy(REVISION)
+    assert seen == [runtime_id] * 3
+    assert calls[0][4] == runtime_id  # Actual volume-probe command image.
+    state = json.loads(release.STATE.read_text())
+    assert state['image_id'] == manifest()['image_id']
+    assert state['runtime_image_id'] == runtime_id
+
+
+def test_rollback_waits_for_systemd_stop_phases_before_restoring(monkeypatch, tmp_path):
+    backup = tmp_path / 'backup'
+    backup.mkdir()
+    (backup / 'rollback.json').write_text(json.dumps({'dropin': None, 'state': None}))
+    monkeypatch.setattr(release, 'BACKUPS', tmp_path)
+    monkeypatch.setattr(release, 'DROPIN', tmp_path / 'override.conf')
+    monkeypatch.setattr(release, 'STATE', tmp_path / 'state.json')
+    calls = []
+    monkeypatch.setattr(release, 'run', lambda *a, **k: calls.append((a, k)))
+    monkeypatch.setattr(release, 'settle_stopped_container', lambda: None)
+    monkeypatch.setattr(release, 'healthy_service', lambda: None)
+    release.restore(backup)
+    assert calls[0] == (('systemctl', 'stop', 'gewu.service'), {'timeout': release.STOP_TIMEOUT})
+    assert release.STOP_TIMEOUT > 2 * 60  # ExecStop and main-process termination.
+    assert calls[-1][0] == ('systemctl', 'start', 'gewu.service')
