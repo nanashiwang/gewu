@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-16：检测服务容器发布与受限清理
+
+- 全量 CI 通过后构建并检查检测镜像，发布提交版本对应的 GHCR digest 与 GitHub Release 归档。
+- 服务器按版本、SHA256 和镜像 ID 校验；隔离冒烟通过后迁移 Web 检测服务，保留原安装及自动回滚。
+- 基线目录支持 `GEWU_BASELINES_DIR`，容器只读挂载服务器已有基线，密钥和用户报告不进入镜像。
+- 清理仅处理超过 30 天的已识别部署暂存目录，保留最近两份并记录清单；不执行全局 Docker 清理。
+
 All notable changes to **格物** are documented here.
 This project adheres to [Semantic Versioning](https://semver.org/) and the
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
