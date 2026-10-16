@@ -176,7 +176,7 @@ def test_baseline_directory_explicit_container_setting(tmp_path):
 
 
 def test_rollback_catches_container_created_after_service_stop(monkeypatch):
-    observations = iter([None, {'Config': {'Labels': {'org.opencontainers.image.source': f'https://github.com/{release.REPO}'}}},
+    observations = iter([None, {'Config': {'Labels': {'org.gewu.component': 'detector'}}},
                          None, None, None, None])
     monkeypatch.setattr(release, 'inspect', lambda name: next(observations))
     monkeypatch.setattr(release.time, 'sleep', lambda _: None)
