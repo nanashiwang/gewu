@@ -365,7 +365,8 @@ def acquire(revision):
         require(runtime_id == data['image_id'], 'Cached image ID mismatch')
     labels = (info.get('Config') or {}).get('Labels') or {}
     require(labels.get('org.opencontainers.image.revision') == revision, 'Image commit label mismatch')
-    require(labels.get('org.gewu.component') == 'detector', 'Image ownership label mismatch')
+    require(labels.get('org.opencontainers.image.source') == f'https://github.com/{REPO}',
+            'Image source label mismatch')
     require(info.get('Os') == 'linux' and info.get('Architecture') == 'amd64', 'Image platform mismatch')
     print(f'PASS: verified image {revision} via {source}; runtime ID {runtime_id}', flush=True)
     # Retain the publisher's original identity for audit; run only the validated

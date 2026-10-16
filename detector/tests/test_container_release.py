@@ -176,7 +176,7 @@ def test_baseline_directory_explicit_container_setting(tmp_path):
 
 
 def test_rollback_catches_container_created_after_service_stop(monkeypatch):
-    observations = iter([None, {'Config': {'Labels': {'org.gewu.component': 'detector'}}},
+    observations = iter([None, {'Config': {'Labels': {'org.opencontainers.image.source': f'https://github.com/{release.REPO}'}}},
                          None, None, None, None])
     monkeypatch.setattr(release, 'inspect', lambda name: next(observations))
     monkeypatch.setattr(release.time, 'sleep', lambda _: None)
@@ -191,7 +191,7 @@ def image_info(runtime_id=None):
     return {'Id': runtime_id or data['image_id'], 'RepoDigests': [data['image']],
             'Os': 'linux', 'Architecture': 'amd64',
             'Config': {'Labels': {'org.opencontainers.image.revision': REVISION,
-                                  'org.gewu.component': 'detector'}}}
+                                  'org.opencontainers.image.source': f'https://github.com/{release.REPO}'}}}
 
 
 def setup_acquisition(monkeypatch, tmp_path, responses, data=None):
@@ -291,7 +291,7 @@ def test_corrupt_archive_never_loaded(monkeypatch, tmp_path):
     ('Architecture', 'arm64', 'platform mismatch'),
     ('Os', 'windows', 'platform mismatch'),
     ('Config', {'Labels': {'org.opencontainers.image.revision': 'f' * 40}}, 'commit label mismatch'),
-    ('Config', {'Labels': {'org.opencontainers.image.revision': REVISION}}, 'ownership label mismatch'),
+    ('Config', {'Labels': {'org.opencontainers.image.revision': REVISION}}, 'source label mismatch'),
 ])
 def test_registry_identity_is_not_weakened(monkeypatch, tmp_path, field, value, error):
     info = image_info()
