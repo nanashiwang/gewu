@@ -380,6 +380,8 @@ skip 的检测项不参与分母。OpenAI / Gemini 协议下,任意一项 critic
 
 ## 部署 / 同步
 
+生产 Web 检测服务的 GitHub 镜像发布、服务器切换、回滚与旧暂存文件清理，见 [容器发布说明](deploy/README.md)。下面的脚本保留给原有宿主机部署方式；容器迁移后不要继续用它覆盖宿主机安装。
+
 推荐 Ubuntu 24.04 / Python 3.12。服务器先安装 `python3-venv`、`rsync` 和
 `curl`。公网部署还必须先准备 `/etc/gewu.env`，不要把用户提交的中转 key
 写入这个文件：

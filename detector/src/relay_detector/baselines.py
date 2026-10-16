@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,7 +17,7 @@ from .core.comparison_guard import comparison_reasons
 from .core.scoring_policy import SCORING_VERSION, PROBE_VERSION
 from .wire_apis import WIRE_APIS, resolve_wire_api
 
-ROOT = Path(__file__).resolve().parents[2] / "data/baselines"
+ROOT = Path(os.environ.get("GEWU_BASELINES_DIR") or Path(__file__).resolve().parents[2] / "data/baselines")
 OFFICIAL = {
     "anthropic": {"https://api.anthropic.com"},
     "openai": {"https://api.openai.com/v1"},
