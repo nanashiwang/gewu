@@ -220,7 +220,7 @@ nano .env  # 填 ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY / ANTHROPIC_MODEL
 
 报告会记录实际请求数和 token 用量。签名回放验证比旧版多 2 次低输出上限的对照请求。
 
-⚠️ `compare` 命令需要 `full` 模式 — quick / standard 跑出来的报告没有对应基线。
+`compare` 支持三档模式，但必须存在同模型、协议、接口和深度的已审核有效基线；不能用 `full` 样本替代 `quick` / `standard`。先用 `baseline-audit` 查看库存。
 
 ---
 

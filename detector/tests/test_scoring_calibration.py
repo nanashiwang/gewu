@@ -236,3 +236,73 @@ def test_public_views_separate_score_and_probe_versions(tmp_path, monkeypatch):
     assert len(history) == 3 and {item.score for item in history} == {20, 40, 100}
     assert stats.scoring_version == SCORING_VERSION
     assert len(monitoring_snapshot()["rows"]) == 3
+
+
+@pytest.mark.parametrize("field", ["score", "weight", "total_score"])
+@pytest.mark.parametrize("value", [10**400, -(10**400), float("inf"), float("nan"), True],
+                         ids=["huge_int", "negative_huge_int", "infinity", "nan", "boolean"])
+def test_out_of_range_numbers_are_rejected_without_crashing(field, value):
+    report = calibrated_report()
+    if field == "total_score":
+        report[field] = value
+    else:
+        report["results"][1][field] = value
+    assert assess_report(report)["score_usable"] is False
+    assert comparison_reasons(report, report)
+
+
+@pytest.mark.parametrize("field", ["score", "weight", "total_score"])
+def test_corrupt_baseline_numbers_do_not_break_inventory(tmp_path, field):
+    from relay_detector.baselines import baseline_inventory, official_comparison
+
+    report = calibrated_report()
+    if field == "total_score":
+        report[field] = 10**400
+    else:
+        report["results"][1][field] = 10**400
+    path = tmp_path / f"{report['target_model']}_{report['mode']}.json"
+    path.write_text(json.dumps(report))
+    inventory = baseline_inventory(tmp_path)
+    assert len(inventory) == 1 and inventory[0]["state"] != "available"
+    assert official_comparison(calibrated_report(), tmp_path)["rows"] == []
+
+
+@pytest.mark.parametrize("version", ["weighted-v1", "evidence-v2"])
+def test_oversized_legacy_and_current_total_never_crashes(version):
+    report = calibrated_report()
+    report.update(scoring_version=version, total_score=10**400)
+    assert assess_report(report)["score_usable"] is False
+    assert comparison_reasons(report, report)
+
+
+def test_overflowing_weight_sum_is_not_comparable():
+    report = calibrated_report()
+    report["results"][1].update(weight=1e308, score=0)
+    report["results"].append({**report["results"][1], "name": "protocol"})
+    report["total_score"] = 0
+    assert assess_report(report)["score_usable"] is False
+    assert comparison_reasons(report, report)
+
+
+@pytest.mark.parametrize("score", [0, 100])
+def test_mixed_integer_float_overflow_is_not_comparable(score):
+    report = calibrated_report()
+    report["results"][1].update(weight=10**308, score=score)
+    report["results"].extend([
+        {**report["results"][1], "name": "protocol"},
+        {**report["results"][1], "name": "integrity", "weight": 1.0},
+    ])
+    report["total_score"] = score
+    assert assess_report(report)["score_usable"] is False
+    assert comparison_reasons(report, report)
+
+
+def test_valid_fractional_weights_keep_saved_scores_and_comparison():
+    report = calibrated_report()
+    report["results"][1].update(weight=0.3, score=80)
+    report["results"].append({**report["results"][1], "name": "protocol", "weight": 0.7, "score": 100})
+    report["total_score"] = 94.0
+    original = deepcopy(report)
+    assert assess_report(report)["score_usable"] is True
+    assert comparison_reasons(report, report) == []
+    assert report == original
