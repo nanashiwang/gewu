@@ -90,3 +90,5 @@ python3 /tmp/gewu-container-<SHA>.py cleanup --apply
 两条路径都检查完整提交标签、镜像归属和 `linux/amd64` 平台，然后仅以验证过的本地内容 ID 启动容器。状态记录同时保留发布端 `image_id` 与服务器 `runtime_image_id`，不会修改 Release manifest 或放宽成 `latest` 部署。错误只显示操作名称和退出码/超时，不输出参数或环境值。
 
 CI 在隔离 runner 上以 Docker 29.4.1 的两种镜像存储，对已发布的传统镜像执行真实 digest 拉取与归档回退测试；原有真实 systemd 切换和回滚演练继续保留。生产服务器不修改 Docker 配置，不重启 Docker daemon。
+
+停止服务的外层等待预算为 150 秒，覆盖 systemd 对 ExecStop 与主进程终止各自的停止期限，避免回滚在 systemd 完成停止前提前报超时；不会延长容器本身的正常停止宽限。

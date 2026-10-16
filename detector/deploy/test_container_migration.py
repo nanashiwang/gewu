@@ -89,7 +89,7 @@ HTTPServer(("127.0.0.1",8765), Handler).serve_forever()
         r.healthy_service()
         print('PASS: failed real cutover automatically restores original healthy service')
     finally:
-        r.run('systemctl', 'stop', 'gewu.service', check=False)
+        r.run('systemctl', 'stop', 'gewu.service', timeout=r.STOP_TIMEOUT, check=False)
         for name in [r.NAME, r.SMOKE]:
             r.remove_owned(name)
             assert r.inspect(name) is None

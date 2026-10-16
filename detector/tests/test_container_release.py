@@ -370,3 +370,20 @@ def test_deploy_uses_resolved_id_everywhere_and_preserves_publisher_id(monkeypat
     state = json.loads(release.STATE.read_text())
     assert state['image_id'] == manifest()['image_id']
     assert state['runtime_image_id'] == runtime_id
+
+
+def test_rollback_waits_for_systemd_stop_phases_before_restoring(monkeypatch, tmp_path):
+    backup = tmp_path / 'backup'
+    backup.mkdir()
+    (backup / 'rollback.json').write_text(json.dumps({'dropin': None, 'state': None}))
+    monkeypatch.setattr(release, 'BACKUPS', tmp_path)
+    monkeypatch.setattr(release, 'DROPIN', tmp_path / 'override.conf')
+    monkeypatch.setattr(release, 'STATE', tmp_path / 'state.json')
+    calls = []
+    monkeypatch.setattr(release, 'run', lambda *a, **k: calls.append((a, k)))
+    monkeypatch.setattr(release, 'settle_stopped_container', lambda: None)
+    monkeypatch.setattr(release, 'healthy_service', lambda: None)
+    release.restore(backup)
+    assert calls[0] == (('systemctl', 'stop', 'gewu.service'), {'timeout': release.STOP_TIMEOUT})
+    assert release.STOP_TIMEOUT > 2 * 60  # ExecStop and main-process termination.
+    assert calls[-1][0] == ('systemctl', 'start', 'gewu.service')

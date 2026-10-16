@@ -34,6 +34,9 @@ STATE = ROOT / '.container-release.json'
 NAME = 'gewu-detector'
 SMOKE = 'gewu-detector-release-smoke'
 OWNER = 'org.gewu.component=detector'
+# systemd can spend TimeoutStopSec on ExecStop and again terminating the main
+# process. Let both 60-second phases finish before timing out its CLI client.
+STOP_TIMEOUT = 150
 PROTECTED = [Path('/etc/gewu.env'), Path('/etc/nginx'),
              Path('/etc/systemd/system/gewu.service'), Path('/etc/gewu-monitor'),
              Path('/etc/systemd/system/gewu-monitor@.service'),
@@ -56,10 +59,14 @@ def require(condition, message):
 def run(*args, timeout=60, check=True):
     # Only allowlisted operation names are safe: never echo arguments or stderr.
     operation = Path(args[0]).name
-    safe_docker = {('image', 'inspect'), ('pull',), ('load',), ('ps',),
-                   ('inspect',), ('run',), ('exec',), ('rm',), ('info',)}
-    if operation == 'docker':
-        for prefix in safe_docker:
+    safe_operations = {
+        'docker': {('image', 'inspect'), ('pull',), ('load',), ('ps',),
+                   ('inspect',), ('run',), ('exec',), ('rm',), ('info',)},
+        'systemctl': {('stop',), ('start',), ('is-active',), ('daemon-reload',),
+                      ('show',), ('list-units',)},
+    }
+    if operation in safe_operations:
+        for prefix in safe_operations[operation]:
             if tuple(args[1:1 + len(prefix)]) == prefix:
                 operation += ' ' + ' '.join(prefix)
                 break
@@ -401,7 +408,7 @@ def settle_stopped_container():
 def restore(backup):
     require(backup.parent == BACKUPS and backup.resolve() == backup and backup.is_dir(), 'Invalid rollback directory')
     data = json.loads((backup / 'rollback.json').read_text())
-    run('systemctl', 'stop', 'gewu.service')
+    run('systemctl', 'stop', 'gewu.service', timeout=STOP_TIMEOUT)
     settle_stopped_container()
     for path, key in [(DROPIN, 'dropin'), (STATE, 'state')]:
         if data[key] is None:
@@ -446,7 +453,7 @@ def deploy(revision):
     changed = False
     try:
         changed = True
-        run('systemctl', 'stop', 'gewu.service')
+        run('systemctl', 'stop', 'gewu.service', timeout=STOP_TIMEOUT)
         write_atomic(DROPIN, unit_override(image, uid, gid, names))
         run('systemctl', 'daemon-reload')
         run('systemctl', 'start', 'gewu.service')
