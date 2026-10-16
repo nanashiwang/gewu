@@ -54,11 +54,22 @@ def require(condition, message):
 
 
 def run(*args, timeout=60, check=True):
-    result = subprocess.run(args, text=True, stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE, timeout=timeout)
+    # Only allowlisted operation names are safe: never echo arguments or stderr.
+    operation = Path(args[0]).name
+    safe_docker = {('image', 'inspect'), ('pull',), ('load',), ('ps',),
+                   ('inspect',), ('run',), ('exec',), ('rm',), ('info',)}
+    if operation == 'docker':
+        for prefix in safe_docker:
+            if tuple(args[1:1 + len(prefix)]) == prefix:
+                operation += ' ' + ' '.join(prefix)
+                break
+    try:
+        result = subprocess.run(args, text=True, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise DeploymentError(f'{operation} timed out after {timeout}s') from None
     if check and result.returncode:
-        # Commands may process secrets. Report command name/exit only, never stderr.
-        raise DeploymentError(f'{args[0]} failed (exit {result.returncode})')
+        raise DeploymentError(f'{operation} failed (exit {result.returncode})')
     return result
 
 
@@ -311,24 +322,55 @@ def acquire(revision):
     if not manifest_path.exists():
         download(base + '/release.json', manifest_path, 65536)
     data = validate_manifest(json.loads(manifest_path.read_text()), revision)
-    # Anonymous GHCR pulls may be unavailable until the package is made public.
-    # The same tested image is also a checksummed public GitHub Release asset.
-    if run('docker', 'image', 'inspect', data['image_id'], check=False).returncode:
-        result = run('docker', 'pull', data['image'], timeout=300, check=False)
-        if result.returncode:
+    # A registry digest is portable; Docker's local Id is not. Classic stores
+    # expose the config digest, while containerd stores can expose a manifest ID.
+    print('STEP: checking pinned registry digest', flush=True)
+    result = run('docker', 'image', 'inspect', data['image'], check=False)
+    source = 'registry'
+    if result.returncode:
+        result = run('docker', 'image', 'inspect', data['image_id'], check=False)
+        source = 'publisher-id'
+    if result.returncode:
+        print('STEP: pulling pinned registry digest', flush=True)
+        pulled = run('docker', 'pull', data['image'], timeout=300, check=False)
+        if not pulled.returncode:
+            result = run('docker', 'image', 'inspect', data['image'])
+            source = 'registry'
+        else:
+            # Never trust an existing revision tag. Only resolve it immediately
+            # after loading this release's checksum-verified archive.
+            print('STEP: loading checksum-verified release archive', flush=True)
             archive = directory / 'detector-image.tar.gz'
             if archive.exists() and sha(archive) != data['archive_sha256']:
                 archive.unlink()
             if not archive.exists():
                 download(base + '/detector-image.tar.gz', archive, 1024**3)
             require(sha(archive) == data['archive_sha256'], 'Image archive checksum mismatch')
-            run('docker', 'load', '--input', str(archive), timeout=300)
-    info = json.loads(run('docker', 'image', 'inspect', data['image_id']).stdout)[0]
-    require(info['Id'] == data['image_id'], 'Loaded image ID mismatch')
-    require(info['Config']['Labels']['org.opencontainers.image.revision'] == revision, 'Image commit label mismatch')
-    require(info['Os'] == 'linux' and info['Architecture'] == 'amd64', 'Image platform mismatch')
-    print(f'PASS: verified image {revision}')
-    return data
+            loaded = run('docker', 'load', '--input', str(archive), timeout=300)
+            tag = f'{IMAGE}:{revision}'
+            require(f'Loaded image: {tag}' in loaded.stdout.splitlines(),
+                    'Verified archive did not load the expected revision tag')
+            result = run('docker', 'image', 'inspect', tag)
+            source = 'verified-archive'
+    entries = json.loads(result.stdout)
+    require(isinstance(entries, list) and len(entries) == 1 and isinstance(entries[0], dict),
+            'Expected exactly one inspected image')
+    info = entries[0]
+    runtime_id = info.get('Id', '')
+    require(isinstance(runtime_id, str) and re.fullmatch(r'sha256:[0-9a-f]{64}', runtime_id),
+            'Invalid resolved image ID')
+    if source == 'registry':
+        require(data['image'] in (info.get('RepoDigests') or []), 'Pinned registry digest mismatch')
+    elif source == 'publisher-id':
+        require(runtime_id == data['image_id'], 'Cached image ID mismatch')
+    labels = (info.get('Config') or {}).get('Labels') or {}
+    require(labels.get('org.opencontainers.image.revision') == revision, 'Image commit label mismatch')
+    require(labels.get('org.gewu.component') == 'detector', 'Image ownership label mismatch')
+    require(info.get('Os') == 'linux' and info.get('Architecture') == 'amd64', 'Image platform mismatch')
+    print(f'PASS: verified image {revision} via {source}; runtime ID {runtime_id}', flush=True)
+    # Retain the publisher's original identity for audit; run only the validated
+    # local content-addressed ID, never a mutable tag.
+    return {**data, 'runtime_image_id': runtime_id}
 
 
 def healthy_service():
@@ -383,13 +425,14 @@ def deploy(revision):
     healthy_service()
     before = protected_snapshot()
     data = acquire(revision)
-    smoke_image(data['image_id'], uid, gid)
+    image = data['runtime_image_id']
+    smoke_image(image, uid, gid)
     # Probe real volume permissions without importing jobs.py or touching report data.
     probe = ('import tempfile,os; '
              'f=tempfile.NamedTemporaryFile(dir="/opt/gewu-detector/web_data/jobs"); f.close(); '
              'assert os.access("/opt/gewu-detector/data/baselines",os.R_OK|os.X_OK)')
     try:
-        run(*base_args(SMOKE, data['image_id'], uid, gid), '--entrypoint', 'python', data['image_id'], '-c', probe)
+        run(*base_args(SMOKE, image, uid, gid), '--entrypoint', 'python', image, '-c', probe)
     finally:
         remove_owned(SMOKE)
     idle()
@@ -403,7 +446,7 @@ def deploy(revision):
     try:
         changed = True
         run('systemctl', 'stop', 'gewu.service')
-        write_atomic(DROPIN, unit_override(data['image_id'], uid, gid, names))
+        write_atomic(DROPIN, unit_override(image, uid, gid, names))
         run('systemctl', 'daemon-reload')
         run('systemctl', 'start', 'gewu.service')
         wait_health(NAME)

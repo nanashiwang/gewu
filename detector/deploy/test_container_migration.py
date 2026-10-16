@@ -28,7 +28,7 @@ def main():
     image = os.environ['IMAGE']
     revision = os.environ['REVISION']
     info = json.loads(r.run('docker', 'image', 'inspect', image).stdout)[0]
-    data = {'image_id': info['Id'], 'revision': revision}
+    data = {'image_id': info['Id'], 'runtime_image_id': info['Id'], 'revision': revision}
     r.acquire = lambda _: data
     original_wait = r.wait_health
     try:

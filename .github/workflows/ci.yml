@@ -91,9 +91,52 @@ jobs:
           path: gewu-platform-linux.tar.gz
           retention-days: 7
 
+  detector-image-compatibility:
+    name: Docker 29 image store (${{ matrix.store }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - store: classic
+            containerd: false
+          - store: containerd
+            containerd: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-docker-action@2bf61fb9464cc67f0cbdeabed6aa0380accd1c70 # v5
+        with:
+          version: v29.4.1
+          daemon-config: |
+            {"features": {"containerd-snapshotter": ${{ matrix.containerd }}}}
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify pinned pull and checked archive across stores
+        env:
+          IMAGE_STORE: ${{ matrix.store }}
+        run: python3 detector/deploy/test_image_store_compatibility.py
+      - name: Verify no temporary test containers remain
+        if: always()
+        run: |
+          set -euo pipefail
+          name=gewu-detector-release-smoke
+          if docker inspect "$name" >/dev/null 2>&1; then
+            test "$(docker inspect --format '{{index .Config.Labels "org.gewu.component"}}' "$name")" = detector
+            docker rm -f "$name"
+          fi
+          test -z "$(docker ps -aq --filter name='^/gewu-detector-release-smoke$')"
+          echo 'GEWU_LEFTOVER_TEST_CONTAINERS=0'
+
   detector-image:
     name: detector container + release
-    needs: [detector, verify, build]
+    needs: [detector, verify, build, detector-image-compatibility]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:

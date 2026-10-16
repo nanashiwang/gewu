@@ -82,3 +82,11 @@ python3 /tmp/gewu-container-<SHA>.py cleanup --apply
 只允许删除 `/opt/gewu-deploy-staging` 中名称符合旧部署格式、具有有效版本 manifest、整个目录内文件都超过 30 天未使用的暂存目录；至少保留最近两份。跳过符号链接和包含报告、基线、venv、私有监测数据的目录。不删除任何回滚备份、历史镜像、其他项目资源或用户报告。没有符合条件的目录就清理 0 项。
 
 清理前输出每一项路径、字节数和原因；清理后将记录保存在 `/opt/gewu-detector-releases/cleanup-<UTC时间>.json`，方便向维护者说明实际删了什么。
+
+## Docker 镜像存储兼容性
+
+发布端的 `image_id` 与服务器 Docker 的本地 `Id` 不一定相同：传统镜像存储与 containerd 镜像存储可能使用不同的内容摘要作为本地身份。脚本优先按不可变的仓库 digest 查找/拉取并核对 `RepoDigests`；匿名仓库拉取失败时，先验证 Release 归档 SHA256、加载归档，再解析该次加载的完整版本标签。已有的版本标签不能直接作为可信缓存。
+
+两条路径都检查完整提交标签、镜像归属和 `linux/amd64` 平台，然后仅以验证过的本地内容 ID 启动容器。状态记录同时保留发布端 `image_id` 与服务器 `runtime_image_id`，不会修改 Release manifest 或放宽成 `latest` 部署。错误只显示操作名称和退出码/超时，不输出参数或环境值。
+
+CI 在隔离 runner 上以 Docker 29.4.1 的两种镜像存储，对已发布的传统镜像执行真实 digest 拉取与归档回退测试；原有真实 systemd 切换和回滚演练继续保留。生产服务器不修改 Docker 配置，不重启 Docker daemon。
