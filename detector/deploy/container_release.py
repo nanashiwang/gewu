@@ -338,11 +338,28 @@ def healthy_service():
     require(data.get('ok') is True and data.get('storage_writable') is True, 'Service readiness failed')
 
 
+def settle_stopped_container():
+    # A Docker create request can finish after systemd has stopped its CLI client.
+    # Require a stable empty interval before restarting the previous service.
+    quiet = 0
+    for _ in range(15):
+        info = inspect(NAME)
+        if info is not None:
+            remove_owned(NAME)
+            quiet = 0
+        else:
+            quiet += 1
+            if quiet >= 4:
+                return
+        time.sleep(1)
+    raise DeploymentError('Container did not settle after service stop')
+
+
 def restore(backup):
     require(backup.parent == BACKUPS and backup.resolve() == backup and backup.is_dir(), 'Invalid rollback directory')
     data = json.loads((backup / 'rollback.json').read_text())
     run('systemctl', 'stop', 'gewu.service')
-    remove_owned(NAME)
+    settle_stopped_container()
     for path, key in [(DROPIN, 'dropin'), (STATE, 'state')]:
         if data[key] is None:
             path.unlink(missing_ok=True)
