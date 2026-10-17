@@ -292,6 +292,8 @@ def resource_limits(*, cpus=None, memory_mib=None):
         memory_mib = needed
     require(isinstance(memory_mib, int) and needed <= memory_mib <= total_mib // 2,
             'Memory budget must cover observed peak plus 50% headroom, at least 512 MiB, and at most half host RAM')
+    require(mem['MemAvailable'] >= (memory_mib + 192) * 1024**2,
+            'Insufficient available RAM for the temporary detector budget plus 192 MiB reserve; postpone deployment')
     limits = {'cpus': f'{cpus:g}', 'memory_mib': memory_mib}
     print('RESOURCE_BUDGET=' + json.dumps({**limits, 'observed_peak_mib': math.ceil(peak / 1024**2)}), flush=True)
     return limits
@@ -567,6 +569,8 @@ def deploy(revision, *, cpus=None, memory_mib=None, wait_seconds=300, bootstrap=
     finally:
         remove_owned(SMOKE)
     with deployment_window(wait_seconds=wait_seconds, bootstrap=bootstrap):
+        # A job accepted during image preparation may have raised the live peak.
+        resource_limits(cpus=float(limits['cpus']), memory_mib=limits['memory_mib'])
         before = protected_snapshot()
         backup = BACKUPS / ('container-' + time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()))
         backup.mkdir(mode=0o700, parents=True, exist_ok=False)

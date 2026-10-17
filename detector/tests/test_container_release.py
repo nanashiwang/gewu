@@ -493,7 +493,7 @@ def test_resource_defaults_preserve_shared_host_headroom(monkeypatch):
 @pytest.mark.parametrize('overrides,host', [
     ({'cpus': float('nan')}, {}), ({'cpus': 2}, {'cpus': 2}),
     ({'memory_mib': 256}, {}), ({'memory_mib': 3000}, {}),
-    ({}, {'available_mib': 191}), ({}, {'memory_mib': 1024}),
+    ({}, {'available_mib': 191}), ({}, {'available_mib': 600}), ({}, {'memory_mib': 1024}),
     ({}, {'peak_mib': 800}), ({'memory_mib': 512}, {'peak_mib': 400}),
 ])
 def test_resource_budget_rejects_pressure_and_unsafe_overrides(monkeypatch, overrides, host):

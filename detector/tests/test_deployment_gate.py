@@ -164,3 +164,19 @@ def test_invalid_lock_fails_closed_without_hanging(tmp_path, kind):
     with pytest.raises(gate.MaintenanceError):
         with gate.admission(jobs.JOBS_DIR):
             pytest.fail('must not admit work')
+
+
+@pytest.mark.asyncio
+async def test_cancelled_http_request_releases_its_admission_lock():
+    entered = asyncio.Event()
+    async def request_app(scope, receive, send):
+        entered.set()
+        await asyncio.Event().wait()
+    middleware = server.DeploymentAdmissionMiddleware(request_app)
+    task = asyncio.create_task(middleware({'type': 'http', 'method': 'POST', 'path': '/api/probe'}, None, None))
+    await entered.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    fd = exclusive()
+    os.close(fd)
