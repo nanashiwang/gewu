@@ -211,12 +211,13 @@ def test_health_and_readiness_cover_process_and_report_storage(tmp_path, monkeyp
 
     ready = client.get("/readyz")
     assert ready.status_code == 200
-    assert ready.json() == {"ok": True, "storage_writable": True}
+    assert ready.json()["ok"] is True and ready.json()["storage_writable"] is True
+    assert ready.json()["deployment"]["protocol"] == 1
 
     monkeypatch.setattr(server.jobs, "JOBS_DIR", tmp_path / "missing")
     not_ready = client.get("/readyz")
     assert not_ready.status_code == 503
-    assert not_ready.json() == {"ok": False, "storage_writable": False}
+    assert not_ready.json()["ok"] is False and not_ready.json()["storage_writable"] is False
 
 
 def test_oversized_api_body_is_rejected_before_form_parsing():

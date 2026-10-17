@@ -1,6 +1,7 @@
 """Adversarial checks for production migration and narrowly scoped cleanup."""
 from __future__ import annotations
 
+from contextlib import nullcontext
 import importlib.util
 import json
 import os
@@ -149,15 +150,19 @@ def test_failed_cutover_restores_previous_service(monkeypatch, tmp_path):
     monkeypatch.setattr(release, 'BACKUPS', tmp_path / 'backups')
     monkeypatch.setattr(release, 'DROPIN', tmp_path / '50-container.conf')
     monkeypatch.setattr(release, 'STATE', root / 'state.json')
-    monkeypatch.setattr(release, 'preflight', lambda: (123, 456, set()))
+    monkeypatch.setattr(release, 'preflight', lambda **kw: (123, 456, set()))
+    monkeypatch.setattr(release, 'resource_limits', lambda **kw: {'cpus': '1', 'memory_mib': 512})
+    monkeypatch.setattr(release, 'verify_resource_limits', lambda *a, **kw: None)
+    monkeypatch.setattr(release, 'deployment_window', lambda **kw: nullcontext(False))
+    monkeypatch.setattr(release, 'ready_state', lambda: {'deployment': {'protocol': 1, 'accepting': release.STATE.exists()}})
     monkeypatch.setattr(release, 'healthy_service', lambda: None)
     monkeypatch.setattr(release, 'protected_snapshot', lambda: {})
     monkeypatch.setattr(release, 'acquire', lambda r: {**manifest(), 'runtime_image_id': 'sha256:' + 'e' * 64})
-    monkeypatch.setattr(release, 'smoke_image', lambda *a: None)
+    monkeypatch.setattr(release, 'smoke_image', lambda *a, **kw: None)
     monkeypatch.setattr(release, 'remove_owned', lambda n: None)
     monkeypatch.setattr(release, 'idle', lambda: None)
     monkeypatch.setattr(release, 'run', lambda *a, **k: None)
-    monkeypatch.setattr(release, 'unit_override', lambda *a: 'new unit')
+    monkeypatch.setattr(release, 'unit_override', lambda *a, **kw: 'new unit')
     monkeypatch.setattr(release, 'wait_health', lambda n: (_ for _ in ()).throw(RuntimeError('not healthy')))
     restored = []
     monkeypatch.setattr(release, 'restore', restored.append)
@@ -349,15 +354,19 @@ def test_deploy_uses_resolved_id_everywhere_and_preserves_publisher_id(monkeypat
     for name, path in [('ROOT', tmp_path), ('BACKUPS', tmp_path / 'backups'),
                        ('DROPIN', tmp_path / '50-container.conf'), ('STATE', tmp_path / 'state.json')]:
         monkeypatch.setattr(release, name, path)
-    monkeypatch.setattr(release, 'preflight', lambda: (123, 456, set()))
+    monkeypatch.setattr(release, 'preflight', lambda **kw: (123, 456, set()))
+    monkeypatch.setattr(release, 'resource_limits', lambda **kw: {'cpus': '1', 'memory_mib': 512})
+    monkeypatch.setattr(release, 'verify_resource_limits', lambda *a, **kw: None)
+    monkeypatch.setattr(release, 'deployment_window', lambda **kw: nullcontext(False))
+    monkeypatch.setattr(release, 'ready_state', lambda: {'deployment': {'protocol': 1, 'accepting': release.STATE.exists()}})
     monkeypatch.setattr(release, 'healthy_service', lambda: None)
     monkeypatch.setattr(release, 'protected_snapshot', lambda: {})
     monkeypatch.setattr(release, 'verify_protected', lambda _: None)
     monkeypatch.setattr(release, 'acquire', lambda _: data)
     seen = []
-    monkeypatch.setattr(release, 'smoke_image', lambda image, *a: seen.append(image))
-    monkeypatch.setattr(release, 'base_args', lambda name, image, *a: seen.append(image) or ['docker', 'run'])
-    monkeypatch.setattr(release, 'unit_override', lambda image, *a: seen.append(image) or 'unit')
+    monkeypatch.setattr(release, 'smoke_image', lambda image, *a, **kw: seen.append(image))
+    monkeypatch.setattr(release, 'base_args', lambda name, image, *a, **kw: seen.append(image) or ['docker', 'run'])
+    monkeypatch.setattr(release, 'unit_override', lambda image, *a, **kw: seen.append(image) or 'unit')
     monkeypatch.setattr(release, 'remove_owned', lambda _: None)
     monkeypatch.setattr(release, 'inspect', lambda _: None)
     monkeypatch.setattr(release, 'idle', lambda: None)
@@ -387,3 +396,140 @@ def test_rollback_waits_for_systemd_stop_phases_before_restoring(monkeypatch, tm
     assert calls[0] == (('systemctl', 'stop', 'gewu.service'), {'timeout': release.STOP_TIMEOUT})
     assert release.STOP_TIMEOUT > 2 * 60  # ExecStop and main-process termination.
     assert calls[-1][0] == ('systemctl', 'start', 'gewu.service')
+
+
+def gate_fixture(monkeypatch, tmp_path, states):
+    (tmp_path / 'web_data').mkdir()
+    monkeypatch.setattr(release, 'ROOT', tmp_path)
+    stream = iter(states)
+    monkeypatch.setattr(release, 'ready_state', lambda: {'deployment': next(stream)})
+    monkeypatch.setattr(release, 'monitor_idle', lambda: True)
+    monkeypatch.setattr(release.time, 'sleep', lambda _: None)
+    return tmp_path / 'web_data/.gewu-deployment.lock'
+
+
+def assert_gate_released(path):
+    import fcntl
+    with path.open('rb') as stream:
+        fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def test_drain_waits_for_jobs_and_cleanup_before_cutover(monkeypatch, tmp_path):
+    open_state = {'protocol': 1, 'accepting': True}
+    states = [open_state, {'protocol': 1, 'accepting': False, 'pending_jobs': 1, 'active_tasks': 1},
+              {'protocol': 1, 'accepting': False, 'pending_jobs': 0, 'active_tasks': 1},
+              {'protocol': 1, 'accepting': False, 'pending_jobs': 0, 'active_tasks': 0}]
+    path = gate_fixture(monkeypatch, tmp_path, states)
+    with release.deployment_window() as gated:
+        assert gated
+        import fcntl
+        with path.open('rb') as lock:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(lock, fcntl.LOCK_SH | fcntl.LOCK_NB)
+    assert_gate_released(path)
+
+
+@pytest.mark.parametrize('failure', ['timeout', 'ack', 'bad_counts', 'cutover'])
+def test_failed_drain_or_cutover_always_reopens_admission(monkeypatch, tmp_path, failure):
+    state = {'protocol': 1, 'accepting': failure == 'ack', 'pending_jobs': 0,
+             'active_tasks': 1 if failure == 'timeout' else 'invalid' if failure == 'bad_counts' else 0}
+    path = gate_fixture(monkeypatch, tmp_path, [{'protocol': 1}, state])
+    with pytest.raises((release.DeploymentError, RuntimeError)):
+        with release.deployment_window(wait_seconds=0):
+            assert failure == 'cutover'
+            raise RuntimeError('cutover failed')
+    assert_gate_released(path)
+
+
+def test_legacy_service_requires_explicit_bootstrap_and_idle_check(monkeypatch, tmp_path):
+    (tmp_path / 'web_data').mkdir()
+    monkeypatch.setattr(release, 'ROOT', tmp_path)
+    monkeypatch.setattr(release, 'ready_state', lambda: {'ok': True})
+    checked = []
+    monkeypatch.setattr(release, 'idle', lambda: checked.append(True))
+    with pytest.raises(release.DeploymentError, match='bootstrap-drain'):
+        with release.deployment_window():
+            pytest.fail('must not change old service')
+    assert not checked
+    with release.deployment_window(bootstrap=True) as gated:
+        assert gated is False
+        import fcntl
+        with (tmp_path / 'web_data/.gewu-deployment.lock').open('rb') as lock:
+            with pytest.raises(BlockingIOError):
+                fcntl.flock(lock, fcntl.LOCK_SH | fcntl.LOCK_NB)
+    assert checked == [True]
+
+
+def test_scheduled_monitor_prevents_cutover(monkeypatch, tmp_path):
+    path = gate_fixture(monkeypatch, tmp_path, [
+        {'protocol': 1}, {'protocol': 1, 'accepting': False, 'pending_jobs': 0, 'active_tasks': 0}])
+    monkeypatch.setattr(release, 'monitor_idle', lambda: False)
+    with pytest.raises(release.DeploymentError, match='timed out'):
+        with release.deployment_window(wait_seconds=0):
+            pytest.fail('monitor still running')
+    assert_gate_released(path)
+
+
+def host_resources(monkeypatch, memory_mib=4096, available_mib=2048, cpus=2, peak_mib=None):
+    original = Path.read_text
+    def read(path, *a, **k):
+        if str(path) == '/proc/meminfo':
+            return f'MemTotal: {memory_mib * 1024} kB\nMemAvailable: {available_mib * 1024} kB\n'
+        return original(path, *a, **k)
+    monkeypatch.setattr(Path, 'read_text', read)
+    monkeypatch.setattr(release.os, 'cpu_count', lambda: cpus)
+    monkeypatch.setattr(release, 'inspect', lambda name: None if peak_mib is None else {
+        'Config': {'Labels': {'org.gewu.component': 'detector'}}, 'State': {'Running': True}})
+    monkeypatch.setattr(release, 'run', lambda *a, **kw: subprocess.CompletedProcess(a, 0, str(int((peak_mib or 0) * 1024**2)), ''))
+
+
+def test_resource_defaults_preserve_shared_host_headroom(monkeypatch):
+    host_resources(monkeypatch, cpus=1)
+    assert release.resource_limits() == {'cpus': '0.5', 'memory_mib': 512}
+    host_resources(monkeypatch, peak_mib=400)
+    assert release.resource_limits() == {'cpus': '1', 'memory_mib': 640}
+
+
+@pytest.mark.parametrize('overrides,host', [
+    ({'cpus': float('nan')}, {}), ({'cpus': 2}, {'cpus': 2}),
+    ({'memory_mib': 256}, {}), ({'memory_mib': 3000}, {}),
+    ({}, {'available_mib': 191}), ({}, {'available_mib': 600}), ({}, {'memory_mib': 1024}),
+    ({}, {'peak_mib': 800}), ({'memory_mib': 512}, {'peak_mib': 400}),
+])
+def test_resource_budget_rejects_pressure_and_unsafe_overrides(monkeypatch, overrides, host):
+    host_resources(monkeypatch, **host)
+    with pytest.raises(release.DeploymentError):
+        release.resource_limits(**overrides)
+
+
+def test_explicit_memory_review_can_fit_observed_peak(monkeypatch):
+    host_resources(monkeypatch, peak_mib=800)
+    assert release.resource_limits(memory_mib=1280)['memory_mib'] == 1280
+
+
+def test_resource_limits_apply_to_smoke_probe_and_service(monkeypatch):
+    limits = {'cpus': '0.5', 'memory_mib': 768}
+    for smoke in [True, False]:
+        args = release.base_args(release.SMOKE, 'image', 123, 456, smoke=smoke, limits=limits)
+        for option, value in [('--cpus', '0.5'), ('--memory', '768m'), ('--memory-swap', '768m')]:
+            assert args[args.index(option) + 1] == value
+    monkeypatch.setattr(release.shutil, 'which', lambda _: '/usr/bin/docker')
+    unit = release.unit_override('sha256:' + 'a' * 64, 123, 456, set(), limits=limits)
+    assert '--cpus 0.5 --memory 768m --memory-swap 768m' in unit
+    assert 'docker.service' in unit
+
+
+@pytest.mark.parametrize('wrong', ['Memory', 'MemorySwap', 'NanoCpus', 'OOMKilled', None])
+def test_actual_docker_limits_are_verified(monkeypatch, wrong):
+    config = {'Memory': 512 * 1024**2, 'MemorySwap': 512 * 1024**2, 'NanoCpus': 10**9}
+    state = {'OOMKilled': wrong == 'OOMKilled'}
+    if wrong in config:
+        config[wrong] = 0
+    monkeypatch.setattr(release, 'inspect', lambda name: {
+        'Config': {'Labels': {'org.gewu.component': 'detector'}},
+        'HostConfig': config, 'State': state})
+    if wrong is not None:
+        with pytest.raises(release.DeploymentError):
+            release.verify_resource_limits(release.NAME, {'cpus': '1', 'memory_mib': 512})
+    else:
+        release.verify_resource_limits(release.NAME, {'cpus': '1', 'memory_mib': 512})

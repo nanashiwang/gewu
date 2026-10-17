@@ -37,6 +37,7 @@ from relay_detector.scorer import (
 )
 from relay_detector.ranking import unreviewed_ranking_evidence, baseline_reference
 from .security import REDACTED, redact_secret, redact_text
+from . import deployment_gate
 from relay_detector.core.runner import ProgressObserver
 from relay_detector.core.scoring_policy import SCORING_VERSION, PROBE_VERSION
 
@@ -316,24 +317,33 @@ async def submit(
         mode=mode,
     )
     async with _LOCK:
-        if not _ACCEPTING:
-            raise JobQueueFull("detection service is restarting")
-        _prune_jobs_locked()
-        pending = sum(job.status in {"queued", "running"} for job in _JOBS.values())
-        if pending >= _MAX_PENDING_JOBS:
-            raise JobQueueFull("detection queue is full")
-        _save_state(job)
-        _JOBS[job_id] = job
-    task = asyncio.create_task(
-        _run(
-            job_id, base_url, api_key, model, mode, protocol,
-            include_long_context, include_long_context_extreme,
-            wire_api,
-        )
-    )
-    _TASKS[job_id] = task
-    task.add_done_callback(lambda completed: _task_finished(job_id, completed))
+        with deployment_gate.admission(JOBS_DIR):
+            if not _ACCEPTING:
+                raise deployment_gate.MaintenanceError("detection service is restarting")
+            _prune_jobs_locked()
+            pending = sum(job.status in {"queued", "running"} for job in _JOBS.values())
+            if pending >= _MAX_PENDING_JOBS:
+                raise JobQueueFull("detection queue is full")
+            _save_state(job)
+            _JOBS[job_id] = job
+            task = asyncio.create_task(
+                _run(job_id, base_url, api_key, model, mode, protocol,
+                     include_long_context, include_long_context_extreme, wire_api)
+            )
+            _TASKS[job_id] = task
+            task.add_done_callback(lambda completed: _task_finished(job_id, completed))
     return job_id
+
+
+def deployment_status() -> dict:
+    # Check both states and task completion. A terminal report can be saved
+    # before its upstream client/context managers finish releasing resources.
+    return {
+        "protocol": 1,
+        "accepting": _ACCEPTING and deployment_gate.accepting(JOBS_DIR),
+        "pending_jobs": sum(j.status in {"queued", "running"} for j in _JOBS.values()),
+        "active_tasks": sum(not task.done() for task in _TASKS.values()),
+    }
 
 
 async def get(job_id: str) -> Job | None:

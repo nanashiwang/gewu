@@ -8,6 +8,8 @@ import re
 import shutil
 import subprocess
 import sys
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 spec = importlib.util.spec_from_file_location('release', Path(__file__).with_name('container_release.py'))
 r = importlib.util.module_from_spec(spec)
@@ -64,9 +66,27 @@ HTTPServer(("127.0.0.1",8765), Handler).serve_forever()
             except Exception:
                 time.sleep(0.2)
         r.healthy_service()
-        r.deploy(revision)
+        r.deploy(revision, bootstrap=True)
         state = json.loads(r.STATE.read_text())
         assert state['revision'] == revision
+        r.verify_resource_limits(r.NAME, state['resources'])
+        with r.deployment_window(wait_seconds=5):
+            assert r.ready_state()['deployment']['accepting'] is False
+            for route in ['/api/detect/claude', '/api/detect/openai', '/api/detect/gemini', '/api/probe']:
+                try:
+                    urlopen(Request('http://127.0.0.1:8765' + route, data=b'',
+                                    headers={'X-Forwarded-Proto': 'https'}), timeout=5)
+                    raise AssertionError('maintenance must reject new submissions')
+                except HTTPError as error:
+                    assert error.code == 503
+                    assert error.headers['Retry-After'] == '15'
+            assert urlopen('http://127.0.0.1:8765/', timeout=5).status == 200
+        assert r.ready_state()['deployment']['accepting'] is True
+        print('PASS: real container admission closes and reopens; read-only routes remain available')
+        # Exercise the normal protocol, including lock retention across restart.
+        r.deploy(revision)
+        assert r.ready_state()['deployment']['accepting'] is True
+        print('PASS: real draining redeployment retains the admission lock across container replacement')
         r.run('docker', 'exec', r.NAME, 'python', '-c',
               'import os; assert os.environ["GEWU_INTERNAL_API_TOKEN"]=="fixture token with spaces"; assert os.environ["GEWU_SITE_URL"]=="https://gewu.example"; assert os.getuid()!=0')
         r.restore(Path(state['backup']))
@@ -80,7 +100,7 @@ HTTPServer(("127.0.0.1",8765), Handler).serve_forever()
             original_wait(name)
         r.wait_health = broken_cutover
         try:
-            r.deploy(revision)
+            r.deploy(revision, bootstrap=True)
             raise AssertionError('injected failure must not succeed')
         except r.DeploymentError as error:
             assert str(error) == 'injected cutover failure'
