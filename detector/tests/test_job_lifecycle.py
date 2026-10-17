@@ -158,7 +158,7 @@ async def test_queued_cancel_and_shutdown_never_start_upstream(monkeypatch):
     assert not calls
     assert (await jobs.get(ids[0])).status == "cancelled"
     assert (await jobs.get(ids[1])).status == "interrupted"
-    with pytest.raises(jobs.JobQueueFull):
+    with pytest.raises(jobs.deployment_gate.MaintenanceError):
         await jobs.submit("https://relay.example", "sk-test", "test-model", "quick", "openai")
 
 

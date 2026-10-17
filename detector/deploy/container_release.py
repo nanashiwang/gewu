@@ -7,6 +7,9 @@ prints environment values, touches another service, or prunes shared Docker data
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import math
+import stat
 import fcntl
 import hashlib
 import json
@@ -214,7 +217,7 @@ def env_names(content):
     return names
 
 
-def preflight():
+def preflight(*, require_idle=True):
     require(os.geteuid() == 0, 'Run as root')
     require(run('uname', '-m').stdout.strip() == 'x86_64', 'This release requires x86_64')
     require(ROOT.is_dir() and not ROOT.is_symlink(), 'Unexpected detector installation')
@@ -253,15 +256,132 @@ def preflight():
             if key in {'GEWU_JOBS_DIR', 'GEWU_WISHLIST_PATH'}:
                 expected = str(ROOT / ('web_data/jobs' if key == 'GEWU_JOBS_DIR' else 'web_data/wishlist.txt'))
                 require(value == expected, f'Unexpected {key}; migration requires review')
-    idle()
+    if require_idle:
+        idle()
     print('PASS: preflight (no environment values disclosed)')
     return account.pw_uid, account.pw_gid, names
 
 
-def base_args(name, image, uid, gid, *, smoke=False):
+def resource_limits(*, cpus=None, memory_mib=None):
+    """Bound only the detector, leaving headroom on a shared host."""
+    mem = {}
+    for line in Path('/proc/meminfo').read_text().splitlines():
+        key, value = line.split(':', 1)
+        mem[key] = int(value.split()[0]) * 1024
+    total_mib = mem['MemTotal'] // (1024 * 1024)
+    require(mem['MemAvailable'] >= 192 * 1024**2, 'Host has less than 192 MiB available; postpone deployment')
+    max_cpus = max(0.5, (os.cpu_count() or 1) / 2)
+    cpus = min(1.0, max_cpus) if cpus is None else cpus
+    require(math.isfinite(cpus) and 0.25 <= cpus <= max_cpus,
+            'CPU budget must be at least 0.25 and at most half the host CPUs')
+    info = inspect(NAME)
+    peak = 0
+    if info:
+        require(owned(info), 'Refusing resource probe of an unrelated container')
+        if info['State'].get('Running'):
+            code = ("from pathlib import Path; "
+                    "paths=[Path('/sys/fs/cgroup/memory.peak'),Path('/sys/fs/cgroup/memory/memory.max_usage_in_bytes')]; "
+                    "print(next((p.read_text().strip() for p in paths if p.is_file()),'unknown'))")
+            value = run('docker', 'exec', NAME, 'python', '-c', code).stdout.strip()
+            require(value.isdecimal(), 'Cannot read detector memory peak; resource budget requires review')
+            peak = int(value)
+    needed = max(512, math.ceil(peak * 1.5 / (64 * 1024**2)) * 64)
+    if memory_mib is None:
+        cap = min(1024, total_mib // 4 // 64 * 64)
+        require(needed <= cap, 'Observed detector memory peak needs more than the automatic shared-host budget; review --memory-mib')
+        memory_mib = needed
+    require(isinstance(memory_mib, int) and needed <= memory_mib <= total_mib // 2,
+            'Memory budget must cover observed peak plus 50% headroom, at least 512 MiB, and at most half host RAM')
+    limits = {'cpus': f'{cpus:g}', 'memory_mib': memory_mib}
+    print('RESOURCE_BUDGET=' + json.dumps({**limits, 'observed_peak_mib': math.ceil(peak / 1024**2)}), flush=True)
+    return limits
+
+
+def verify_resource_limits(name, limits):
+    info = inspect(name)
+    require(owned(info), 'Expected managed detector container for resource verification')
+    config = info['HostConfig']
+    size = limits['memory_mib'] * 1024**2
+    require(config.get('Memory') == size and config.get('MemorySwap') == size and
+            config.get('NanoCpus') == round(float(limits['cpus']) * 10**9),
+            'Docker did not apply the requested CPU/memory/swap limits')
+    require(not info['State'].get('OOMKilled'), 'Detector exceeded its memory budget')
+    print('PASS: detector CPU and memory limits applied; no additional swap', flush=True)
+
+
+def ready_state():
+    with urlopen('http://127.0.0.1:8765/readyz', timeout=5) as response:
+        data = json.load(response)
+    require(data.get('ok') is True and data.get('storage_writable') is True, 'Service readiness failed')
+    return data
+
+
+def monitor_idle():
+    active = run('systemctl', 'list-units', '--state=running', '--no-legend', 'gewu-monitor*').stdout
+    return not active.strip()
+
+
+@contextmanager
+def deployment_window(*, wait_seconds=300, bootstrap=False):
+    """Keep admission closed until verification/rollback completes; crash releases it."""
+    require(0 <= wait_seconds <= 1800, 'Drain wait must be between 0 and 1800 seconds')
+    supported = ready_state().get('deployment', {}).get('protocol') == 1
+    if not supported:
+        require(bootstrap, 'Current service lacks drain support; first upgrade requires --bootstrap-drain and a quiet window')
+    path = ROOT / 'web_data/.gewu-deployment.lock'
+    require(path.resolve() == path, 'Symlink deployment lock refused')
+    fd = os.open(path, os.O_RDONLY | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK, 0o644)
+    try:
+        require(stat.S_ISREG(os.fstat(fd).st_mode) and os.fstat(fd).st_nlink == 1, 'Invalid deployment lock')
+        os.fchmod(fd, 0o644)
+        deadline = time.monotonic() + wait_seconds
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                require(time.monotonic() < deadline, 'Timed out closing admission; service was not stopped')
+                time.sleep(0.25)
+        if not supported:
+            # The old process ignores this lock, but the replacement must start
+            # behind it so verification/rollback cannot interrupt newly accepted jobs.
+            idle()
+            print('BOOTSTRAP: legacy service cannot close admission; using quiet-window checks for this first upgrade', flush=True)
+            yield False
+            return
+        last = None
+        while True:
+            require(os.stat(path, follow_symlinks=False).st_ino == os.fstat(fd).st_ino,
+                    'Deployment admission lock replaced')
+            state = ready_state().get('deployment', {})
+            require(state.get('protocol') == 1 and state.get('accepting') is False,
+                    'Service did not acknowledge closed admission')
+            counts = (state.get('pending_jobs'), state.get('active_tasks'))
+            require(all(type(n) is int and n >= 0 for n in counts), 'Invalid drain state')
+            idle_monitor = monitor_idle()
+            current = (*counts, idle_monitor)
+            if current != last:
+                print(f'DRAIN: pending={counts[0]} active={counts[1]} monitor_idle={idle_monitor}', flush=True)
+                last = current
+            if counts == (0, 0) and idle_monitor:
+                break
+            require(time.monotonic() < deadline, 'Drain timed out; existing tasks continue and admission will reopen')
+            time.sleep(1)
+        print('PASS: admission closed and existing detection tasks finished', flush=True)
+        yield True
+    finally:
+        os.close(fd)
+        # Do not unlink: a waiter or the replacement container can hold this inode.
+        print('PASS: deployment admission lock released', flush=True)
+
+
+def base_args(name, image, uid, gid, *, smoke=False, limits=None):
+    limits = limits or {'cpus': '1', 'memory_mib': 512}
     args = ['docker', 'run', '--rm', '--name', name, '--pull', 'never',
             '--label', OWNER, '--user', f'{uid}:{gid}', '--read-only',
             '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges',
+            '--cpus', limits['cpus'], '--memory', f"{limits['memory_mib']}m",
+            '--memory-swap', f"{limits['memory_mib']}m",
             '--pids-limit', '256', '--log-opt', 'max-size=10m', '--log-opt', 'max-file=3',
             '--tmpfs', '/tmp:rw,nosuid,nodev,noexec,size=64m,mode=1777',
             '--network', 'none' if smoke else 'host']
@@ -275,8 +395,8 @@ def base_args(name, image, uid, gid, *, smoke=False):
     return args
 
 
-def unit_override(image, uid, gid, names):
-    args = base_args(NAME, image, uid, gid)
+def unit_override(image, uid, gid, names, *, limits=None):
+    args = base_args(NAME, image, uid, gid, limits=limits)
     for key in sorted(names - {'GEWU_RELEASE_ID', 'GEWU_BASELINES_DIR'}):
         args += ['--env', key]
     args += [image]
@@ -302,14 +422,19 @@ def wait_health(name):
     raise DeploymentError('Container readiness check failed')
 
 
-def smoke_image(image, uid, gid):
+def smoke_image(image, uid, gid, *, limits=None):
     try:
-        args = base_args(SMOKE, image, uid, gid, smoke=True)
+        args = base_args(SMOKE, image, uid, gid, smoke=True, limits=limits)
         run(*args, '-d', image)
         wait_health(SMOKE)
+        if limits is not None:
+            verify_resource_limits(SMOKE, limits)
         code = ("import urllib.request; "
                 "paths=['/','/leaderboard/sources','/api/status/detection-scope?protocol=openai&model=gpt-6-luna&wire_api=responses']; "
-                "assert all(urllib.request.urlopen('http://127.0.0.1:8765'+p,timeout=5).status==200 for p in paths)")
+                "assert all(urllib.request.urlopen('http://127.0.0.1:8765'+p,timeout=5).status==200 for p in paths); "
+                "from web.image_report import render_report_jpg; "
+                "report={'protocol':'openai','model':'fixture','results':[]}; "
+                "assert render_report_jpg(report).startswith(bytes([255,216]))")
         run('docker', 'exec', SMOKE, 'python', '-c', code)
         print('PASS: isolated image smoke test; no upstream network access')
     finally:
@@ -383,9 +508,7 @@ def acquire(revision):
 
 def healthy_service():
     run('systemctl', 'is-active', '--quiet', 'gewu.service')
-    with urlopen('http://127.0.0.1:8765/readyz', timeout=5) as response:
-        data = json.load(response)
-    require(data.get('ok') is True and data.get('storage_writable') is True, 'Service readiness failed')
+    ready_state()
 
 
 def settle_stopped_container():
@@ -427,44 +550,50 @@ def restore(backup):
     raise DeploymentError('Rollback health check failed; inspect gewu.service locally')
 
 
-def deploy(revision):
+def deploy(revision, *, cpus=None, memory_mib=None, wait_seconds=300, bootstrap=False):
     require(re.fullmatch(r'[0-9a-f]{40}', revision), 'Expected a full Git commit SHA')
-    uid, gid, names = preflight()
+    uid, gid, names = preflight(require_idle=False)
     healthy_service()
-    before = protected_snapshot()
+    limits = resource_limits(cpus=cpus, memory_mib=memory_mib)
     data = acquire(revision)
     image = data['runtime_image_id']
-    smoke_image(image, uid, gid)
+    smoke_image(image, uid, gid, limits=limits)
     # Probe real volume permissions without importing jobs.py or touching report data.
     probe = ('import tempfile,os; '
              'f=tempfile.NamedTemporaryFile(dir="/opt/gewu-detector/web_data/jobs"); f.close(); '
              'assert os.access("/opt/gewu-detector/data/baselines",os.R_OK|os.X_OK)')
     try:
-        run(*base_args(SMOKE, image, uid, gid), '--entrypoint', 'python', image, '-c', probe)
+        run(*base_args(SMOKE, image, uid, gid, limits=limits), '--entrypoint', 'python', image, '-c', probe)
     finally:
         remove_owned(SMOKE)
-    idle()
-    backup = BACKUPS / ('container-' + time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()))
-    backup.mkdir(mode=0o700, parents=True, exist_ok=False)
-    rollback = {'dropin': DROPIN.read_text() if DROPIN.exists() else None,
-                'state': STATE.read_text() if STATE.exists() else None}
-    write_atomic(backup / 'rollback.json', json.dumps(rollback))
-    write_atomic(backup / 'protected-before.json', json.dumps(before))
-    changed = False
-    try:
-        changed = True
-        run('systemctl', 'stop', 'gewu.service', timeout=STOP_TIMEOUT)
-        write_atomic(DROPIN, unit_override(image, uid, gid, names))
-        run('systemctl', 'daemon-reload')
-        run('systemctl', 'start', 'gewu.service')
-        wait_health(NAME)
-        healthy_service()
-        verify_protected(before)
-        write_atomic(STATE, json.dumps({**data, 'backup': str(backup)}, indent=2) + '\n')
+    with deployment_window(wait_seconds=wait_seconds, bootstrap=bootstrap):
+        before = protected_snapshot()
+        backup = BACKUPS / ('container-' + time.strftime('%Y%m%dT%H%M%SZ', time.gmtime()))
+        backup.mkdir(mode=0o700, parents=True, exist_ok=False)
+        rollback = {'dropin': DROPIN.read_text() if DROPIN.exists() else None,
+                    'state': STATE.read_text() if STATE.exists() else None}
+        write_atomic(backup / 'rollback.json', json.dumps(rollback))
+        write_atomic(backup / 'protected-before.json', json.dumps(before))
         changed = False
-    finally:
-        if changed:
-            restore(backup)
+        try:
+            changed = True
+            run('systemctl', 'stop', 'gewu.service', timeout=STOP_TIMEOUT)
+            write_atomic(DROPIN, unit_override(image, uid, gid, names, limits=limits))
+            run('systemctl', 'daemon-reload')
+            run('systemctl', 'start', 'gewu.service')
+            wait_health(NAME)
+            healthy_service()
+            verify_resource_limits(NAME, limits)
+            require(ready_state().get('deployment', {}).get('protocol') == 1, 'New image lacks drain protocol')
+            require(ready_state()['deployment'].get('accepting') is False, 'New image lost closed admission')
+            verify_protected(before)
+            write_atomic(STATE, json.dumps({**data, 'backup': str(backup), 'resources': limits}, indent=2) + '\n')
+            changed = False
+        finally:
+            if changed:
+                restore(backup)
+    require(ready_state().get('deployment', {}).get('accepting') is True,
+            'Service did not resume admission after deployment')
     require(inspect(SMOKE) is None, 'Temporary container remains')
     print('GEWU_LEFTOVER_TEST_CONTAINERS=0')
     print('DEPLOY_SUCCESS=' + revision)
@@ -533,6 +662,10 @@ def main():
     commands.add_parser('preflight')
     command = commands.add_parser('deploy')
     command.add_argument('revision')
+    command.add_argument('--cpus', type=float)
+    command.add_argument('--memory-mib', type=int)
+    command.add_argument('--drain-timeout', type=int, default=300)
+    command.add_argument('--bootstrap-drain', action='store_true')
     command = commands.add_parser('rollback')
     command.add_argument('backup', type=Path)
     command = commands.add_parser('cleanup')
@@ -549,9 +682,11 @@ def main():
         if args.command == 'preflight':
             preflight()
         elif args.command == 'deploy':
-            deploy(args.revision)
+            deploy(args.revision, cpus=args.cpus, memory_mib=args.memory_mib,
+                   wait_seconds=args.drain_timeout, bootstrap=args.bootstrap_drain)
         elif args.command == 'rollback':
-            restore(args.backup)
+            with deployment_window():
+                restore(args.backup)
         else:
             cleanup(args.apply)
 

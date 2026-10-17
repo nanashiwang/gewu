@@ -23,7 +23,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from starlette.concurrency import run_in_threadpool
 
-from . import jobs, leaderboard
+from . import jobs, deployment_gate, leaderboard
 from .job_feedback import job_feedback
 from .observations import monitoring_snapshot
 from .monitor_health import cached_monitor_health
@@ -65,6 +65,34 @@ _MAX_API_REQUEST_BODY_BYTES = 16 * 1024
 
 class _RequestBodyTooLarge(Exception):
     pass
+
+
+class DeploymentAdmissionMiddleware:
+    """Cover validation/preflight as well as enqueue; release after the response."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        path = str(scope.get("path", ""))
+        if scope["type"] != "http" or scope.get("method") != "POST" or not (
+            path.startswith("/api/detect") or path == "/api/probe"
+        ):
+            await self.app(scope, receive, send)
+            return
+        guard = deployment_gate.admission(jobs.JOBS_DIR)
+        try:
+            guard.__enter__()
+        except deployment_gate.MaintenanceError:
+            await JSONResponse(
+                {"detail": "检测服务正在更新，暂不接受新检测，请稍后重试。已有检测继续运行。"},
+                status_code=503, headers={"Retry-After": "15", "Cache-Control": "no-store"},
+            )(scope, receive, send)
+            return
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            guard.__exit__(None, None, None)
 
 
 class RequestBodyLimitMiddleware:
@@ -161,6 +189,7 @@ async def lifespan(_app):
 
 
 app = FastAPI(title=brand.english_name, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
+app.add_middleware(DeploymentAdmissionMiddleware)
 app.add_middleware(
     RequestBodyLimitMiddleware, max_bytes=_MAX_API_REQUEST_BODY_BYTES
 )
@@ -744,6 +773,12 @@ def _validated_model_or_400(model: str) -> str:
 async def _submit_or_503(*args, **kwargs) -> str:
     try:
         return await jobs.submit(*args, **kwargs)
+    except deployment_gate.MaintenanceError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="检测服务正在更新，暂不接受新检测，请稍后重试。已有检测继续运行。",
+            headers={"Retry-After": "15", "Cache-Control": "no-store"},
+        ) from exc
     except jobs.JobQueueFull as exc:
         raise HTTPException(
             status_code=503,
@@ -1243,8 +1278,9 @@ async def readyz() -> JSONResponse:
         and os.access(jobs_dir, os.W_OK | os.X_OK)
     )
     return JSONResponse(
-        {"ok": writable, "storage_writable": writable},
+        {"ok": writable, "storage_writable": writable, "deployment": jobs.deployment_status()},
         status_code=200 if writable else 503,
+        headers={"Cache-Control": "no-store"},
     )
 
 
