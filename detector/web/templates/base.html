@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="/static/scope.css?v=20261015-1" />
   <link rel="icon" href="/static/favicon.svg?v=20261011-4" type="image/svg+xml" />
   {% block head_extra %}{% endblock %}
-  {% if brand.analytics_id and not request.url.path.startswith("/r/") %}
+  {% if brand.analytics_id and not credential_page and not request.url.path.startswith("/r/") %}
   <script async src="https://www.googletagmanager.com/gtag/js?id={{ brand.analytics_id | e }}"></script>
   <script>
     window.dataLayer = window.dataLayer || [];
@@ -49,7 +49,7 @@
       </button>
       <nav class="site-nav" id="site-nav" aria-label="主导航">
         {% set path = request.url.path %}
-        <a href="/" {% if path in ["/", "/claude", "/openai", "/gemini"] %}aria-current="page"{% endif %}>检测</a>
+        <a href="/" {% if path in ["/", "/claude", "/openai", "/gemini", "/api/status/prepare"] %}aria-current="page"{% endif %}>检测</a>
         <a href="/leaderboard" {% if path.startswith("/leaderboard") and path != "/leaderboard/monitor" %}aria-current="page"{% endif %}>质量榜</a>
         <a href="/leaderboard/monitor" {% if path == "/leaderboard/monitor" %}aria-current="page"{% endif %}>模型观测</a>
         <a href="/pricing" {% if path == "/pricing" %}aria-current="page"{% endif %}>模型价格</a>
@@ -68,7 +68,7 @@
       <nav aria-label="页脚"><a href="/#security-and-trust">检测与隐私</a><a href="/leaderboard/sources">外部状态与基线</a><a href="/faq">常见问题</a></nav>
     </div>
   </footer>
-  <script src="/static/app.js?v=20261014-scope" defer></script>
+  <script src="/static/app.js?v=20261018-home-key" defer></script>
   <script src="/static/select.js?v=20261011-4" defer></script>
   <script src="/static/scope.js?v=20261014-2" defer></script>
 </body>

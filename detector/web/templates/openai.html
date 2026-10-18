@@ -82,7 +82,7 @@
 
 <div class="detect-layout">
 <section class="card form-card">
-  <form id="detect-form" data-endpoint="/api/detect/openai" method="post" action="/api/detect/openai" autocomplete="off">
+  <form id="detect-form"{% if prefill %} data-prepared="true"{% endif %} data-endpoint="/api/detect/openai" method="post" action="/api/detect/openai" autocomplete="off">
     <div class="field">
       <label for="model-vendor">模型厂商</label>
       <select id="model-vendor" data-picker="search" data-catalog='{{ vendors|tojson }}'>
@@ -92,7 +92,7 @@
     </div>
     <div class="field">
       <label for="base_url">中转站接口地址</label>
-      <input type="url" id="base_url" name="base_url" required
+      <input type="url" id="base_url" name="base_url" value="{{ prefill.base_url | default('') }}" required
              placeholder="https://api.example.com/v1" maxlength="2048"
              autocomplete="url" autocapitalize="none" spellcheck="false" />
       <p class="hint">OpenAI-compatible 根 URL，可填 <code>https://api.example.com</code> 或 <code>https://api.example.com/v1</code>。</p>
@@ -100,7 +100,7 @@
 
     <div class="field">
       <label for="api_key">API 密钥</label>
-      <input type="password" id="api_key" name="api_key" required
+      <input type="password" id="api_key" name="api_key" value="{{ prefill.api_key | default('') }}" required
              placeholder="sk-..." minlength="8" maxlength="4096"
              autocomplete="new-password" autocapitalize="none" spellcheck="false" />
       <p class="hint">仅用于本次检测，不写入报告、不持久化。</p>

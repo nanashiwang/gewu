@@ -11,7 +11,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.{test,spec}.ts', 'runner/**/*.{test,spec}.mjs'],
+    include: ['src/**/*.{test,spec}.ts', 'runner/**/*.{test,spec}.mjs', 'detector/tests/**/*.test.mjs'],
     globals: false,
   },
 })
