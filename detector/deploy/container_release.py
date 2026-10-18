@@ -424,7 +424,7 @@ def wait_health(name):
     raise DeploymentError('Container readiness check failed')
 
 
-def smoke_image(image, uid, gid, *, limits=None):
+def smoke_image(image, uid, gid, *, limits=None, check_report_privacy=True):
     try:
         args = base_args(SMOKE, image, uid, gid, smoke=True, limits=limits)
         run(*args, '-d', image)
@@ -435,9 +435,6 @@ def smoke_image(image, uid, gid, *, limits=None):
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from urllib.request import Request, urlopen
-from urllib.error import HTTPError
-import secrets
-from web import jobs, report_access
 paths=['/','/leaderboard/sources','/api/status/detection-scope?protocol=openai&model=gpt-6-luna&wire_api=responses']
 assert all(urlopen('http://127.0.0.1:8765'+p,timeout=5).status==200 for p in paths)
 # Only the isolated smoke container's tmpfs is written. Never mounted reports.
@@ -453,6 +450,16 @@ with ThreadPoolExecutor(max_workers=4) as pool:
 assert all(data==images[0] and data.startswith(bytes([255,216])) and data.endswith(bytes([255,217])) for data in images)
 assert not list(root.glob('.gewu-image-*.tmp'))
 assert urlopen('http://127.0.0.1:8765/readyz',timeout=5).status==200
+
+"""
+        if check_report_privacy:
+            # The fixed historical image in the image-store regression predates
+            # private reports. Real releases always run this check by default.
+            code += """
+from urllib.error import HTTPError
+from urllib.request import Request
+import secrets
+from web import jobs, report_access
 # Verify anonymous ownership and the real sanitized JPG path on tmpfs only.
 job='privacy-smoke-2026'
 owner=secrets.token_urlsafe(32)
