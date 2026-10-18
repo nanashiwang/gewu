@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({ actor: vi.fn(), find: vi.fn(), grant: vi.fn() }))
 vi.mock('@/lib/relayApi', () => ({
@@ -8,9 +8,11 @@ vi.mock('@/lib/relayApi', () => ({
 vi.mock('@/lib/relayDetection', () => ({ openRelayReport: mock.grant }))
 import { GET } from '@/app/v1/relay-sites/[id]/checks/[checkId]/report/route'
 
-const request = () => new Request('https://gewu.example/v1/relay-sites/mine/checks/check-1/report')
+const sessionHeaders = () => ({ Cookie: 'payload-token=fixture.' + Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 7200 })).toString('base64url') + '.signature' })
+const request = () => new Request('https://gewu.example/v1/relay-sites/mine/checks/check-1/report', { headers: sessionHeaders() })
 const params = () => ({ params: Promise.resolve({ id: 'mine', checkId: 'check-1' }) })
 
+beforeEach(() => vi.stubEnv('GEWU_INTERNAL_API_TOKEN', 'synthetic-session-key'))
 afterEach(() => { vi.resetAllMocks(); vi.unstubAllEnvs() })
 
 describe('authorized account report redirect', () => {
@@ -61,7 +63,7 @@ it('keeps production grant cookies Secure behind a TLS reverse proxy', async () 
   mock.actor.mockResolvedValue({ payload: {}, user: { id: 'owner' } })
   mock.find.mockResolvedValue({ site: { id: 'mine' } })
   mock.grant.mockResolvedValue({ jobId: 'privatejob123', owner: 'a'.repeat(43) })
-  const response = await GET(new Request('http://internal-app/v1/relay-sites/mine/checks/check-1/report'), params())
+  const response = await GET(new Request('http://internal-app/v1/relay-sites/mine/checks/check-1/report', { headers: sessionHeaders() }), params())
   expect(response.headers.get('set-cookie')).toContain('Secure')
   expect(response.headers.get('set-cookie')).toContain('__Host-')
 })

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { findRelayForActor, isRelayActorResponse, relayActor } from '@/lib/relayApi'
 import { openRelayReport } from '@/lib/relayDetection'
+import { bindReportCookie } from '@/lib/reportCookie'
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string; checkId: string }> }) {
   const context = await relayActor(request)
@@ -16,8 +17,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     })
     if (grant.owner) {
       const secure = process.env.NODE_ENV === 'production' || new URL(request.url).protocol === 'https:'
-      response.cookies.set(`${secure ? '__Host-' : ''}gewu_report_${grant.jobId}`, grant.owner, {
-        httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: 3600,
+      const cookie = bindReportCookie(request, grant.jobId, grant.owner)
+      response.cookies.set(`${secure ? '__Host-' : ''}gewu_report_${grant.jobId}`, cookie.value, {
+        httpOnly: true, secure, sameSite: 'lax', path: '/', maxAge: cookie.maxAge,
       })
     }
     return response

@@ -805,11 +805,16 @@ def _restricted(job_id: str, job) -> bool:
 
 
 def _job_owner(request: Request, job_id: str) -> str:
-    prefix = "__Host-" if request.url.scheme == "https" else ""
-    for token in (_owner_cookie(request), request.cookies.get(f"{prefix}gewu_report_{job_id}", "")):
-        if report_access.owned(jobs.JOBS_DIR, job_id, token):
-            return token
-    return ""
+    if report_access.account_managed(jobs.JOBS_DIR, job_id):
+        prefix = "__Host-" if request.url.scheme == "https" else ""
+        token = report_access.account_cookie_owner(
+            os.environ.get("GEWU_INTERNAL_API_TOKEN", "").strip(), job_id,
+            request.cookies.get(f"{prefix}gewu_report_{job_id}", ""),
+            request.cookies.get("payload-token", ""),
+        )
+    else:
+        token = _owner_cookie(request)
+    return token if report_access.owned(jobs.JOBS_DIR, job_id, token) else ""
 
 
 def _owned(request: Request, job_id: str) -> bool:

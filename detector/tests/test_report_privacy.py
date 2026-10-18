@@ -5,6 +5,9 @@ Every report is synthetic. No upstream API or business data is touched.
 import asyncio
 import copy
 import json
+import hashlib
+import hmac
+import time
 import secrets
 from types import SimpleNamespace
 
@@ -21,6 +24,12 @@ OTHER = secrets.token_urlsafe(32)
 JOB = 'privatejob123'
 HEADERS = {'X-Gewu-Action': 'report-sharing', 'Origin': 'https://testserver'}
 JPEG = b'\xff\xd8synthetic-image\xff\xd9'
+
+
+def account_cookie(key, job_id, owner, session, expiry=None):
+    expiry = expiry or int(time.time()) + 300
+    payload = f"gewu-account-view\n{job_id}\n{owner}\n{expiry}\n{hashlib.sha256(session.encode()).hexdigest()}"
+    return f"{owner}.{expiry}." + hmac.new(key.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
 
 @pytest_asyncio.fixture(autouse=True)
@@ -360,7 +369,8 @@ async def test_account_gateway_grant_is_per_report_and_cannot_claim_anonymous_re
         assert response.status_code == 200
         owner = response.json()['owner']
         assert owner == report_access.account_owner(key, first)
-        browser.cookies.set(f'__Host-gewu_report_{first}', owner)
+        browser.cookies.set('payload-token', 'synthetic-login-session')
+        browser.cookies.set(f'__Host-gewu_report_{first}', account_cookie(key, first, owner, 'synthetic-login-session'))
         assert (await browser.get(f'/r/{first}')).status_code == 200
         assert (await browser.get(f'/r/{second}')).status_code == 404
         assert (await browser.post(f'/api/status/{first}/cancel')).status_code == 200
@@ -373,7 +383,7 @@ async def test_account_gateway_grant_is_per_report_and_cannot_claim_anonymous_re
         assert fresh.status_code == 200 and fresh.json()['owner'] != owner
         assert (await browser.get(f'/r/{first}')).status_code == 404
         assert (await browser.get(link)).status_code == 404
-        browser.cookies.set(f'__Host-gewu_report_{first}', fresh.json()['owner'])
+        browser.cookies.set(f'__Host-gewu_report_{first}', account_cookie('rotated-synthetic', first, fresh.json()['owner'], 'synthetic-login-session'))
         assert (await browser.get(f'/r/{first}')).status_code == 200
 
 
@@ -419,3 +429,27 @@ async def test_private_jpg_cache_cannot_be_reused_as_a_shared_summary(monkeypatc
     finally:
         await cache.shutdown()
         assert not cache._tasks and not cache._active
+
+
+async def test_account_grants_expire_and_cannot_survive_logout_switching_or_cookie_relocation(monkeypatch):
+    key = 'synthetic-session-bound-key'
+    monkeypatch.setenv('GEWU_INTERNAL_API_TOKEN', key)
+    job_id = await jobs.submit('https://relay.example', 'sk-synthetic', 'gpt-test', 'quick', 'openai', account_owner_secret=key)
+    owner = report_access.account_owner(key, job_id)
+    cookie = account_cookie(key, job_id, owner, 'session-one')
+    async with client() as browser:
+        browser.cookies.set(f'__Host-gewu_report_{job_id}', cookie)
+        browser.cookies.set('payload-token', 'session-one')
+        assert (await browser.get(f'/r/{job_id}')).status_code == 200
+        browser.cookies.delete('payload-token')
+        assert (await browser.get(f'/r/{job_id}')).status_code == 404
+        browser.cookies.set('payload-token', 'session-two')
+        assert (await browser.get(f'/r/{job_id}')).status_code == 404
+        browser.cookies.set('payload-token', 'session-one')
+        browser.cookies.set(f'__Host-gewu_report_{job_id}', account_cookie(key, job_id, owner, 'session-one', int(time.time()) - 1))
+        assert (await browser.get(f'/r/{job_id}')).status_code == 404
+        # Extracting the raw owner into either unbound cookie must not bypass
+        # the account/session branch, including the anonymous browser cookie.
+        browser.cookies.set(f'__Host-gewu_report_{job_id}', owner)
+        browser.cookies.set('__Host-gewu_report_owner', owner)
+        assert (await browser.get(f'/r/{job_id}')).status_code == 404

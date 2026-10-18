@@ -14,6 +14,7 @@ import math
 import os
 import re
 import secrets
+import time
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -186,3 +187,30 @@ def account_grant(root: Path, job_id: str, secret: str) -> str:
         data.update(share_nonce="", share_digest="")
         _save(_path(root, job_id), data)
     return owner
+
+
+def account_managed(root: Path, job_id: str) -> bool:
+    data = _load(root, job_id)
+    return bool(data and data.get("account_managed") is True)
+
+
+def account_cookie_owner(secret: str, job_id: str, value: str, session: str) -> str:
+    """Bind a report capability to the current login session and server expiry.
+
+    Logout/account switching removes or changes the session cookie, so a
+    previous report grant cannot silently survive in a shared browser.
+    The JWT itself and its digest are never stored with the report.
+    """
+    if not secret or not session or len(value) > 160:
+        return ""
+    parts = value.split(".")
+    if len(parts) != 3:
+        return ""
+    owner, expiry, signature = parts
+    if not valid_owner(owner) or not re.fullmatch(r"[0-9]{10,12}", expiry) or not _DIGEST_RE.fullmatch(signature):
+        return ""
+    if int(expiry) <= time.time():
+        return ""
+    payload = f"gewu-account-view\n{job_id}\n{owner}\n{expiry}\n{_digest(session)}"
+    expected = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+    return owner if hmac.compare_digest(expected, signature) else ""
