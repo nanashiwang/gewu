@@ -22,6 +22,9 @@ REGISTRY_DIGEST = 'sha256:a3a4b082baff0a0cb6b6cd5aa673194f17467988407147703090fd
 def main():
     assert os.environ.get('GITHUB_ACTIONS') == 'true'
     assert os.environ.get('RUNNER_ENVIRONMENT') == 'github-hosted'
+    # setup-docker-action provisions a distinct ephemeral daemon/context for
+    # each storage backend. Production still pins /var/run/docker.sock.
+    r.DOCKER_ENV = None
     assert r.inspect(r.SMOKE) is None
     original_run, original_download = r.run, r.download
     with tempfile.TemporaryDirectory(prefix='gewu-image-store-ci-') as temp:

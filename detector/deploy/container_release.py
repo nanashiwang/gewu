@@ -30,6 +30,7 @@ REPO = 'nanashiwang/gewu'
 IMAGE = 'ghcr.io/nanashiwang/gewu-detector'
 RELEASE_PREFIX = 'detector-'
 ARCHIVE_NAME = 'detector-image.tar.gz'
+DOCKER_ENV = {**os.environ, 'DOCKER_CONTEXT': 'default', 'DOCKER_HOST': 'unix:///var/run/docker.sock'}
 ROOT = Path('/opt/gewu-detector')
 RELEASES = Path('/opt/gewu-detector-releases')
 BACKUPS = Path('/opt/gewu-deploy-backups')
@@ -76,7 +77,7 @@ def run(*args, timeout=60, check=True):
                 operation += ' ' + ' '.join(prefix)
                 break
     try:
-        docker_env = {**os.environ, 'DOCKER_CONTEXT': 'default', 'DOCKER_HOST': 'unix:///var/run/docker.sock'} if args[0] == 'docker' else None
+        docker_env = DOCKER_ENV if args[0] == 'docker' else None
         result = subprocess.run(args, text=True, stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE, timeout=timeout, env=docker_env)
     except subprocess.TimeoutExpired:
