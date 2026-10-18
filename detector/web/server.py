@@ -35,6 +35,7 @@ from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
 from .featured_pricing import FEATURED_DOMAIN, FEATURED_WEBSITE_URL
 from .market_pricing import get_market_pricing
 from .image_report import render_report_jpg
+from .image_cache import ImageQueueBusy, report_images
 from .probe import probe_model_alive, probe_relay
 from .public_rankings import (
     BLACK_RANKING,
@@ -182,10 +183,14 @@ class RequestBodyLimitMiddleware:
 @asynccontextmanager
 async def lifespan(_app):
     jobs.startup()
+    report_images.startup()
     try:
         yield
     finally:
-        await jobs.shutdown()
+        try:
+            await jobs.shutdown()
+        finally:
+            await report_images.shutdown()
 
 
 app = FastAPI(title=brand.english_name, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
@@ -1160,14 +1165,19 @@ async def result_jpg(job_id: str) -> Response:
     if j is None or j.report is None:
         raise HTTPException(status_code=404, detail="result not ready")
 
-    # Cache the JPG next to the JSON. Detection report is immutable, so once
-    # generated we always serve from disk to spare the CPU.
+    # Retain the current report format/cache key. Generation runs outside the
+    # event loop, with a bounded queue and shared work for duplicate downloads.
     cache_path = jobs.image_path(job_id, j.protocol).with_suffix(".scope-v2.jpg")
-    if not cache_path.exists():
-        png_bytes = render_report_jpg(j.report)
-        cache_path.write_bytes(png_bytes)
+    try:
+        image_bytes = await report_images.get(cache_path, lambda: render_report_jpg(j.report))
+    except ImageQueueBusy as exc:
+        raise HTTPException(status_code=503, detail="报告图片正在生成，请稍后再下载；文字报告可继续查看。",
+                            headers={"Retry-After": "3", "Cache-Control": "no-store"}) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="报告图片暂时无法生成，请稍后重试；文字报告仍可查看。",
+                            headers={"Retry-After": "3", "Cache-Control": "no-store"}) from exc
     return Response(
-        content=cache_path.read_bytes(),
+        content=image_bytes,
         media_type="image/jpeg",
         headers={
             "Content-Disposition": f'inline; filename="gewu-{job_id}.jpg"',
