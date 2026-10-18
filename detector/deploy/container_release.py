@@ -28,6 +28,9 @@ from urllib.request import Request, urlopen
 
 REPO = 'nanashiwang/gewu'
 IMAGE = 'ghcr.io/nanashiwang/gewu-detector'
+RELEASE_PREFIX = 'detector-'
+ARCHIVE_NAME = 'detector-image.tar.gz'
+DOCKER_ENV = {**os.environ, 'DOCKER_CONTEXT': 'default', 'DOCKER_HOST': 'unix:///var/run/docker.sock'}
 ROOT = Path('/opt/gewu-detector')
 RELEASES = Path('/opt/gewu-detector-releases')
 BACKUPS = Path('/opt/gewu-deploy-backups')
@@ -74,8 +77,9 @@ def run(*args, timeout=60, check=True):
                 operation += ' ' + ' '.join(prefix)
                 break
     try:
+        docker_env = DOCKER_ENV if args[0] == 'docker' else None
         result = subprocess.run(args, text=True, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, timeout=timeout)
+                                stderr=subprocess.PIPE, timeout=timeout, env=docker_env)
     except subprocess.TimeoutExpired:
         raise DeploymentError(f'{operation} timed out after {timeout}s') from None
     if check and result.returncode:
@@ -243,7 +247,7 @@ def require_account_report_gateway():
     print('PASS: account report gateway and shared authentication; no secret values disclosed', flush=True)
 
 
-def preflight(*, require_idle=True):
+def preflight(*, require_idle=True, require_account_gateway=True):
     require(os.geteuid() == 0, 'Run as root')
     require(run('uname', '-m').stdout.strip() == 'x86_64', 'This release requires x86_64')
     require(ROOT.is_dir() and not ROOT.is_symlink(), 'Unexpected detector installation')
@@ -256,7 +260,8 @@ def preflight(*, require_idle=True):
     account = pwd.getpwnam('gewu')
     require(account.pw_uid > 0 and account.pw_gid > 0, 'Expected non-root gewu service account')
     run('docker', 'info')
-    require_account_report_gateway()
+    if require_account_gateway:
+        require_account_report_gateway()
     require(shutil.disk_usage(ROOT).free >= 1024**3, 'At least 1 GiB free disk space required')
     require(run('systemctl', 'is-active', 'gewu.service', check=False).stdout.strip() == 'active',
             'Existing service must be healthy before migration')
@@ -536,7 +541,7 @@ def acquire(revision):
     require(directory.resolve() == directory, 'Symlink release directory refused')
     directory.mkdir(mode=0o700, exist_ok=True)
     manifest_path = directory / 'release.json'
-    base = f'https://github.com/{REPO}/releases/download/detector-{revision}'
+    base = f'https://github.com/{REPO}/releases/download/{RELEASE_PREFIX}{revision}'
     if not manifest_path.exists():
         download(base + '/release.json', manifest_path, 65536)
     data = validate_manifest(json.loads(manifest_path.read_text()), revision)
@@ -558,11 +563,11 @@ def acquire(revision):
             # Never trust an existing revision tag. Only resolve it immediately
             # after loading this release's checksum-verified archive.
             print('STEP: loading checksum-verified release archive', flush=True)
-            archive = directory / 'detector-image.tar.gz'
+            archive = directory / ARCHIVE_NAME
             if archive.exists() and sha(archive) != data['archive_sha256']:
                 archive.unlink()
             if not archive.exists():
-                download(base + '/detector-image.tar.gz', archive, 1024**3)
+                download(base + '/' + ARCHIVE_NAME, archive, 1024**3)
             require(sha(archive) == data['archive_sha256'], 'Image archive checksum mismatch')
             loaded = run('docker', 'load', '--input', str(archive), timeout=300)
             tag = f'{IMAGE}:{revision}'

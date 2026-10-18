@@ -43,6 +43,7 @@ jobs:
   build:
     name: production build
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -75,8 +76,14 @@ jobs:
           NEXT_TELEMETRY_DISABLED: '1'
           NEXT_PUBLIC_SERVER_URL: https://gewu.uk
         run: npm run build
+      - name: Prepare disposable database for account container acceptance
+        env:
+          NODE_ENV: development
+          POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          timeout --kill-after=10s 150s npx tsx scripts/prepare-platform-ci.ts
+          docker exec "$POSTGRES_CONTAINER" pg_dump -U payload -d gewu --format=custom --no-owner --no-acl > platform-ci-database.dump
       - name: Package Linux release
-        if: github.ref == 'refs/heads/main'
         run: |
           cp -r .next/static .next/standalone/.next/static
           cp -r docs .next/standalone/docs
@@ -85,11 +92,17 @@ jobs:
           printf '%s\n' "$GITHUB_SHA" > .next/standalone/.deployed-commit
           tar -czf gewu-platform-linux.tar.gz -C .next/standalone .
       - uses: actions/upload-artifact@v4
-        if: github.ref == 'refs/heads/main'
         with:
           name: gewu-platform-${{ github.sha }}
           path: gewu-platform-linux.tar.gz
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gewu-platform-ci-${{ github.sha }}
+          path: |
+            platform-ci-database.dump
+            platform-schema.json
+          retention-days: 1
 
   detector-image-compatibility:
     name: Docker 29 image store (${{ matrix.store }})
@@ -178,6 +191,31 @@ jobs:
           IMAGE: ghcr.io/nanashiwang/gewu-detector:${{ github.sha }}
           REVISION: ${{ github.sha }}
         run: sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,IMAGE,REVISION python3 detector/deploy/test_container_migration.py
+      - name: Download the tested Linux account bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: gewu-platform-${{ github.sha }}
+          path: platform-bundle
+      - name: Download the disposable account database fixture
+        uses: actions/download-artifact@v4
+        with:
+          name: gewu-platform-ci-${{ github.sha }}
+          path: platform-fixture
+      - name: Package account runtime image without rebuilding application code
+        env:
+          REVISION: ${{ github.sha }}
+        run: |
+          mkdir platform-runtime
+          tar -xzf platform-bundle/gewu-platform-linux.tar.gz -C platform-runtime
+          test "$(cat platform-runtime/.deployed-commit)" = "$REVISION"
+          docker build --platform linux/amd64 --build-arg GEWU_RELEASE_ID="$REVISION" \
+            -f deploy/platform/Dockerfile -t "ghcr.io/nanashiwang/gewu-platform:$REVISION" platform-runtime
+      - name: Verify real paired cutover, copied database and rollback on the isolated runner
+        env:
+          IMAGE: ghcr.io/nanashiwang/gewu-detector:${{ github.sha }}
+          PLATFORM_IMAGE: ghcr.io/nanashiwang/gewu-platform:${{ github.sha }}
+          REVISION: ${{ github.sha }}
+        run: sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT,IMAGE,PLATFORM_IMAGE,REVISION python3 deploy/platform/test_container_migration.py
       - name: Log in to GHCR
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -224,6 +262,52 @@ jobs:
           gh release upload "detector-${REVISION}" --clobber \
             release-detector/detector-image.tar.gz release-detector/release.json release-detector/container_release.py
           gh release edit "detector-${REVISION}" --draft=false --latest=false
+      - name: Publish the paired account image and checked deployer
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVISION: ${{ github.sha }}
+          PLATFORM_IMAGE: ghcr.io/nanashiwang/gewu-platform:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          release_exists=false
+          if gh release view "platform-${REVISION}" --json isDraft --jq .isDraft > /tmp/gewu-platform-release-draft; then
+            if test "$(cat /tmp/gewu-platform-release-draft)" = false; then
+              echo 'An immutable platform release already exists; retaining its assets.'
+              exit 0
+            fi
+            release_exists=true
+          fi
+          docker push "$PLATFORM_IMAGE"
+          mkdir release-platform
+          docker save "$PLATFORM_IMAGE" | gzip > release-platform/platform-image.tar.gz
+          cp deploy/platform/container_release.py release-platform/
+          cp platform-fixture/platform-schema.json release-platform/schema.json
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib, subprocess
+          def sha(path):
+              return hashlib.file_digest(pathlib.Path(path).open('rb'), 'sha256').hexdigest()
+          info = json.loads(subprocess.check_output(['docker', 'image', 'inspect', os.environ['PLATFORM_IMAGE']]))[0]
+          digest = next(x for x in info['RepoDigests'] if x.startswith('ghcr.io/nanashiwang/gewu-platform@sha256:'))
+          data = {'revision': os.environ['REVISION'], 'platform': 'linux/amd64',
+                  'image': digest, 'image_id': info['Id'],
+                  'archive_sha256': sha('release-platform/platform-image.tar.gz'),
+                  'schema_sha256': sha('release-platform/schema.json'),
+                  'detector_revision': os.environ['REVISION'],
+                  'detector_script_sha256': sha('detector/deploy/container_release.py')}
+          pathlib.Path('release-platform/release.json').write_text(json.dumps(data, indent=2) + '\n')
+          PY
+          printf '%s\n' '由同一 GitHub CI 构建并验收的格物账号平台镜像。部署脚本校验两个固定镜像与数据库副本，先更新账号后台再更新检测站；保留配置、媒体、数据库和其他项目，不执行服务器构建、数据库迁移或缓存清理。' > release-platform/notes.md
+          if test "$release_exists" = false; then
+            gh release create "platform-${REVISION}" --draft --target "$REVISION" \
+              --title "格物账号容器配套发布 ${REVISION:0:12}" --notes-file release-platform/notes.md --latest=false
+          fi
+          gh release upload "platform-${REVISION}" --clobber release-platform/platform-image.tar.gz \
+            release-platform/release.json release-platform/schema.json release-platform/container_release.py
+          gh release edit "platform-${REVISION}" --draft=false --latest=false
+      - name: Ensure paired platform test resources have ended
+        if: always()
+        run: sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT python3 deploy/platform/test_container_migration.py --cleanup
       - name: Ensure no temporary detector test containers remain
         if: always()
         run: |
