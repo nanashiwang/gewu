@@ -431,12 +431,26 @@ def smoke_image(image, uid, gid, *, limits=None):
         wait_health(SMOKE)
         if limits is not None:
             verify_resource_limits(SMOKE, limits)
-        code = ("import urllib.request; "
-                "paths=['/','/leaderboard/sources','/api/status/detection-scope?protocol=openai&model=gpt-6-luna&wire_api=responses']; "
-                "assert all(urllib.request.urlopen('http://127.0.0.1:8765'+p,timeout=5).status==200 for p in paths); "
-                "from web.image_report import render_report_jpg; "
-                "report={'protocol':'openai','model':'fixture','results':[]}; "
-                "assert render_report_jpg(report).startswith(bytes([255,216]))")
+        code = """import json
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
+from urllib.request import urlopen
+paths=['/','/leaderboard/sources','/api/status/detection-scope?protocol=openai&model=gpt-6-luna&wire_api=responses']
+assert all(urlopen('http://127.0.0.1:8765'+p,timeout=5).status==200 for p in paths)
+# Only the isolated smoke container's tmpfs is written. Never mounted reports.
+root=Path('/opt/gewu-detector/web_data/jobs/openai')
+root.mkdir(parents=True,exist_ok=True)
+(root/'jpg-smoke-2026.json').write_text(json.dumps({'protocol':'openai','model':'fixture','results':[]}))
+def download(_):
+    with urlopen('http://127.0.0.1:8765/r/jpg-smoke-2026.jpg',timeout=20) as response:
+        assert response.headers['Content-Type']=='image/jpeg'
+        return response.read()
+with ThreadPoolExecutor(max_workers=4) as pool:
+    images=list(pool.map(download,range(4)))
+assert all(data==images[0] and data.startswith(bytes([255,216])) and data.endswith(bytes([255,217])) for data in images)
+assert not list(root.glob('.gewu-image-*.tmp'))
+assert urlopen('http://127.0.0.1:8765/readyz',timeout=5).status==200
+"""
         run('docker', 'exec', SMOKE, 'python', '-c', code)
         print('PASS: isolated image smoke test; no upstream network access')
     finally:
