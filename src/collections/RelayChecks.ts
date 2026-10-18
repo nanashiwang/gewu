@@ -78,7 +78,7 @@ export const RelayChecks: CollectionConfig = {
       ],
     },
     { name: 'detectorJobId', type: 'text', unique: true, index: true, label: '检测任务 ID' },
-    { name: 'resultUrl', type: 'text', label: '公开报告地址' },
+    { name: 'resultUrl', type: 'text', label: '报告地址' },
     { name: 'score', type: 'number', index: true, label: '得分' },
     { name: 'grade', type: 'text', label: '等级' },
     { name: 'verdict', type: 'text', index: true, label: '结论' },

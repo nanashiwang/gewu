@@ -34,6 +34,7 @@ from .brand import brand
 from .faq_data import FAQ_CATEGORIES, faqpage_jsonld, total_question_count
 from .featured_pricing import FEATURED_DOMAIN, FEATURED_WEBSITE_URL
 from .market_pricing import get_market_pricing
+from . import report_access
 from .image_report import render_report_jpg
 from .image_cache import ImageQueueBusy, report_images
 from .probe import probe_model_alive, probe_relay
@@ -234,7 +235,14 @@ async def security_and_cache_headers(request: Request, call_next):
     forces revalidation against the server every time, so updates appear
     immediately while still serving 304s for unchanged pages.
     """
+    initial_owner = None
+    if request.method == "GET" and request.url.path in {"/", "/claude", "/openai", "/gemini"}:
+        if not report_access.valid_owner(_owner_cookie(request)):
+            initial_owner = secrets.token_urlsafe(32)
     response = await call_next(request)
+    if initial_owner:
+        _set_owner_cookie(response, request, initial_owner)
+        response.headers["Cache-Control"] = "no-store"
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
@@ -247,8 +255,14 @@ async def security_and_cache_headers(request: Request, call_next):
             "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
         )
     ctype = response.headers.get("content-type", "")
-    if ctype.startswith("text/html"):
-        response.headers["Cache-Control"] = "no-cache, must-revalidate"
+    report_route = request.url.path.startswith(("/r/", "/api/status/", "/api/result/"))
+    if report_route:
+        # Authenticated reports and revoked shares must never be served from a
+        # browser/CDN cache, including errors. Explicit public reports may index.
+        response.headers["Cache-Control"] = "no-store"
+        response.headers.setdefault("X-Robots-Tag", "noindex, nofollow, noarchive")
+    elif ctype.startswith("text/html"):
+        response.headers.setdefault("Cache-Control", "no-cache, must-revalidate")
     elif request.method == "POST" and request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     return response
@@ -775,7 +789,53 @@ def _validated_model_or_400(model: str) -> str:
     return cleaned
 
 
-async def _submit_or_503(*args, **kwargs) -> str:
+def _owner_cookie(request: Request) -> str:
+    return request.cookies.get(report_access.cookie_name(request.url.scheme == "https"), "")
+
+
+def _internal_authorized(request: Request) -> bool:
+    expected = os.environ.get("GEWU_INTERNAL_API_TOKEN", "").strip()
+    supplied = request.headers.get("X-Gewu-Internal-Token", "")
+    return bool(expected and supplied and secrets.compare_digest(expected, supplied))
+
+
+def _restricted(job_id: str, job) -> bool:
+    return report_access.restricted(jobs.JOBS_DIR, job_id,
+                                   version=getattr(job, "access_version", 0), report=job.report)
+
+
+def _job_owner(request: Request, job_id: str) -> str:
+    if report_access.account_managed(jobs.JOBS_DIR, job_id):
+        prefix = "__Host-" if request.url.scheme == "https" else ""
+        token = report_access.account_cookie_owner(
+            os.environ.get("GEWU_INTERNAL_API_TOKEN", "").strip(), job_id,
+            request.cookies.get(f"{prefix}gewu_report_{job_id}", ""),
+            request.cookies.get("payload-token", ""),
+        )
+    else:
+        token = _owner_cookie(request)
+    return token if report_access.owned(jobs.JOBS_DIR, job_id, token) else ""
+
+
+def _owned(request: Request, job_id: str) -> bool:
+    return bool(_job_owner(request, job_id))
+
+
+def _require_report_read(request: Request, job_id: str, job) -> None:
+    if _restricted(job_id, job) and not (_owned(request, job_id) or _internal_authorized(request)):
+        raise HTTPException(status_code=404, detail="报告不可用，请使用提交检测时的浏览器打开")
+
+
+async def _submit_or_503(request: Request, *args, **kwargs) -> str:
+    owner = _owner_cookie(request)
+    if not report_access.valid_owner(owner):
+        owner = secrets.token_urlsafe(32)
+    if _internal_authorized(request):
+        kwargs["account_owner_secret"] = os.environ["GEWU_INTERNAL_API_TOKEN"].strip()
+        request.state.account_submission = True
+    else:
+        request.state.report_owner = owner
+        kwargs["owner_token"] = owner
     try:
         return await jobs.submit(*args, **kwargs)
     except deployment_gate.MaintenanceError as exc:
@@ -792,15 +852,29 @@ async def _submit_or_503(*args, **kwargs) -> str:
         ) from exc
 
 
+def _set_owner_cookie(response: Response, request: Request, owner: str) -> None:
+    secure = request.url.scheme == "https"
+    response.set_cookie(report_access.cookie_name(secure), owner, httponly=True,
+                        secure=secure, samesite="lax", max_age=report_access.COOKIE_AGE, path="/")
+
+
 def _submission_response(request: Request, job_id: str, headers=None) -> JSONResponse:
     response = JSONResponse(
         {"job_id": job_id, "status_url": f"/api/status/{job_id}"},
         headers={**(headers or {}), "Cache-Control": "no-store"},
     )
-    token = jobs.issue_cancel_token(job_id)
-    if token:
-        response.set_cookie(f"gewu_cancel_{job_id}", token, httponly=True,
-                            secure=request.url.scheme == "https", samesite="strict", max_age=7200)
+    owner = getattr(request.state, "report_owner", "")
+    if owner:
+        # One cookie for the browser, not a growing cookie per report. Host-only
+        # on HTTPS; never put the owner capability in a URL, JSON or JS storage.
+        _set_owner_cookie(response, request, owner)
+    elif not getattr(request.state, "account_submission", False):
+        # Preserve old non-browser integrations which only issued cancellation
+        # capabilities. New public submissions always take the owner path.
+        token = jobs.issue_cancel_token(job_id)
+        if token:
+            response.set_cookie(f"gewu_cancel_{job_id}", token, httponly=True,
+                                secure=request.url.scheme == "https", samesite="strict", max_age=7200)
     return response
 
 
@@ -944,7 +1018,7 @@ async def api_detect_claude(
         if inferred != "anthropic":
             await _preflight_or_422(request, base_url, api_key, model, inferred)
             job_id = await _submit_or_503(
-                base_url, api_key, model, mode,
+                request, base_url, api_key, model, mode,
                 protocol=inferred,
                 include_long_context=include_long_context,
                 include_long_context_extreme=include_long_context_extreme,
@@ -963,7 +1037,7 @@ async def api_detect_claude(
 
     await _preflight_or_422(request, base_url, api_key, model, "anthropic")
     job_id = await _submit_or_503(
-        base_url, api_key, model, mode,
+        request, base_url, api_key, model, mode,
         protocol="anthropic",
         include_long_context=include_long_context,
         include_long_context_extreme=include_long_context_extreme,
@@ -1006,7 +1080,7 @@ async def api_detect_openai(
     if wire_api == "chat_completions":
         await _preflight_or_422(request, base_url, api_key, model, "openai")
     job_id = await _submit_or_503(
-        base_url, api_key, model, mode,
+        request, base_url, api_key, model, mode,
         protocol="openai",
         wire_api=wire_api,
         include_long_context=include_long_context,
@@ -1050,16 +1124,17 @@ async def api_detect_gemini(
     if wire_api == "chat_completions":
         await _preflight_or_422(request, base_url, api_key, model, "gemini")
     job_id = await _submit_or_503(
-        base_url, api_key, model, mode, protocol="gemini", wire_api=wire_api
+        request, base_url, api_key, model, mode, protocol="gemini", wire_api=wire_api
     )
     return _submission_response(request, job_id)
 
 
 @app.get("/api/status/{job_id}")
-async def api_status(job_id: str) -> JSONResponse:
+async def api_status(request: Request, job_id: str) -> JSONResponse:
     j = await jobs.get(job_id)
     if j is None:
         raise HTTPException(status_code=404, detail="job not found")
+    _require_report_read(request, job_id, j)
     payload = {
         "job_id": j.id,
         "protocol": j.protocol,
@@ -1117,10 +1192,10 @@ async def cancel_job(request: Request, job_id: str) -> JSONResponse:
         origin = request.headers.get("origin")
         if (origin and origin != f"{request.url.scheme}://{request.url.netloc}") or request.headers.get("sec-fetch-site") == "cross-site":
             raise HTTPException(status_code=403, detail="仅允许从原提交页面取消检测")
-        if not jobs.can_cancel(job, request.cookies.get(f"gewu_cancel_{job_id}", "")):
+        if not (_owned(request, job_id) or jobs.can_cancel(job, request.cookies.get(f"gewu_cancel_{job_id}", ""))):
             raise HTTPException(status_code=403, detail="只有任务提交者可以取消检测")
     await jobs.cancel(job_id)
-    return await api_status(job_id)
+    return await api_status(request, job_id)
 
 
 def _require_internal_result_access(request: Request) -> None:
@@ -1150,6 +1225,7 @@ async def api_result_json(request: Request, job_id: str) -> JSONResponse:
     j = await jobs.get(job_id)
     if j is None or j.report is None:
         raise HTTPException(status_code=404, detail="result not ready")
+    _require_report_read(request, job_id, j)
     report = dict(j.report)
     report.pop("api_key_masked", None)
     report["assessment"] = assess_report(report)
@@ -1160,10 +1236,12 @@ async def api_result_json(request: Request, job_id: str) -> JSONResponse:
 # path params match `[^/]+` greedily so `/r/{job_id}` would otherwise swallow
 # `/r/foo.jpg` (job_id="foo.jpg") and shadow the image endpoint.
 @app.get("/r/{job_id}.jpg")
-async def result_jpg(job_id: str) -> Response:
+async def result_jpg(request: Request, job_id: str) -> Response:
     j = await jobs.get(job_id)
     if j is None or j.report is None:
         raise HTTPException(status_code=404, detail="result not ready")
+
+    _require_report_read(request, job_id, j)
 
     # Retain the current report format/cache key. Generation runs outside the
     # event loop, with a bounded queue and shared work for duplicate downloads.
@@ -1243,10 +1321,13 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
     j = await jobs.get(job_id)
     if j is None:
         raise HTTPException(status_code=404, detail="job not found")
+    _require_report_read(request, job_id, j)
+    private = _restricted(job_id, j)
+    owner = _owned(request, job_id)
     if j.report is None:
         return templates.TemplateResponse(
             request, "running.html", {"job_id": job_id, "job": j,
-                                     "can_cancel": jobs.can_cancel(j, request.cookies.get(f"gewu_cancel_{job_id}", ""))},
+                                     "can_cancel": owner or jobs.can_cancel(j, request.cookies.get(f"gewu_cancel_{job_id}", ""))},
             headers={"Cache-Control": "no-store"},
         )
     # Domain feeds the breadcrumb (首页 › 质量榜 › {domain} › 报告).
@@ -1262,6 +1343,9 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
         request, "result.html",
         {
             "job_id": job_id,
+            "private_report": private,
+            "report_owner": owner,
+            "share_enabled": owner and report_access.enabled(jobs.JOBS_DIR, job_id),
             "report": j.report,
             "official_comparison": comparison,
             "assessment": assess_report(j.report),
@@ -1271,7 +1355,112 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
             "breadcrumb_domain": domain,
             **_seo_meta_for_report(j.report),
         },
+        headers={"X-Robots-Tag": "index, follow"} if not private and assess_ranking_eligibility(j.report)[0] else {},
     )
+
+
+def _require_share_change(request: Request, job_id: str) -> str:
+    # A custom header blocks cross-site forms; Origin/fetch metadata also block
+    # same-site sibling origins. No CORS is granted to third-party callers.
+    origin = request.headers.get("origin")
+    if (request.headers.get("X-Gewu-Action") != "report-sharing"
+            or request.headers.get("sec-fetch-site") == "cross-site"
+            or (origin is not None and origin != f"{request.url.scheme}://{request.url.netloc}")):
+        raise HTTPException(status_code=403, detail="请在报告页面操作分享")
+    if not _owned(request, job_id):
+        raise HTTPException(status_code=404, detail="报告不可用")
+    return _job_owner(request, job_id)
+
+
+@app.post("/api/status/{job_id}/owner")
+async def account_report_owner(request: Request, job_id: str) -> JSONResponse:
+    if not _internal_authorized(request) or not jobs.is_valid_job_id(job_id):
+        raise HTTPException(status_code=404, detail="报告不可用")
+    job = await jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="报告不可用")
+    if not _restricted(job_id, job):
+        return JSONResponse({"legacy": True}, headers={"Cache-Control": "no-store"})
+    try:
+        owner = report_access.account_grant(jobs.JOBS_DIR, job_id, os.environ["GEWU_INTERNAL_API_TOKEN"].strip())
+    except PermissionError as exc:
+        raise HTTPException(status_code=404, detail="报告不可用") from exc
+    except OSError as exc:
+        raise HTTPException(status_code=503, detail="报告暂时不可用") from exc
+    return JSONResponse({"owner": owner}, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/status/{job_id}/share")
+async def share_report(request: Request, job_id: str) -> JSONResponse:
+    if not jobs.is_valid_job_id(job_id):
+        raise HTTPException(status_code=404, detail="报告不可用")
+    owner = _require_share_change(request, job_id)
+    job = await jobs.get(job_id)
+    if job is None or job.report is None or job.status not in jobs.TERMINAL_STATUSES:
+        raise HTTPException(status_code=409, detail="检测结束后即可分享")
+    try:
+        token = report_access.enable(jobs.JOBS_DIR, job_id, owner)
+    except (OSError, PermissionError) as exc:
+        raise HTTPException(status_code=503, detail="暂时无法开启分享，请稍后重试") from exc
+    return JSONResponse({"url": f"/r/{job_id}/s/{token}"}, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/status/{job_id}/share/revoke")
+async def revoke_report_share(request: Request, job_id: str) -> JSONResponse:
+    if not jobs.is_valid_job_id(job_id):
+        raise HTTPException(status_code=404, detail="报告不可用")
+    owner = _require_share_change(request, job_id)
+    try:
+        report_access.revoke(jobs.JOBS_DIR, job_id, owner)
+    except (OSError, PermissionError) as exc:
+        raise HTTPException(status_code=503, detail="未能确认关闭分享，请稍后重试") from exc
+    return JSONResponse({"shared": False}, headers={"Cache-Control": "no-store"})
+
+
+async def _shared_job(job_id: str, token: str):
+    if not jobs.is_valid_job_id(job_id) or not report_access.shared(jobs.JOBS_DIR, job_id, token):
+        raise HTTPException(status_code=404, detail="分享链接不可用或已关闭")
+    job = await jobs.get(job_id)
+    if job is None or job.report is None:
+        raise HTTPException(status_code=404, detail="分享链接不可用或已关闭")
+    return job
+
+
+@app.get("/r/{job_id}/s/{token}.jpg")
+async def shared_jpg(job_id: str, token: str) -> Response:
+    job = await _shared_job(job_id, token)
+    safe = report_access.summary_report(job.report)
+    assessment = assess_report(job.report)
+    cache = jobs.image_path(job_id, job.protocol).with_suffix(".share-v1.jpg")
+    try:
+        content = await report_images.get(cache, lambda: render_report_jpg(safe, assessment=assessment))
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="分享图片暂时无法生成，请稍后重试", headers={"Retry-After": "3"}) from exc
+    # Generation yields to other requests: revocation may have happened while
+    # the image was queued. Always recheck before delivering cached or new bytes.
+    if not report_access.shared(jobs.JOBS_DIR, job_id, token):
+        raise HTTPException(status_code=404, detail="分享链接不可用或已关闭")
+    return Response(content=content, media_type="image/jpeg", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/r/{job_id}/s/{token}", response_class=HTMLResponse)
+async def shared_report(request: Request, job_id: str, token: str) -> HTMLResponse:
+    job = await _shared_job(job_id, token)
+    safe = report_access.summary_report(job.report)
+    return templates.TemplateResponse(request, "shared_report.html", {
+        "report": safe, "assessment": assess_report(job.report),
+        "rows": [row for row in _result_rows(safe) if row["name"] in {item.get("name") for item in safe["results"]}],
+        "share_path": f"/r/{job_id}/s/{token}",
+    }, headers={"Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow, noarchive"})
+
+
+@app.exception_handler(HTTPException)
+async def report_access_error(request: Request, exc: HTTPException):
+    if exc.status_code == 404 and request.url.path.startswith("/r/") and not request.url.path.endswith(".jpg"):
+        return templates.TemplateResponse(request, "report_unavailable.html", {}, status_code=404,
+                                          headers={"Cache-Control": "no-store"})
+    from fastapi.exception_handlers import http_exception_handler
+    return await http_exception_handler(request, exc)
 
 
 @app.get("/healthz")
@@ -1393,14 +1582,19 @@ async def sitemap_xml() -> Response:
             continue
         for json_path in sorted(dir_path.glob("*.json")):
             job_id = json_path.stem
-            if job_id in seen:
+            if job_id in seen or not jobs.is_valid_job_id(job_id) or json_path.is_symlink():
                 continue
             seen.add(job_id)
             try:
+                report = json.loads(json_path.read_text(encoding="utf-8"))
+                if not isinstance(report, dict) or not assess_ranking_eligibility(report)[0]:
+                    continue
+                if report_access.restricted(jobs.JOBS_DIR, job_id, report=report):
+                    continue
                 lastmod = datetime.fromtimestamp(
                     json_path.stat().st_mtime, tz=timezone.utc
                 ).strftime("%Y-%m-%d")
-            except OSError:
+            except (OSError, ValueError, UnicodeError):
                 continue
             lines.append(
                 f"  <url><loc>{xml_escape(brand.url(f'/r/{job_id}'))}</loc>"

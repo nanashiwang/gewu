@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}检测摘要 · {{ report.base_url }} · 格物{% endblock %}
+{% block description %}用户主动分享的本次检测摘要；不含完整接口路径和原始响应。{% endblock %}
+{% block og_title %}{{ report.base_url }} · 检测摘要{% endblock %}
+{% block og_description %}{{ assessment.headline }}；只反映本次已测项目，不证明具体模型身份。{% endblock %}
+{% block canonical %}{{ brand.site_url }}{{ share_path }}{% endblock %}
+{% block og_url %}{{ brand.site_url }}{{ share_path }}{% endblock %}
+{% block og_image %}
+<meta property="og:image" content="{{ brand.site_url }}{{ share_path }}.jpg" />
+<meta name="twitter:image" content="{{ brand.site_url }}{{ share_path }}.jpg" />
+{% endblock %}
+{% block head_extra %}<meta name="robots" content="noindex, nofollow, noarchive" />{% endblock %}
+{% block content %}
+<section class="card share-summary">
+  <p class="muted small">用户主动分享 · 检测摘要</p>
+  <h1>{{ report.base_url }}</h1>
+  <p>模型 <code>{{ report.target_model }}</code> · {{ {'quick':'快速检测','standard':'标准检测','full':'完整检测'}.get(report.mode, report.mode) }}</p>
+  {% if report.wire_api %}<p class="muted small">{{ wire_apis.get(report.wire_api, {}).get('label', report.wire_api) }}</p>{% endif %}
+  <h2>{% if assessment.score_usable %}{{ '%.0f'|format(report.total_score) }} / 100 · {% endif %}{{ assessment.headline }}</h2>
+  <p class="muted">协议质量分，不是模型真伪概率。{{ assessment.identity.label }}。</p>
+  <p>{{ assessment.capability.label }} · {{ assessment.capability.detail }}</p>
+  <ul class="check-list">
+    {% for row in rows %}<li class="check-row check-{{ row.css }}"><span class="check-label">{{ row.label }}</span><span class="check-status">{{ row.label_short }}</span></li>{% endfor %}
+  </ul>
+  <p class="muted small">这是摘要，不包含完整接口路径、原始响应或错误详情，也不代表获得了公共榜单背书。{{ report.timestamp }}</p>
+  <div class="result-actions"><a class="btn btn-ghost" href="{{ share_path }}.jpg" download="格物-检测摘要.jpg">下载摘要 JPG</a><a class="btn btn-primary" href="/">我也检测一下</a></div>
+</section>
+{% endblock %}

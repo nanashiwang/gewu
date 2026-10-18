@@ -217,6 +217,32 @@ def env_names(content):
     return names
 
 
+
+def require_account_report_gateway():
+    """Refuse a partial upgrade on the shared host before accepting new jobs."""
+    app = inspect('gewu-app')
+    if app is None:
+        return  # Standalone detector installations do not require an account app.
+    require(app.get('State', {}).get('Running') is True, 'Account platform is not running')
+    def token(info):
+        return next((item.split('=', 1)[1].strip() for item in info.get('Config', {}).get('Env', [])
+                     if item.startswith('GEWU_INTERNAL_API_TOKEN=')), '')
+    app_token = token(app)
+    require(bool(app_token), 'Account platform internal authentication is not configured')
+    detector = inspect(NAME)
+    if detector is not None:
+        require(bool(token(detector)) and token(detector) == app_token,
+                'Account and detector internal authentication differ; no values disclosed')
+    probe = ("fetch('http://127.0.0.1:'+(process.env.PORT||'3000')+'/health',"
+             "{signal:AbortSignal.timeout(8000)}).then(r=>r.json()).then(d=>{"
+             "if(d.ok!==true||d.features?.reportOwnerGateway!==1)process.exit(1);"
+             "console.log('ready')}).catch(()=>process.exit(1))")
+    result = run('docker', 'exec', 'gewu-app', 'node', '-e', probe, timeout=12, check=False)
+    require(result.returncode == 0 and result.stdout.strip() == 'ready',
+            'Update the matching account platform release first: report ownership gateway is required')
+    print('PASS: account report gateway and shared authentication; no secret values disclosed', flush=True)
+
+
 def preflight(*, require_idle=True):
     require(os.geteuid() == 0, 'Run as root')
     require(run('uname', '-m').stdout.strip() == 'x86_64', 'This release requires x86_64')
@@ -230,6 +256,7 @@ def preflight(*, require_idle=True):
     account = pwd.getpwnam('gewu')
     require(account.pw_uid > 0 and account.pw_gid > 0, 'Expected non-root gewu service account')
     run('docker', 'info')
+    require_account_report_gateway()
     require(shutil.disk_usage(ROOT).free >= 1024**3, 'At least 1 GiB free disk space required')
     require(run('systemctl', 'is-active', 'gewu.service', check=False).stdout.strip() == 'active',
             'Existing service must be healthy before migration')
@@ -424,7 +451,7 @@ def wait_health(name):
     raise DeploymentError('Container readiness check failed')
 
 
-def smoke_image(image, uid, gid, *, limits=None):
+def smoke_image(image, uid, gid, *, limits=None, check_report_privacy=True):
     try:
         args = base_args(SMOKE, image, uid, gid, smoke=True, limits=limits)
         run(*args, '-d', image)
@@ -434,7 +461,7 @@ def smoke_image(image, uid, gid, *, limits=None):
         code = """import json
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 paths=['/','/leaderboard/sources','/api/status/detection-scope?protocol=openai&model=gpt-6-luna&wire_api=responses']
 assert all(urlopen('http://127.0.0.1:8765'+p,timeout=5).status==200 for p in paths)
 # Only the isolated smoke container's tmpfs is written. Never mounted reports.
@@ -450,6 +477,49 @@ with ThreadPoolExecutor(max_workers=4) as pool:
 assert all(data==images[0] and data.startswith(bytes([255,216])) and data.endswith(bytes([255,217])) for data in images)
 assert not list(root.glob('.gewu-image-*.tmp'))
 assert urlopen('http://127.0.0.1:8765/readyz',timeout=5).status==200
+
+"""
+        if check_report_privacy:
+            # The fixed historical image in the image-store regression predates
+            # private reports. Real releases always run this check by default.
+            code += """
+from urllib.error import HTTPError
+from urllib.request import Request
+import secrets
+from web import jobs, report_access
+# Verify anonymous ownership and the real sanitized JPG path on tmpfs only.
+job='privacy-smoke-2026'
+owner=secrets.token_urlsafe(32)
+report_access.create(jobs.JOBS_DIR,job,owner)
+report={'_web_access':1,'protocol':'openai','mode':'quick','target_model':'fixture','base_url':'https://relay.example/private-fixture','results':[]}
+jobs._atomic_json(jobs.report_path(job,'openai'),report)
+assert not (jobs.JOBS_DIR/'openai'/f'{job}.json').exists()
+headers={'X-Forwarded-Proto':'https','Cookie':'__Host-gewu_report_owner='+owner,'X-Gewu-Action':'report-sharing'}
+def request(path, *, private=False, post=False):
+    return urlopen(Request('http://127.0.0.1:8765'+path,data=b'' if post else None,headers=headers if private else {}),timeout=20)
+def denied(path):
+    try:
+        request(path)
+        raise AssertionError('private report became public')
+    except HTTPError as error:
+        assert error.code==404
+for path in [f'/r/{job}',f'/r/{job}.jpg',f'/api/status/{job}',f'/api/result/{job}.json']:
+    denied(path)
+    assert request(path,private=True).status==200
+link=json.load(request(f'/api/status/{job}/share',private=True,post=True))['url']
+with request(link) as response:
+    assert response.headers['Cache-Control']=='no-store'
+    html=response.read().decode()
+    assert 'relay.example' in html and 'private-fixture' not in html
+with request(link+'.jpg') as response:
+    image=response.read()
+    assert response.headers['Cache-Control']=='no-store'
+    assert image.startswith(bytes([255,216])) and image.endswith(bytes([255,217]))
+assert request(f'/api/status/{job}/share/revoke',private=True,post=True).status==200
+denied(link)
+denied(link+'.jpg')
+assert not list(jobs.JOBS_DIR.rglob('.gewu-image-*.tmp'))
+print('PASS: private reports, summary JPG, revocation and legacy-reader isolation')
 """
         run('docker', 'exec', SMOKE, 'python', '-c', code)
         print('PASS: isolated image smoke test; no upstream network access')
@@ -602,6 +672,7 @@ def deploy(revision, *, cpus=None, memory_mib=None, wait_seconds=300, bootstrap=
             wait_health(NAME)
             healthy_service()
             verify_resource_limits(NAME, limits)
+            require_account_report_gateway()
             require(ready_state().get('deployment', {}).get('protocol') == 1, 'New image lacks drain protocol')
             require(ready_state()['deployment'].get('accepting') is False, 'New image lost closed admission')
             verify_protected(before)

@@ -37,7 +37,9 @@ def main():
             assert data['image'] == r.IMAGE + '@' + REGISTRY_DIGEST
             if os.environ['IMAGE_STORE'] == 'containerd':
                 assert data['runtime_image_id'] != PUBLISHER_ID, 'Regression must reproduce cross-store ID difference'
-            r.smoke_image(data['runtime_image_id'], 10001, 10001)
+            # This immutable regression image predates report access controls;
+            # the actual newly built image gets the full privacy smoke in CI.
+            r.smoke_image(data['runtime_image_id'], 10001, 10001, check_report_privacy=False)
             assert r.acquire(REVISION)['runtime_image_id'] == data['runtime_image_id']
             print('PASS: real pinned-digest pull, cache reuse and isolated smoke')
 
@@ -55,7 +57,7 @@ def main():
             archived = r.acquire(REVISION)
             assert len(denied) == 1, 'Archive path must really run'
             assert archived['image_id'] == PUBLISHER_ID
-            r.smoke_image(archived['runtime_image_id'], 10001, 10001)
+            r.smoke_image(archived['runtime_image_id'], 10001, 10001, check_report_privacy=False)
             print('PASS: real checksum-verified archive load and isolated smoke')
         finally:
             r.run, r.download = original_run, original_download

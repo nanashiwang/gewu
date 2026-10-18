@@ -117,6 +117,7 @@ export function relaySiteDto(site: any, viewer?: any) {
 }
 
 export function relayCheckDto(check: any, privateView = false) {
+  const reportPrivate = Boolean(check.report && Object.hasOwn(check.report, '_web_access')) || ['queued', 'running'].includes(check.status)
   const dto: Record<string, unknown> = {
     id: check.id,
     source: check.source,
@@ -125,12 +126,13 @@ export function relayCheckDto(check: any, privateView = false) {
     model: check.model,
     mode: check.mode,
     status: check.status,
-    detectorJobId: check.detectorJobId || null,
-    resultUrl: check.resultUrl || null,
+    reportPrivate,
+    detectorJobId: privateView || !reportPrivate ? check.detectorJobId || null : null,
+    resultUrl: privateView || !reportPrivate ? check.resultUrl || null : null,
     score: typeof check.score === 'number' ? check.score : null,
     grade: check.grade || null,
     verdict: check.verdict || null,
-    summary: check.summary || '',
+    summary: privateView || !reportPrivate ? check.summary || '' : '',
     startedAt: check.startedAt || null,
     finishedAt: check.finishedAt || null,
     durationMs: typeof check.durationMs === 'number' ? check.durationMs : null,

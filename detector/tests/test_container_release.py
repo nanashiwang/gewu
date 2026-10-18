@@ -533,3 +533,39 @@ def test_actual_docker_limits_are_verified(monkeypatch, wrong):
             release.verify_resource_limits(release.NAME, {'cpus': '1', 'memory_mib': 512})
     else:
         release.verify_resource_limits(release.NAME, {'cpus': '1', 'memory_mib': 512})
+
+
+def test_standalone_detector_does_not_require_an_account_platform(monkeypatch):
+    monkeypatch.setattr(release, 'inspect', lambda _: None)
+    monkeypatch.setattr(release, 'run', lambda *a, **k: pytest.fail('no account app to inspect'))
+    release.require_account_report_gateway()
+
+
+@pytest.mark.parametrize('case', ['stopped', 'missing-key', 'mismatched-key', 'old-platform'])
+def test_paired_release_refuses_incompatible_account_platform_without_printing_secrets(monkeypatch, capsys, case):
+    import copy
+    app = {'State': {'Running': True}, 'Config': {'Env': ['GEWU_INTERNAL_API_TOKEN=synthetic-shared-key']}}
+    detector = copy.deepcopy(app)
+    if case == 'stopped': app['State']['Running'] = False
+    if case == 'missing-key': app['Config']['Env'] = []
+    if case == 'mismatched-key': detector['Config']['Env'] = ['GEWU_INTERNAL_API_TOKEN=synthetic-other-key']
+    monkeypatch.setattr(release, 'inspect', lambda name: app if name == 'gewu-app' else detector)
+    monkeypatch.setattr(release, 'run', lambda *a, **k: type('Result', (), {'returncode': 1, 'stdout': ''})())
+    with pytest.raises(release.DeploymentError) as caught:
+        release.require_account_report_gateway()
+    text = str(caught.value) + capsys.readouterr().out
+    assert 'synthetic-shared-key' not in text and 'synthetic-other-key' not in text
+
+
+def test_paired_release_checks_readiness_inside_only_the_account_container(monkeypatch):
+    app = {'State': {'Running': True}, 'Config': {'Env': ['GEWU_INTERNAL_API_TOKEN=synthetic-shared-key']}}
+    monkeypatch.setattr(release, 'inspect', lambda name: app)
+    calls = []
+    def run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return type('Result', (), {'returncode': 0, 'stdout': 'ready\n'})()
+    monkeypatch.setattr(release, 'run', run)
+    release.require_account_report_gateway()
+    assert calls[0][0][:4] == ('docker', 'exec', 'gewu-app', 'node')
+    assert 'synthetic-shared-key' not in ' '.join(calls[0][0])
+    assert calls[0][1]['timeout'] == 12

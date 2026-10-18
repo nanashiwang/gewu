@@ -215,7 +215,7 @@ jobs:
                   'archive_sha256': hashlib.file_digest(archive.open('rb'), 'sha256').hexdigest()}
           pathlib.Path('release-detector/release.json').write_text(json.dumps(data, indent=2) + '\n')
           PY
-          printf '%s\n' '经完整 CI 与隔离容器检查的格物检测服务。服务器按提交版本和 SHA256 校验部署。镜像不包含服务器密钥、报告或私有基线。' > release-detector/notes.md
+          printf '%s\n' '经完整 CI 与隔离容器检查的格物检测服务。服务器按提交版本和 SHA256 校验部署。镜像不包含服务器密钥、报告或私有基线。共享服务器请先更新配套账号平台；部署预检会核对报告访问能力及内部认证，避免只更新检测站。' > release-detector/notes.md
           if test "$release_exists" = false; then
             gh release create "detector-${REVISION}" --draft \
               --target "$REVISION" --title "检测服务容器发布 ${REVISION:0:12}" \

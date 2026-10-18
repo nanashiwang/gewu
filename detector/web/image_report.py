@@ -336,13 +336,14 @@ def _gemini_jpg_note(report: dict[str, Any]) -> str:
     return ""
 
 
-def render_report_jpg(report: dict[str, Any]) -> bytes:
+def render_report_jpg(report: dict[str, Any], *, assessment: dict | None = None) -> bytes:
     """Render the report into a JPG and return the bytes."""
     W, H = 1400, 1000
     img = Image.new("RGB", (W, H), _BG)
     d = ImageDraw.Draw(img)
 
     # ------- header -------
+    shared_summary = assessment is not None
     title_font = _load_font(34, bold=True)
     protocol = str(report.get("protocol") or "anthropic")
     if protocol == "openai":
@@ -386,7 +387,7 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
     ring = _verdict_color(score, verdict)
     caption = _verdict_caption(score, verdict, protocol)
     from relay_detector.core.assessment import assess_report
-    assessment = assess_report(report)
+    assessment = assess_report(report) if assessment is None else assessment
     if not assessment["score_usable"]:
         ring, caption = _AMBER, "证据不足，暂不计分"
 
@@ -571,6 +572,8 @@ def render_report_jpg(report: dict[str, Any]) -> bytes:
             f"生成于 {foot[:19].replace('T', ' ')} UTC", fill=_MUTED,
             font=foot_font,
         )
+    if shared_summary:
+        d.text((W - 290, H - 32), "分享摘要 · 不含原始响应", fill=_MUTED, font=foot_font)
     masked = report.get("api_key_masked", "")
     if masked:
         rt = f"密钥 {masked}"
