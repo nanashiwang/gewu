@@ -307,7 +307,7 @@ jobs:
           gh release edit "platform-${REVISION}" --draft=false --latest=false
       - name: Ensure paired platform test resources have ended
         if: always()
-        run: sudo python3 deploy/platform/test_container_migration.py --cleanup
+        run: sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT python3 deploy/platform/test_container_migration.py --cleanup
       - name: Ensure no temporary detector test containers remain
         if: always()
         run: |

@@ -183,6 +183,18 @@ def main():
     for kind, names in [('network', [p.PROJECT + '_default']), ('volume', [p.PROJECT + '_' + x for x in ('mediadata', 'pgdata', 'redisdata')])]:
         for name in names:
             assert p.run('docker', kind, 'inspect', name, check=False).returncode != 0
+    # Diagnostics are allowed only for this guarded, synthetic CI fixture.
+    # The production deployer continues withholding subprocess stderr.
+    original_run = p.run
+    def fixture_run(*args, **kwargs):
+        checked = kwargs.pop('check', True)
+        result = original_run(*args, check=False, **kwargs)
+        if checked and result.returncode:
+            stderr = result.stderr.decode(errors='replace') if isinstance(result.stderr, bytes) else result.stderr
+            print('SYNTHETIC_CI_DIAGNOSTIC: ' + str(stderr)[-10000:], flush=True)
+            raise p.ReleaseError(f'CI fixture command failed: {args[0]} exit {result.returncode}')
+        return result
+    p.run = fixture_run
     owner = os.environ['REVISION']
     MARKER.write_text(json.dumps({'owner': owner}))
     try:
