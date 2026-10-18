@@ -217,6 +217,32 @@ def env_names(content):
     return names
 
 
+
+def require_account_report_gateway():
+    """Refuse a partial upgrade on the shared host before accepting new jobs."""
+    app = inspect('gewu-app')
+    if app is None:
+        return  # Standalone detector installations do not require an account app.
+    require(app.get('State', {}).get('Running') is True, 'Account platform is not running')
+    def token(info):
+        return next((item.split('=', 1)[1].strip() for item in info.get('Config', {}).get('Env', [])
+                     if item.startswith('GEWU_INTERNAL_API_TOKEN=')), '')
+    app_token = token(app)
+    require(bool(app_token), 'Account platform internal authentication is not configured')
+    detector = inspect(NAME)
+    if detector is not None:
+        require(bool(token(detector)) and token(detector) == app_token,
+                'Account and detector internal authentication differ; no values disclosed')
+    probe = ("fetch('http://127.0.0.1:'+(process.env.PORT||'3000')+'/health',"
+             "{signal:AbortSignal.timeout(8000)}).then(r=>r.json()).then(d=>{"
+             "if(d.ok!==true||d.features?.reportOwnerGateway!==1)process.exit(1);"
+             "console.log('ready')}).catch(()=>process.exit(1))")
+    result = run('docker', 'exec', 'gewu-app', 'node', '-e', probe, timeout=12, check=False)
+    require(result.returncode == 0 and result.stdout.strip() == 'ready',
+            'Update the matching account platform release first: report ownership gateway is required')
+    print('PASS: account report gateway and shared authentication; no secret values disclosed', flush=True)
+
+
 def preflight(*, require_idle=True):
     require(os.geteuid() == 0, 'Run as root')
     require(run('uname', '-m').stdout.strip() == 'x86_64', 'This release requires x86_64')
@@ -230,6 +256,7 @@ def preflight(*, require_idle=True):
     account = pwd.getpwnam('gewu')
     require(account.pw_uid > 0 and account.pw_gid > 0, 'Expected non-root gewu service account')
     run('docker', 'info')
+    require_account_report_gateway()
     require(shutil.disk_usage(ROOT).free >= 1024**3, 'At least 1 GiB free disk space required')
     require(run('systemctl', 'is-active', 'gewu.service', check=False).stdout.strip() == 'active',
             'Existing service must be healthy before migration')
@@ -645,6 +672,7 @@ def deploy(revision, *, cpus=None, memory_mib=None, wait_seconds=300, bootstrap=
             wait_health(NAME)
             healthy_service()
             verify_resource_limits(NAME, limits)
+            require_account_report_gateway()
             require(ready_state().get('deployment', {}).get('protocol') == 1, 'New image lacks drain protocol')
             require(ready_state()['deployment'].get('accepting') is False, 'New image lost closed admission')
             verify_protected(before)

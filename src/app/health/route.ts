@@ -10,7 +10,8 @@ export async function GET() {
     const payload = await getPayload({ config })
     await payload.count({ collection: 'users', overrideAccess: true })
     return Response.json(
-      { ok: true, db: true, latencyMs: Date.now() - startedAt },
+      { ok: true, db: true, latencyMs: Date.now() - startedAt,
+        features: { reportOwnerGateway: process.env.GEWU_INTERNAL_API_TOKEN?.trim() ? 1 : 0 } },
       { headers: { 'Cache-Control': 'no-store' } },
     )
   } catch (e) {
