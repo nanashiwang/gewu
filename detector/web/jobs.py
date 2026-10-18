@@ -37,7 +37,7 @@ from relay_detector.scorer import (
 )
 from relay_detector.ranking import unreviewed_ranking_evidence, baseline_reference
 from .security import REDACTED, redact_secret, redact_text
-from . import deployment_gate
+from . import deployment_gate, report_access
 from relay_detector.core.runner import ProgressObserver
 from relay_detector.core.scoring_policy import SCORING_VERSION, PROBE_VERSION
 
@@ -84,6 +84,7 @@ class Job:
     progress: dict[str, Any] = field(default_factory=lambda: {"stage": "queued", "checks": []})
     partial_results: list[dict[str, Any]] = field(default_factory=list)
     cancel_token_hash: str = ""
+    access_version: int = 0
 
 
 _JOBS: dict[str, Job] = {}
@@ -123,6 +124,8 @@ def _load_report(job_id: str) -> dict | None:
         try:
             report = json.loads(path.read_text(encoding="utf-8"))
             if isinstance(report, dict):
+                if ".private_reports" in path.relative_to(JOBS_DIR).parts:
+                    report.setdefault("_web_access", report_access.VERSION)
                 return report
         except (OSError, ValueError):
             continue
@@ -157,7 +160,9 @@ def _finish_failure(job: Job, status: JobStatus, message: str) -> None:
     )
     job.report = json.loads(report.model_dump_json())
     job.report["performance_complete"] = False
-    _atomic_json(report_path(job.id, job.protocol), job.report)
+    if job.access_version:
+        job.report["_web_access"] = job.access_version
+    _atomic_json(report_path(job.id, job.protocol, private=bool(job.access_version)), job.report)
     job.partial_results = []
     _save_state(job)
 
@@ -295,6 +300,8 @@ async def submit(
     include_long_context: bool = False,
     include_long_context_extreme: bool = False,
     wire_api: str = "chat_completions",
+    owner_token: str | None = None,
+    account_owner_secret: str | None = None,
 ) -> str:
     """Queue a detection job and return the job id immediately.
 
@@ -308,6 +315,8 @@ async def submit(
         models. Implies standard (it's a superset).
     """
     job_id = _new_job_id()
+    if account_owner_secret:
+        owner_token = report_access.account_owner(account_owner_secret, job_id)
     job = Job(
         id=job_id,
         protocol=protocol,
@@ -315,6 +324,7 @@ async def submit(
         base_url=redact_text(base_url, api_key),
         target_model=redact_text(model, api_key),
         mode=mode,
+        access_version=report_access.VERSION if owner_token else 0,
     )
     async with _LOCK:
         with deployment_gate.admission(JOBS_DIR):
@@ -324,6 +334,8 @@ async def submit(
             pending = sum(job.status in {"queued", "running"} for job in _JOBS.values())
             if pending >= _MAX_PENDING_JOBS:
                 raise JobQueueFull("detection queue is full")
+            if owner_token:
+                report_access.create(JOBS_DIR, job_id, owner_token, account_managed=bool(account_owner_secret))
             _save_state(job)
             _JOBS[job_id] = job
             task = asyncio.create_task(
@@ -382,28 +394,29 @@ def _report_timestamp(report: dict) -> float:
         return 0.0
 
 
-def report_path(job_id: str, protocol: str) -> Path:
+def report_path(job_id: str, protocol: str, *, private: bool | None = None) -> Path:
     if not is_valid_job_id(job_id):
         raise ValueError("invalid job id")
     if protocol not in {item.value for item in Protocol}:
         raise ValueError("invalid protocol")
-    protocol_dir = JOBS_DIR / protocol
+    if private is None:
+        private = report_access.restricted(JOBS_DIR, job_id)
+    protocol_dir = (JOBS_DIR / ".private_reports" if private else JOBS_DIR) / protocol
     protocol_dir.mkdir(parents=True, exist_ok=True)
     return protocol_dir / f"{job_id}.json"
 
 
 def image_path(job_id: str, protocol: str) -> Path:
-    if not is_valid_job_id(job_id):
-        raise ValueError("invalid job id")
-    protocol_dir = JOBS_DIR / protocol
-    protocol_dir.mkdir(parents=True, exist_ok=True)
-    return protocol_dir / f"{job_id}.jpg"
+    return report_path(job_id, protocol).with_suffix(".jpg")
 
 
 def _report_candidates(job_id: str) -> list[Path]:
     if not is_valid_job_id(job_id):
         return []
     return [
+        JOBS_DIR / ".private_reports" / protocol / f"{job_id}.json"
+        for protocol in ("anthropic", "openai", "gemini")
+    ] + [
         JOBS_DIR / f"{job_id}.json",
         JOBS_DIR / "anthropic" / f"{job_id}.json",
         JOBS_DIR / "openai" / f"{job_id}.json",
@@ -552,10 +565,12 @@ async def _run(
                 detected_non_anthropic_brands=brands,
             )
             report_dict = redact_secret(json.loads(report.model_dump_json()), api_key)
+            if _JOBS[job_id].access_version:
+                report_dict["_web_access"] = _JOBS[job_id].access_version
             report_dict["ranking_evidence"]["baseline_version"] = baseline_reference(report_protocol, model, Mode(mode), report=report_dict)
             if wire_api in {"responses", "interactions", "generate_content"}:
                 report_dict["ranking_evidence"]["baseline_version"] = "not_available"
-            _atomic_json(report_path(job_id, protocol), report_dict)
+            _atomic_json(report_path(job_id, protocol, private=bool(_JOBS[job_id].access_version)), report_dict)
 
             async with _LOCK:
                 if job_id in _JOBS:

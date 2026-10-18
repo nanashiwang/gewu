@@ -2,7 +2,7 @@ import { timeAgo } from '@/lib/format'
 import { relayCheckHasScore, relayReportPath } from '@/lib/relayUi'
 import { relayWireApiLabel, sameRelayConfiguration, sameRelayScoreBasis, relayScoringLabel } from '@/lib/relayWireApi'
 
-export function RelayTrend({ checks, selection }: { checks: any[]; selection?: any }) {
+export function RelayTrend({ checks, selection, reportBasePath }: { checks: any[]; selection?: any; reportBasePath?: string }) {
   const candidates = checks.filter((check) => relayCheckHasScore(check) && (!selection || sameRelayConfiguration(check, selection)))
     .sort((a, b) => new Date(b.finishedAt || b.createdAt).getTime() - new Date(a.finishedAt || a.createdAt).getTime())
   const target = candidates[0]
@@ -14,7 +14,7 @@ export function RelayTrend({ checks, selection }: { checks: any[]; selection?: a
     {!checks.length ? <p className="text-sm text-[var(--muted)]">还没有检测记录。完成认领和审核、配置 Key 后即可开始。</p> : <>
       <p className="text-xs text-[var(--muted)]">趋势只汇总当前配置下，与最近有效记录的评分和探针版本一致的成绩。协议质量分不代表模型真伪概率；历史版本保留原分，不混入本段趋势。</p>
       <ul className="relay-history">{checks.map((check) => {
-        const path = relayReportPath(check)
+        const path = reportBasePath && check.detectorJobId ? `${reportBasePath}/${encodeURIComponent(String(check.id))}/report` : relayReportPath(check)
         const status = relayCheckHasScore(check) ? `${check.score.toFixed(0)} 分 · ${relayScoringLabel(check)}${check.grade ? ` / ${check.grade}` : ''}` : check.status === 'error' ? '检测未完成' : check.status === 'done' ? '证据不足，暂不计分' : check.status === 'queued' ? '排队中' : '检测中'
         return <li key={check.id}><div className="relay-history-heading"><strong>{check.source === 'scheduled' ? '定时检测' : '手动检测'} · {check.model}</strong><span>{status}</span></div><div className="relay-history-meta"><span>{relayWireApiLabel(check)} · {({ quick: '快速', standard: '标准', full: '完整' } as Record<string, string>)[check.mode] || check.mode}</span><time dateTime={check.createdAt} title={new Date(check.createdAt).toLocaleString('zh-CN')}>{timeAgo(check.createdAt)}</time>{path && <a href={path} className="text-[var(--accent)]">{['queued', 'running'].includes(check.status) ? '查看任务进度' : '查看检测报告'} →</a>}</div>{(check.error || check.summary) && <p className="relay-history-note">{check.error || check.summary}</p>}</li>
       })}</ul>

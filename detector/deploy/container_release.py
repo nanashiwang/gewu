@@ -434,7 +434,10 @@ def smoke_image(image, uid, gid, *, limits=None):
         code = """import json
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+import secrets
+from web import jobs, report_access
 paths=['/','/leaderboard/sources','/api/status/detection-scope?protocol=openai&model=gpt-6-luna&wire_api=responses']
 assert all(urlopen('http://127.0.0.1:8765'+p,timeout=5).status==200 for p in paths)
 # Only the isolated smoke container's tmpfs is written. Never mounted reports.
@@ -450,6 +453,39 @@ with ThreadPoolExecutor(max_workers=4) as pool:
 assert all(data==images[0] and data.startswith(bytes([255,216])) and data.endswith(bytes([255,217])) for data in images)
 assert not list(root.glob('.gewu-image-*.tmp'))
 assert urlopen('http://127.0.0.1:8765/readyz',timeout=5).status==200
+# Verify anonymous ownership and the real sanitized JPG path on tmpfs only.
+job='privacy-smoke-2026'
+owner=secrets.token_urlsafe(32)
+report_access.create(jobs.JOBS_DIR,job,owner)
+report={'_web_access':1,'protocol':'openai','mode':'quick','target_model':'fixture','base_url':'https://relay.example/private-fixture','results':[]}
+jobs._atomic_json(jobs.report_path(job,'openai'),report)
+assert not (jobs.JOBS_DIR/'openai'/f'{job}.json').exists()
+headers={'X-Forwarded-Proto':'https','Cookie':'__Host-gewu_report_owner='+owner,'X-Gewu-Action':'report-sharing'}
+def request(path, *, private=False, post=False):
+    return urlopen(Request('http://127.0.0.1:8765'+path,data=b'' if post else None,headers=headers if private else {}),timeout=20)
+def denied(path):
+    try:
+        request(path)
+        raise AssertionError('private report became public')
+    except HTTPError as error:
+        assert error.code==404
+for path in [f'/r/{job}',f'/r/{job}.jpg',f'/api/status/{job}',f'/api/result/{job}.json']:
+    denied(path)
+    assert request(path,private=True).status==200
+link=json.load(request(f'/api/status/{job}/share',private=True,post=True))['url']
+with request(link) as response:
+    assert response.headers['Cache-Control']=='no-store'
+    html=response.read().decode()
+    assert 'relay.example' in html and 'private-fixture' not in html
+with request(link+'.jpg') as response:
+    image=response.read()
+    assert response.headers['Cache-Control']=='no-store'
+    assert image.startswith(bytes([255,216])) and image.endswith(bytes([255,217]))
+assert request(f'/api/status/{job}/share/revoke',private=True,post=True).status==200
+denied(link)
+denied(link+'.jpg')
+assert not list(jobs.JOBS_DIR.rglob('.gewu-image-*.tmp'))
+print('PASS: private reports, summary JPG, revocation and legacy-reader isolation')
 """
         run('docker', 'exec', SMOKE, 'python', '-c', code)
         print('PASS: isolated image smoke test; no upstream network access')

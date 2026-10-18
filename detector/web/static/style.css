@@ -3016,3 +3016,15 @@ a.coverage-metric:hover strong { color: var(--accent); }
 @media (max-width: 600px) {
   .observation-days { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* Report sharing is one action, with controls hidden until they are useful. */
+.result-actions { flex-wrap: wrap; }
+.result-actions [hidden], .report-sharing [hidden] { display: none; }
+.report-sharing { margin: -8px 0 24px; }
+.report-sharing p { margin: 6px 0; }
+.report-sharing input { width: 100%; min-width: 0; box-sizing: border-box; }
+.result-actions button:disabled { opacity: .6; cursor: wait; }
+
+.share-summary h1 { overflow-wrap: anywhere; }
+.share-summary .check-row { grid-template-columns: minmax(0, 1fr) auto; gap: 16px; }
+.share-summary .check-label { min-width: 0; }

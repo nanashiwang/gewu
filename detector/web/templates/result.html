@@ -79,8 +79,23 @@
     <a class="btn btn-ghost" href="/r/{{ job_id }}.jpg" download="格物-{{ job_id }}.jpg">
       下载 JPG
     </a>
-    <button class="btn btn-ghost" id="share-btn" type="button">分享</button>
+    {% if report_owner %}
+    <button class="btn btn-ghost" id="share-btn" data-job-id="{{ job_id }}" type="button">{{ '复制分享链接' if share_enabled else '分享摘要' }}</button>
+    <button class="btn btn-ghost" id="stop-sharing" type="button" {% if not share_enabled %}hidden{% endif %}>关闭分享</button>
+    {% elif not private_report %}
+    <button class="btn btn-ghost" id="share-btn" type="button">复制公开链接</button>
+    {% endif %}
   </div>
+</section>
+
+<section class="report-sharing" aria-label="报告与分享">
+  {% if private_report %}
+  <p class="muted small">完整报告仅自己可见。分享摘要只含域名、模型和检测结果。</p>
+  {% else %}
+  <p class="muted small">这是升级前的公开报告，原链接仍可访问。新检测的完整报告默认仅自己可见。</p>
+  {% endif %}
+  <p id="share-status" class="small" role="status" aria-live="polite">{% if share_enabled %}摘要分享已开启，可以随时关闭。{% endif %}</p>
+  <input id="share-link" type="text" readonly hidden aria-label="分享链接，复制后发送" />
 </section>
 
 {% set ranking = report.ranking_evidence or {} %}
@@ -353,15 +368,5 @@
   </details>
 </section>
 
-<script>
-document.getElementById('share-btn').addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(location.href);
-    const btn = document.getElementById('share-btn');
-    const orig = btn.textContent;
-    btn.textContent = '已复制!';
-    setTimeout(() => btn.textContent = orig, 1500);
-  } catch (e) {}
-});
-</script>
+<script src="/static/report-share.js?v=20261018-1" defer></script>
 {% endblock %}

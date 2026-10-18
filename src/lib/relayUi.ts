@@ -39,6 +39,7 @@ export function relayStatusClass(status: string): string {
 }
 
 export function relayReportPath(check: any): string | null {
+  if (check.reportPrivate || (check.report && Object.hasOwn(check.report, '_web_access'))) return null
   const id = String(check.detectorJobId || '')
   if (/^[A-Za-z0-9_-]{8,64}$/.test(id)) return `/r/${id}`
   try {

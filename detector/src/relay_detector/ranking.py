@@ -103,6 +103,8 @@ def approved_ranking_evidence(
 
 def assess_ranking_eligibility(report: Mapping[str, Any]) -> tuple[bool, str]:
     """Fail closed unless trust metadata and detector evidence are both valid."""
+    if "_web_access" in report:
+        return False, "private_report"
     if report.get("wire_api") == "responses":
         return False, "responses_capability_only"
     if report.get("wire_api") in {"interactions", "generate_content"}:

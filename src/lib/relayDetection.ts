@@ -381,3 +381,17 @@ export async function runRelayCheckCycle(payload: Payload, options: { maxReconci
   }
   return summary
 }
+
+// Called after authorizing the site owner/reviewer. Never expose the service
+// token or put a browser capability into a redirect URL or a database record.
+export async function openRelayReport(payload: Payload, siteId: string, checkId: string): Promise<{ jobId: string; owner: string | null }> {
+  const check = await payload.findByID({ collection: 'relay-checks' as any, id: checkId, depth: 0, overrideAccess: true }).catch(() => null) as any
+  if (!check || relationId(check.site) !== siteId) throw new Error('检测记录不属于该站点')
+  const jobId = String(check.detectorJobId || '')
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(jobId)) throw new Error('检测尚未开始')
+  if (!process.env.GEWU_INTERNAL_API_TOKEN?.trim()) throw new Error('报告服务尚未配置')
+  const result = await detectorFetch(`/api/status/${encodeURIComponent(jobId)}/owner`, { method: 'POST' }, 15_000)
+  if (result.legacy === true) return { jobId, owner: null }
+  if (typeof result.owner !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(result.owner)) throw new Error('报告访问凭据无效')
+  return { jobId, owner: result.owner }
+}
