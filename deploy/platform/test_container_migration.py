@@ -159,10 +159,7 @@ def install_original_account(old_image, owner):
     p.write_config(second, {'services': {'app': {'environment': {'FIXTURE_DOLLARS': 'one$two$$three'}}}})
     command = p.config_command([first, second], work, '/dev/null')
     p.run(*command, 'up', '-d', '--no-deps', 'postgres', 'redis', 'relay-cron', 'app', timeout=120)
-    for _ in range(40):
-        if not p.run('docker', 'exec', p.DB, 'pg_isready', '-U', 'payload', '-d', 'gewu', check=False).returncode:
-            break
-        time.sleep(1)
+    p.wait_postgres(p.DB, 'payload', 'gewu')
     with (REPO / 'platform-fixture/platform-ci-database.dump').open('rb') as stream:
         p.run('docker', 'exec', '-i', p.DB, 'pg_restore', '-U', 'payload', '-d', 'gewu', '--no-owner', '--no-acl', '--exit-on-error', binary=True, stdin=stream, timeout=120)
     p.wait_health()
@@ -203,7 +200,7 @@ def main():
         target = json.loads(p.run('docker', 'image', 'inspect', image).stdout)[0]['Id']
         detector_target = json.loads(p.run('docker', 'image', 'inspect', detector_image).stdout)[0]['Id']
         old_detector = docker_build('', f'FROM {detector_image}\nLABEL org.opencontainers.image.revision="{OLD_REVISION}"\nENV GEWU_RELEASE_ID={OLD_REVISION}\n', 'gewu-detector-ci-previous:fixture')
-        old_server = "require('node:http').createServer((req,res)=>{res.setHeader('content-type','application/json');res.end(JSON.stringify({ok:true,db:true,legacy:true}));}).listen(3000,'0.0.0.0');"
+        old_server = "import { createServer } from 'node:http'; createServer((req,res)=>{res.setHeader('content-type','application/json');res.end(JSON.stringify({ok:true,db:true,legacy:true}));}).listen(3000,'0.0.0.0');"
         old_app = docker_build(old_server, f'FROM {image}\nUSER root\nCOPY --chown=nextjs:nodejs server.js /app/server.js\nUSER nextjs\n', 'gewu-platform-ci-previous:fixture')
         install_original_detector(old_detector, OLD_REVISION)
         configs = install_original_account(old_app, owner)

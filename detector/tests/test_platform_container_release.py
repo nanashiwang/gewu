@@ -235,3 +235,16 @@ def test_probe_cleanup_refuses_another_owner_and_never_claims_zero(monkeypatch, 
         probe.__exit__(None,None,None)
     assert not any(args[:3] == ('docker','rm','-f') for args in calls)
     assert 'LEFTOVER_TEST_CONTAINERS=0' not in capsys.readouterr().out
+
+
+def test_postgres_readiness_waits_for_tcp_not_the_initialization_socket(monkeypatch):
+    replies = iter([result('', 1), result('', 0)])
+    calls = []
+    def run(*args, **kwargs):
+        calls.append(args)
+        return next(replies)
+    monkeypatch.setattr(p, 'run', run)
+    monkeypatch.setattr(p.time, 'sleep', lambda _: None)
+    p.wait_postgres('owned-probe', 'probe', 'probe')
+    assert len(calls) == 2
+    assert all(args[4:6] == ('-h', '127.0.0.1') for args in calls)

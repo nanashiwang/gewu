@@ -418,6 +418,16 @@ def copied_dump_hash(name, path):
     return dump_hash(path)
 
 
+
+def wait_postgres(name, user, database, *, seconds=45):
+    # The official image temporarily listens on a Unix socket while initdb is
+    # still creating POSTGRES_DB. Only TCP proves that initialization is over.
+    deadline = time.monotonic() + seconds
+    while run('docker', 'exec', name, 'pg_isready', '-h', '127.0.0.1', '-U', user, '-d', database, '-t', '3', check=False).returncode:
+        need(time.monotonic() < deadline, 'Isolated PostgreSQL did not become ready')
+        time.sleep(1)
+
+
 def database_probe(image, db, dump, expected_schema):
     print('STEP: isolated account startup against a database copy; upstream network disabled', flush=True)
     with Probe() as probe:
@@ -429,10 +439,7 @@ def database_probe(image, db, dump, expected_schema):
         probe.start('db', db['image'], '--memory', '256m', '--memory-swap', '256m', '--cpus', '0.5',
                     '--mount', f'type=bind,src={db_path},dst=/var/lib/postgresql/data', envfile=pg_env,
                     command=('postgres', '-c', 'shared_buffers=32MB', '-c', 'max_connections=20', '-c', 'autovacuum=off'))
-        deadline = time.monotonic() + 45
-        while run('docker', 'exec', probe.names['db'], 'pg_isready', '-U', 'probe', '-d', 'probe', check=False).returncode:
-            need(time.monotonic() < deadline, 'Isolated PostgreSQL did not become ready')
-            time.sleep(1)
+        wait_postgres(probe.names['db'], 'probe', 'probe')
         with dump.open('rb') as stream:
             run('docker', 'exec', '-i', probe.names['db'], 'timeout', '-k', '5', '120', 'pg_restore', '-U', 'probe', '-d', 'probe', '--no-owner', '--no-acl', '--no-tablespaces', '--exit-on-error', binary=True, stdin=stream, timeout=135)
         actual = json.loads(run('docker', 'exec', probe.names['db'], 'psql', '-U', 'probe', '-d', 'probe', '-At', '-c', SCHEMA_SQL).stdout)
