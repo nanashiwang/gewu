@@ -25,3 +25,7 @@ try {
   await client.end()
   await payload.destroy()
 }
+
+// Next development tooling may retain file watchers after Payload pools are
+// closed. This is a finite, CI-only fixture; never leave those watchers alive.
+process.exit(0)

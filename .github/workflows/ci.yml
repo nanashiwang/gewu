@@ -43,6 +43,7 @@ jobs:
   build:
     name: production build
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -80,7 +81,7 @@ jobs:
           NODE_ENV: development
           POSTGRES_CONTAINER: ${{ job.services.postgres.id }}
         run: |
-          npx tsx scripts/prepare-platform-ci.ts
+          timeout --kill-after=10s 150s npx tsx scripts/prepare-platform-ci.ts
           docker exec "$POSTGRES_CONTAINER" pg_dump -U payload -d gewu --format=custom --no-owner --no-acl > platform-ci-database.dump
       - name: Package Linux release
         run: |
