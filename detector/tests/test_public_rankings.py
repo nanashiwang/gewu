@@ -453,7 +453,8 @@ def test_homepage_visual_and_interaction_contract(monkeypatch):
     assert "knownDomains.has(query)" in javascript
     assert "new URLSearchParams(location.search).get('query')" in javascript
     assert "data-pricing-test-model" in javascript
-    assert "target.searchParams.set('model', model)" in javascript
+    assert 'method="post" action="/api/status/prepare#detect-form"' in response.text
+    assert "target.searchParams.set('model', model)" not in javascript
 
 
 def test_public_pages_do_not_expose_repository_entry_points(monkeypatch):
@@ -552,7 +553,8 @@ def test_homepage_renders_coverage_counts_and_truthful_key_policy(monkeypatch):
     assert "不会保留密钥前缀" in response.text
     assert 'id="quick-check"' in response.text
     assert 'name="vendor"' in response.text
-    assert "首页不收集密钥" in response.text
+    assert 'id="quick-api-key"' in response.text
+    assert "下一步确认检测选项，无需重复填写" in response.text
 
 
 def test_leaderboard_has_search_protocol_filters_and_methodology(monkeypatch):

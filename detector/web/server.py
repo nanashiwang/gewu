@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import FastAPI, Form, HTTPException, Query, Request
@@ -48,6 +49,7 @@ from .public_rankings import (
 from .ratelimit import check_rate
 from .security import (
     MAX_API_KEY_LENGTH,
+    MAX_TARGET_URL_LENGTH,
     MAX_MODEL_LENGTH,
     TargetValidationError,
     insecure_api_allowed,
@@ -63,6 +65,7 @@ logger = logging.getLogger("gewu")
 logger.setLevel(logging.INFO)
 
 _MAX_API_REQUEST_BODY_BYTES = 16 * 1024
+_CREDENTIAL_PAGES = {"/", "/claude", "/openai", "/gemini", "/api/status/prepare"}
 
 
 class _RequestBodyTooLarge(Exception):
@@ -249,7 +252,12 @@ async def security_and_cache_headers(request: Request, call_next):
     response.headers.setdefault(
         "Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()"
     )
-    response.headers.setdefault("Content-Security-Policy", _CONTENT_SECURITY_POLICY)
+    policy = _CONTENT_SECURITY_POLICY
+    if request.url.path in _CREDENTIAL_PAGES:
+        # No third-party scripts or analytics connections around a live Key.
+        policy = policy.replace(" https://www.googletagmanager.com", "").replace(
+            " https://www.google-analytics.com https://region1.google-analytics.com", "")
+    response.headers.setdefault("Content-Security-Policy", policy)
     if brand.site_url.startswith("https://"):
         response.headers.setdefault(
             "Strict-Transport-Security", "max-age=31536000; includeSubDomains"
@@ -261,6 +269,10 @@ async def security_and_cache_headers(request: Request, call_next):
         # browser/CDN cache, including errors. Explicit public reports may index.
         response.headers["Cache-Control"] = "no-store"
         response.headers.setdefault("X-Robots-Tag", "noindex, nofollow, noarchive")
+    elif request.url.path in _CREDENTIAL_PAGES:
+        # Password-bearing forms must not be retained by HTTP caches, even
+        # when an anonymous ownership cookie already exists.
+        response.headers["Cache-Control"] = "no-store"
     elif ctype.startswith("text/html"):
         response.headers.setdefault("Cache-Control", "no-cache, must-revalidate")
     elif request.method == "POST" and request.url.path.startswith("/api/"):
@@ -459,6 +471,7 @@ async def hub(request: Request) -> HTMLResponse:
         request,
         "hub.html",
         {
+            "credential_page": True,
             "coverage": _homepage_metrics(),
             "ranking_sites": snapshot["red_sites"][:6],
             "all_ranking_sites": all_sites,
@@ -471,24 +484,91 @@ async def hub(request: Request) -> HTMLResponse:
     )
 
 
+def _detection_page(
+    request: Request, route: str, *, chosen_vendor: str = "", prefill: dict[str, str] | None = None,
+) -> HTMLResponse:
+    """Render a form only; preparing it never probes or starts a detection."""
+    context = {"credential_page": True, "prefill": prefill or {}}
+    if route == "claude":
+        template = "index.html"
+        context["models"] = _model_choices()
+    elif route == "openai":
+        template = "openai.html"
+        vendors = [v for v in catalog_view()["vendors"] if v["route"] == "openai"]
+        vendor = next((v for v in vendors if v["id"] == chosen_vendor), vendors[0])
+        context.update(models=vendor["models"], vendors=vendors, vendor=vendor)
+    else:
+        from relay_detector.wire_apis import WIRE_APIS, capability_notes
+        template = "gemini.html"
+        context.update(
+            models=_gemini_model_choices(),
+            gemini_apis={key: value for key, value in WIRE_APIS.items() if "gemini" in value["protocols"]},
+            native_scope=" ".join(capability_notes("interactions")[1:]),
+        )
+    return templates.TemplateResponse(request, template, context)
+
+
 @app.get("/claude", response_class=HTMLResponse)
 async def claude_index(request: Request) -> HTMLResponse:
-    return templates.TemplateResponse(
-        request, "index.html",
-        {"models": _model_choices()},
-    )
+    return _detection_page(request, "claude")
 
 
 @app.get("/openai", response_class=HTMLResponse)
 async def openai_index(request: Request) -> HTMLResponse:
-    vendors = [v for v in catalog_view()["vendors"] if v["route"] == "openai"]
     chosen = request.query_params.get("vendor") or model_vendor(request.query_params.get("model") or "gpt-")
-    vendor = next((v for v in vendors if v["id"] == chosen), vendors[0])
-    return templates.TemplateResponse(
-        request,
-        "openai.html",
-        {"models": vendor["models"], "vendors": vendors, "vendor": vendor},
-    )
+    return _detection_page(request, "openai", chosen_vendor=chosen)
+
+
+@app.post("/api/status/prepare", response_class=HTMLResponse)
+async def prepare_detection(request: Request) -> HTMLResponse:
+    """Carry a Key once in a same-origin POST, never a URL/cookie/storage token.
+
+    There is deliberately no redirect, server-side session, report write,
+    DNS lookup, model listing or inference in this endpoint.
+    """
+    origin = f"{request.url.scheme}://{request.url.netloc}"
+    source = request.headers.get("origin")
+    fetch_site = request.headers.get("sec-fetch-site")
+    # Native form navigation under our no-referrer policy can have Origin:null.
+    # Only the browser's unforgeable same-origin metadata may cover that case;
+    # sibling origins, sandboxed pages and cross-origin redirects remain denied.
+    same_origin = (source == origin or (source in {None, "null"} and fetch_site == "same-origin"))
+    if not same_origin or fetch_site in {"same-site", "cross-site"}:
+        raise HTTPException(status_code=403, detail="请从格物首页提交检测配置。")
+    if request.headers.get("content-type", "").split(";", 1)[0] != "application/x-www-form-urlencoded":
+        raise HTTPException(status_code=415, detail="请使用首页表单提交。")
+    async with request.form(max_files=0, max_fields=4) as form:
+        fields = {"vendor", "model", "base_url", "api_key"}
+        if (set(form) - fields or any(len(form.getlist(name)) > 1 for name in fields)
+                or any(not isinstance(value, str) for value in form.values())):
+            raise HTTPException(status_code=400, detail="检测配置格式不正确，请返回首页重新填写。")
+        values = {name: form.get(name, "") for name in fields}
+
+    vendor = next((v for v in catalog_view()["vendors"] if v["id"] == values["vendor"]), None)
+    if vendor is None:
+        raise HTTPException(status_code=400, detail="请选择模型厂商。")
+    model = values["model"].strip()
+    if ((vendor["id"] != "other" and not model)
+            or (model and model not in {m["id"] for m in vendor["models"]})):
+        raise HTTPException(status_code=400, detail="请从当前厂商的列表中选择目标模型。")
+
+    base_url = values["base_url"].strip()
+    try:
+        parts = urlsplit(base_url)
+        port = parts.port
+        valid_url = (0 < len(base_url) <= MAX_TARGET_URL_LENGTH
+                     and parts.scheme in {"http", "https"} and bool(parts.hostname)
+                     and parts.username is None and parts.password is None
+                     and "?" not in base_url and "#" not in base_url
+                     and not any(ord(char) <= 32 or ord(char) == 127 for char in base_url)
+                     and (port is None or 1 <= port <= 65535))
+    except ValueError:
+        valid_url = False
+    if not valid_url:
+        raise HTTPException(status_code=400, detail="请填写不含账号、密码或查询参数的 HTTP(S) Base URL。")
+    api_key = _validated_api_key_or_400(values["api_key"])
+    return _detection_page(request, vendor["route"], chosen_vendor=vendor["id"],
+                           prefill={"base_url": base_url, "api_key": api_key, "model": model})
 
 
 @app.get("/leaderboard/models", response_class=HTMLResponse)
@@ -532,13 +612,7 @@ async def detection_scope_api(
 
 @app.get("/gemini", response_class=HTMLResponse)
 async def gemini_index(request: Request) -> HTMLResponse:
-    from relay_detector.wire_apis import WIRE_APIS, capability_notes
-    return templates.TemplateResponse(
-        request,
-        "gemini.html",
-        {"models": _gemini_model_choices(), "gemini_apis": {key: value for key, value in WIRE_APIS.items() if "gemini" in value["protocols"]},
-         "native_scope": " ".join(capability_notes("interactions")[1:])},
-    )
+    return _detection_page(request, "gemini")
 
 
 @app.get("/leaderboard", response_class=HTMLResponse)

@@ -84,7 +84,7 @@
 
 <div class="detect-layout">
 <section class="card form-card">
-  <form id="detect-form" data-endpoint="/api/detect/gemini" method="post" action="/api/detect/gemini" autocomplete="off">
+  <form id="detect-form"{% if prefill %} data-prepared="true"{% endif %} data-endpoint="/api/detect/gemini" method="post" action="/api/detect/gemini" autocomplete="off">
     <div class="field">
       <label for="gemini-wire-api">请求接口</label>
       <select id="gemini-wire-api" name="wire_api">
@@ -94,7 +94,7 @@
     </div>
     <div class="field">
       <label for="base_url">中转站接口地址</label>
-      <input type="url" id="base_url" name="base_url" required
+      <input type="url" id="base_url" name="base_url" value="{{ prefill.base_url | default('') }}" required
              placeholder="https://generativelanguage.googleapis.com/v1beta/openai"
              maxlength="2048" autocomplete="url" autocapitalize="none" spellcheck="false" />
       <p class="hint" id="gemini-url-hint">兼容接口填到 /chat/completions 的上一级；原生接口填到 /v1beta 或服务商指定的版本前缀。已填写的地址不会自动改写。</p>
@@ -102,7 +102,7 @@
 
     <div class="field">
       <label for="api_key">API 密钥</label>
-      <input type="password" id="api_key" name="api_key" required
+      <input type="password" id="api_key" name="api_key" value="{{ prefill.api_key | default('') }}" required
              placeholder="AIza... 或 sk-..." minlength="8" maxlength="4096"
              autocomplete="new-password" autocapitalize="none" spellcheck="false" />
       <p class="hint">仅用于本次检测，不写入报告、不持久化。原生接口使用 x-goog-api-key，兼容接口使用 Bearer。</p>

@@ -114,12 +114,12 @@
   const localHosts = new Set(['localhost', '127.0.0.1', '::1']);
   if (localHosts.has(location.hostname)) return;
 
-  const form = document.getElementById('detect-form');
-  const apiKeyInput = document.getElementById('api_key');
+  const form = document.getElementById('detect-form') || document.getElementById('quick-check');
+  const apiKeyInput = document.getElementById('api_key') || document.getElementById('quick-api-key');
   if (!form || !apiKeyInput) return;
 
   apiKeyInput.disabled = true;
-  const submit = document.getElementById('submit-btn');
+  const submit = form.querySelector('button[type="submit"]');
   if (submit) {
     submit.disabled = true;
     submit.title = '请使用 HTTPS 正式入口';
@@ -130,8 +130,21 @@
   warning.setAttribute('role', 'alert');
   warning.textContent = '当前是 HTTP 预发布入口。为保护 API key，检测功能已锁定；HTTPS 上线后自动开放。';
   form.prepend(warning);
+  form.addEventListener('submit', event => event.preventDefault());
 })();
 
+
+// Keep a prepared password only in the live input, not its HTML value
+// attribute. Clear it before history/BFCache restoration of either form.
+(() => {
+  for (const id of ['quick-api-key', 'api_key']) {
+    const input = document.getElementById(id);
+    if (!input) continue;
+    input.value = input.value; // Mark the live value dirty before removing the default.
+    input.removeAttribute('value');
+    window.addEventListener('pagehide', () => { input.value = ''; });
+  }
+})();
 
 // Native selects work with touch and keyboard without opening a text keyboard.
 (function () {
@@ -195,10 +208,10 @@
 // current protocol has 0 matches) offer one-click handoff to a protocol
 // the relay DOES carry.
 (function () {
-  const protocol =
-    location.pathname.startsWith('/claude') ? 'anthropic' :
-    location.pathname.startsWith('/openai') ? 'openai' :
-    location.pathname.startsWith('/gemini') ? 'gemini' : null;
+  const form = document.getElementById('detect-form');
+  const protocol = {
+    '/api/detect/claude': 'anthropic', '/api/detect/openai': 'openai', '/api/detect/gemini': 'gemini',
+  }[form?.dataset.endpoint];
   if (!protocol) return;
 
   const protoLabel = {anthropic: 'Claude', openai: 'OpenAI', gemini: 'Gemini'}[protocol];
@@ -225,7 +238,7 @@
     if (document.getElementById('gemini-wire-api')?.value && document.getElementById('gemini-wire-api').value !== 'chat_completions') return;
     const baseUrl = baseUrlInput.value.trim();
     const apiKey = apiKeyInput.value.trim();
-    if (!baseUrl || !apiKey || apiKey.length < 8) return;
+    if (apiKeyInput.disabled || !baseUrl || !apiKey || apiKey.length < 8) return;
     if (!/^https?:\/\//.test(baseUrl)) return;
 
     const key = JSON.stringify([baseUrl, apiKey, document.getElementById('model-vendor')?.value]);
@@ -433,7 +446,7 @@
     if (raw) {
       sessionStorage.removeItem('gewu:handoff');
       const data = JSON.parse(raw);
-      if (data && data.base_url) {
+      if (data && data.base_url && !apiKeyInput.value && !baseUrlInput.value) {
         baseUrlInput.value = data.base_url;
         const fromLabel = {anthropic: 'Claude', openai: 'OpenAI', gemini: 'Gemini'}[data.from] || data.from;
         setPill('neutral', '已从 ' + fromLabel + ' 页面带入中转站地址。为保护密钥，请重新粘贴 API 密钥。');
@@ -441,6 +454,16 @@
       }
     }
   } catch (_) { /* malformed handoff — ignore */ }
+
+  // Only the already-authorized /models listing is read here, never inference.
+  // Ignore stale URL-only handoffs above when a fresh form carries credentials.
+  if (form.dataset.prepared === 'true') runProbe();
+  window.addEventListener('pagehide', () => {
+    inflight?.abort();
+    inflight = null;
+    lastKey = null;
+    lastProbeData = null;
+  });
 })();
 
 
@@ -462,9 +485,9 @@
   }
 
   function currentProtocol() {
-    return location.pathname.startsWith('/claude') ? 'anthropic' :
-           location.pathname.startsWith('/openai') ? 'openai' :
-           location.pathname.startsWith('/gemini') ? 'gemini' : null;
+    return {
+      '/api/detect/claude': 'anthropic', '/api/detect/openai': 'openai', '/api/detect/gemini': 'gemini',
+    }[endpointFor()] || null;
   }
 
   function renderModelDeadError(detail) {
@@ -723,7 +746,7 @@
   });
 })();
 
-// Homepage quick launcher and safe Base URL handoff. API keys never enter URLs.
+// Homepage prepares the next form with a same-origin POST. No secret URL or browser storage.
 (() => {
   function parseSafeBaseUrl(value) {
     let parsed;
@@ -742,6 +765,7 @@
   const launcher = document.getElementById('quick-check');
   if (launcher) {
     const input = document.getElementById('quick-base-url');
+    const apiKeyInput = document.getElementById('quick-api-key');
     const modelInput = document.getElementById('quick-model');
     const error = document.getElementById('quick-check-error');
     const vendorInput = document.getElementById('quick-vendor');
@@ -755,13 +779,14 @@
         modelInput.disabled = vendor?.id === 'other';
         const hint = document.getElementById('quick-model-hint');
         if (hint) hint.textContent = vendor?.id === 'other'
-          ? '下一步填写地址和 Key，读取接口模型列表后选择。'
+          ? '填好地址和 Key 后，下一步读取接口模型列表供你选择。'
           : '从官方候选中选择；下一步按接口声明确认可用性。';
         if (error) error.hidden = true;
     });
     launcher.addEventListener('submit', (event) => {
-      event.preventDefault();
+      if (apiKeyInput.disabled) { event.preventDefault(); return; }
       if (!modelInput?.value && vendorInput?.value !== 'other') {
+        event.preventDefault();
         if (error) { error.textContent = '请先从列表中选择目标模型'; error.hidden = false; }
         modelInput?.focus();
         return;
@@ -769,6 +794,7 @@
       const value = String(input?.value || '').trim();
       const parsed = parseSafeBaseUrl(value);
       if (!parsed) {
+        event.preventDefault();
         if (error) {
           error.textContent = '\u8bf7\u8f93\u5165\u4e0d\u542b\u8d26\u53f7\u3001\u5bc6\u7801\u3001\u67e5\u8be2\u53c2\u6570\u6216 # \u7247\u6bb5\u7684 HTTP(S) Base URL';
           error.hidden = false;
@@ -776,23 +802,25 @@
         input?.focus();
         return;
       }
-      const vendor = catalog.find(v => v.id === vendorInput?.value);
-      const protocol = vendor?.route || 'claude';
-      const target = new URL(`/${protocol}`, location.origin);
-      target.searchParams.set('vendor', vendor?.id || 'anthropic');
-      target.searchParams.set('base_url', value);
-      const model = String(modelInput?.value || '').trim();
-      if (model && model.length <= 120 && !/[\u0000-\u001f\u007f]/.test(model)) {
-        target.searchParams.set('model', model);
+      const apiKey = apiKeyInput.value.trim();
+      if (apiKey.length < 8 || apiKey.length > 4096 || /[\u0000-\u001f\u007f]/.test(apiKey)) {
+        event.preventDefault();
+        if (error) { error.textContent = '请填写有效的 API Key（8–4096 个字符）'; error.hidden = false; }
+        apiKeyInput.focus();
+        return;
       }
-      location.href = `${target.pathname}${target.search}#detect-form`;
+      input.value = value;
+      apiKeyInput.value = apiKey;
+      if (error) error.hidden = true;
+      // Let the native form POST to its fixed same-origin action. No request
+      // is made while typing, and preparing this form cannot run a detection.
     });
   }
 
   const detectorForm = document.getElementById('detect-form');
   const baseUrlInput = document.getElementById('base_url');
   const detectorModelInput = document.getElementById('model');
-  if (detectorForm) {
+  if (detectorForm && detectorForm.dataset.prepared !== 'true') {
     const params = new URLSearchParams(location.search);
     if (baseUrlInput && !baseUrlInput.value) {
       const candidate = params.get('base_url');

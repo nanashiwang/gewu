@@ -29,7 +29,7 @@
 <div class="home-tools">
   <section class="home-check" aria-labelledby="quick-check-title">
     <div class="home-panel-heading"><h2 id="quick-check-title">开始检测</h2><span>01 / 配置接口</span></div>
-    <form id="quick-check" novalidate>
+    <form id="quick-check" method="post" action="/api/status/prepare#detect-form" autocomplete="off" novalidate>
       {% set catalog = model_catalog() %}
       <div class="home-check-fields">
         <div class="home-field">
@@ -51,10 +51,15 @@
           <input id="quick-base-url" name="base_url" type="url" inputmode="url" placeholder="https://api.example.com/v1" autocomplete="url" autocapitalize="none" spellcheck="false" maxlength="2048" required>
           <p>填写服务商提供的 API Base URL。</p>
         </div>
+        <div class="home-field">
+          <label for="quick-api-key">API Key</label>
+          <input id="quick-api-key" name="api_key" type="password" placeholder="粘贴你的 API Key" minlength="8" maxlength="4096" autocomplete="new-password" autocapitalize="none" spellcheck="false" aria-describedby="quick-key-hint" required>
+          <p id="quick-key-hint">仅用于本次检测，不保存密钥。</p>
+        </div>
       </div>
       <div class="home-check-action">
         <button class="btn btn-primary" type="submit">下一步<span aria-hidden="true">→</span></button>
-        <p>首页不收集密钥，下一步填写 API Key。</p>
+        <p>下一步确认检测选项，无需重复填写。</p>
       </div>
       <p id="quick-check-error" class="home-form-error" role="alert" hidden></p>
     </form>

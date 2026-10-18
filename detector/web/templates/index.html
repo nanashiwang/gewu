@@ -78,10 +78,10 @@
 
 <div class="detect-layout">
 <section class="card form-card">
-  <form id="detect-form" data-endpoint="/api/detect/claude" method="post" action="/api/detect/claude" autocomplete="off">
+  <form id="detect-form"{% if prefill %} data-prepared="true"{% endif %} data-endpoint="/api/detect/claude" method="post" action="/api/detect/claude" autocomplete="off">
     <div class="field">
       <label for="base_url">中转站接口地址</label>
-      <input type="url" id="base_url" name="base_url" required
+      <input type="url" id="base_url" name="base_url" value="{{ prefill.base_url | default('') }}" required
              placeholder="https://api.example.com" maxlength="2048"
              autocomplete="url" autocapitalize="none" spellcheck="false" />
       <p class="hint">中转站根 URL，格物将向其 <code>/v1/messages</code> 发送测试请求。</p>
@@ -89,7 +89,7 @@
 
     <div class="field">
       <label for="api_key">API 密钥</label>
-      <input type="password" id="api_key" name="api_key" required
+      <input type="password" id="api_key" name="api_key" value="{{ prefill.api_key | default('') }}" required
              placeholder="sk-..." minlength="8" maxlength="4096"
              autocomplete="new-password" autocapitalize="none" spellcheck="false" />
       <p class="hint">全程 HTTPS 传输，仅用于本次检测，不写日志、不持久化，检测完成后即丢弃。</p>
