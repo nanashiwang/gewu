@@ -83,6 +83,10 @@ jobs:
         run: |
           timeout --kill-after=10s 150s npx tsx scripts/prepare-platform-ci.ts
           docker exec "$POSTGRES_CONTAINER" pg_dump -U payload -d gewu --format=custom --no-owner --no-acl > platform-ci-database.dump
+      - name: Verify legacy deployment settings with real Payload
+        env:
+          NODE_ENV: production
+        run: timeout --kill-after=10s 120s npx tsx scripts/test-legacy-deployment-settings.ts
       - name: Package Linux release
         run: |
           cp -r .next/static .next/standalone/.next/static
