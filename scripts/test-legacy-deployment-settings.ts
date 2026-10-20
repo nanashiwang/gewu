@@ -66,6 +66,24 @@ try {
         USING newapi_log_scope::enum_deployment_settings_newapi_log_scope`)
   assert.deepEqual((await client.query(typesSql)).rows, canonicalTypes)
 } finally {
-  try { if (payload) await payload.destroy() } finally { await client.end() }
+  const adapter = payload?.db as unknown as { pool?: pg.Pool } | undefined
+  try {
+    if (payload) await payload.destroy()
+  } finally {
+    try {
+      // This adapter version's destroy clears schema metadata but leaves its
+      // pg pool open. Explicitly drain that pool before ending this finite test.
+      if (adapter?.pool) {
+        await adapter.pool.end()
+        assert.equal(adapter.pool.totalCount, 0)
+        assert.equal(adapter.pool.waitingCount, 0)
+      }
+    } finally {
+      await client.end()
+    }
+  }
 }
 console.log('LEGACY_SETTINGS_TEST_CONNECTIONS=0')
+// The guarded CI-only command is complete, including both pool shutdowns.
+// Do not leave config-tooling watchers alive after all awaited assertions.
+process.exit(0)
