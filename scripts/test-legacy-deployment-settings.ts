@@ -11,6 +11,17 @@ const url = new URL(process.env.DATABASE_URL || '')
 assert(['localhost', '127.0.0.1'].includes(url.hostname) && url.pathname === '/gewu' && url.username === 'payload')
 const client = new pg.Client({ connectionString: url.toString() })
 let payload: import('payload').Payload | undefined
+let adapterPool: pg.Pool | undefined
+const leasedConnections = new Set<pg.PoolClient>()
+class FixturePool extends pg.Pool {
+  constructor(options?: pg.PoolConfig) {
+    super(options)
+    adapterPool = this
+    this.on('acquire', (connection) => leasedConnections.add(connection))
+    this.on('release', (_error, connection) => leasedConnections.delete(connection))
+    this.on('remove', (connection) => leasedConnections.delete(connection))
+  }
+}
 const typesSql = `SELECT column_name, udt_name FROM information_schema.columns
   WHERE table_schema='public' AND table_name='deployment_settings'
   AND column_name IN ('newapi_usage_source','newapi_log_scope') ORDER BY column_name`
@@ -25,7 +36,16 @@ try {
   const { getPayload } = await import('payload')
   const { default: config } = await import('../src/payload.config')
   const { deploymentSettingsToEnv } = await import('../src/lib/deploymentSettings')
-  payload = await getPayload({ config })
+  const resolvedConfig = await config
+  const createAdapter = resolvedConfig.db.init
+  resolvedConfig.db.init = (args) => {
+    const adapter = createAdapter(args) as ReturnType<typeof createAdapter> & { pg: typeof pg }
+    // Keep the production adapter and queries; track only this fixture's
+    // checked-out connections through the public pg.Pool lifecycle events.
+    adapter.pg = { ...adapter.pg, Pool: FixturePool }
+    return adapter
+  }
+  payload = await getPayload({ config: resolvedConfig })
   for (const layout of ['enum', 'varchar']) {
     if (layout === 'varchar') {
       await client.query(`ALTER TABLE deployment_settings
@@ -65,19 +85,23 @@ try {
       ALTER COLUMN newapi_log_scope TYPE enum_deployment_settings_newapi_log_scope
         USING newapi_log_scope::enum_deployment_settings_newapi_log_scope`)
   assert.deepEqual((await client.query(typesSql)).rows, canonicalTypes)
+  assert.equal(Object.keys((payload.db as unknown as { sessions: object }).sessions).length, 0)
+  assert(leasedConnections.size <= 1, 'No query/transaction leases may remain beyond the adapter bootstrap connection')
 } finally {
-  const adapter = payload?.db as unknown as { pool?: pg.Pool } | undefined
   try {
     if (payload) await payload.destroy()
   } finally {
     try {
-      // This adapter version's destroy clears schema metadata but leaves its
-      // pg pool open. Explicitly drain that pool before ending this finite test.
-      if (adapter?.pool) {
-        await adapter.pool.end()
-        assert.equal(adapter.pool.totalCount, 0)
-        assert.equal(adapter.pool.waitingCount, 0)
+      // db-postgres keeps one startup error-listener connection checked out;
+      // its destroy does not release that lease or close the pool. All fixture
+      // operations are awaited; release only connections owned by this test.
+      for (const connection of leasedConnections) connection.release(true)
+      if (adapterPool) {
+        await adapterPool.end()
+        assert.equal(adapterPool.totalCount, 0)
+        assert.equal(adapterPool.waitingCount, 0)
       }
+      assert.equal(leasedConnections.size, 0)
     } finally {
       await client.end()
     }
