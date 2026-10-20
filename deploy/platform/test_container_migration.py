@@ -204,6 +204,15 @@ def main():
         old_app = docker_build(old_server, f'FROM {image}\nUSER root\nCOPY --chown=nextjs:nodejs server.js /app/server.js\nUSER nextjs\n', 'gewu-platform-ci-previous:fixture')
         install_original_detector(old_detector, OLD_REVISION)
         configs = install_original_account(old_app, owner)
+        # Reproduce the historical migrations: only these two columns remain
+        # varchar although the generated clean-install schema uses enums.
+        p.run('docker', 'exec', p.DB, 'psql', '-X', '-U', 'payload', '-d', 'gewu', '-v', 'ON_ERROR_STOP=1', '-c', """
+ALTER TABLE deployment_settings
+ ALTER COLUMN newapi_usage_source TYPE varchar USING newapi_usage_source::text,
+ ALTER COLUMN newapi_log_scope TYPE varchar USING newapi_log_scope::text;
+INSERT INTO deployment_settings (newapi_usage_source,newapi_log_scope,backup_notes)
+ VALUES ('local','self','synthetic legacy canary');
+""")
         original_files = {str(path): p.sha(path) for path in configs}
         _, original_others = p.inventory()
         schema = json.loads((REPO / 'platform-fixture/platform-schema.json').read_text())
@@ -216,7 +225,37 @@ def main():
         shutil.copyfile(REPO / 'detector/deploy/container_release.py', checked_script)
         p.release_bundle = lambda revision: (bundle, schema, r, checked_script)
 
+        source_db = p.database(p.inspect(p.APP))
+        def settings_snapshot():
+            return p.source_db(source_db, 'psql', '-X', '-At', '-v', 'ON_ERROR_STOP=1', '-c',
+                "SELECT row_to_json(s) FROM (SELECT id,newapi_usage_source,newapi_log_scope,backup_notes FROM deployment_settings ORDER BY id) s;").stdout
+        schema_before = p.source_schema_hash(source_db)
+        settings_before = settings_snapshot()
+        assert set(p.source_schema_compatible(source_db, schema)) == set(p.LEGACY_SETTINGS_ENUMS)
+        original_dump = REPO / 'platform-fixture/platform-ci-database.dump'
+        # Both shapes are exercised by the same actual image, including an
+        # invalid legacy row that must fail without touching the live fixture.
+        p.database_probe(target, source_db, original_dump, schema)
+        p.run('docker', 'exec', p.DB, 'psql', '-X', '-U', 'payload', '-d', 'gewu', '-v', 'ON_ERROR_STOP=1', '-c',
+              "UPDATE deployment_settings SET newapi_usage_source='invalid-ci-value';")
+        invalid_dump = p.ROOT / 'invalid-ci.dump'
+        with invalid_dump.open('wb') as stream:
+            p.source_db(source_db, 'pg_dump', '--format=custom', '--no-owner', '--no-acl', binary=True, stdout=stream)
+        for check in (lambda: p.source_schema_compatible(source_db, schema),
+                      lambda: p.database_probe(target, source_db, invalid_dump, schema)):
+            try:
+                check()
+                raise AssertionError('invalid legacy values must fail')
+            except p.ReleaseError as error:
+                assert str(error).startswith('Legacy setting values are incompatible')
+                assert 'invalid-ci-value' not in str(error)
+        p.run('docker', 'exec', p.DB, 'psql', '-X', '-U', 'payload', '-d', 'gewu', '-v', 'ON_ERROR_STOP=1', '-c',
+              "UPDATE deployment_settings SET newapi_usage_source='local';")
+        assert p.source_schema_hash(source_db) == schema_before and settings_snapshot() == settings_before
+        print('PASS: canonical schema accepted; invalid legacy values refused without disclosure or service cutover')
+
         p.deploy(owner)
+        assert p.source_schema_hash(source_db) == schema_before and settings_snapshot() == settings_before
         state = json.loads(p.STATE.read_text())
         folder = Path(state['backup'])
         assert state['paired_complete'] and p.image_id(p.inspect(p.APP)) == target
@@ -231,6 +270,7 @@ def main():
         p.load_module = lambda path, name: r
         p.rollback(folder)
         assert p.image_id(p.inspect(p.APP)) == old_app and p.image_id(p.inspect(r.NAME)) == old_detector
+        assert p.source_schema_hash(source_db) == schema_before and settings_snapshot() == settings_before
         print('PASS: actual paired manual rollback retains live database and media')
 
         original_wait = p.wait_health
@@ -261,6 +301,8 @@ def main():
         finally:
             r.deploy = original_deploy
         assert p.image_id(p.inspect(p.APP)) == old_app and p.image_id(p.inspect(r.NAME)) == old_detector
+        assert p.source_schema_hash(source_db) == schema_before and settings_snapshot() == settings_before
+        print('PASS: legacy varchar settings survive paired deployment and both failure recoveries without schema/row changes')
         print('PASS: failed detector phase also restores the previous account image')
         assert p.inspect(p.PROJECT + '-migrate-1') is None
         assert p.run('docker', 'exec', p.DB, 'psql', '-U', 'payload', '-d', 'gewu', '-At', '-c', 'SELECT count(*) FROM gewu_release_probe_canary;').stdout.strip() == '1'

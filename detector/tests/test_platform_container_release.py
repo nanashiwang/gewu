@@ -248,3 +248,93 @@ def test_postgres_readiness_waits_for_tcp_not_the_initialization_socket(monkeypa
     p.wait_postgres('owned-probe', 'probe', 'probe')
     assert len(calls) == 2
     assert all(args[4:6] == ('-h', '127.0.0.1') for args in calls)
+
+
+def legacy_schema(*, columns=None):
+    expected = {'version': 1, 'columns': [], 'enums': []}
+    for column, (enum, values) in p.LEGACY_SETTINGS_ENUMS.items():
+        expected['columns'].append({'table_name': 'deployment_settings', 'column_name': column, 'udt_name': enum})
+        expected['enums'].extend({'name': enum, 'value': value} for value in values)
+    actual = copy.deepcopy(expected)
+    for row in actual['columns']:
+        if columns is None or row['column_name'] in columns:
+            row['udt_name'] = 'varchar'
+    return expected, actual
+
+
+@pytest.mark.parametrize('columns', [None, {'newapi_usage_source'}, {'newapi_log_scope'}, set()])
+def test_known_legacy_columns_require_boolean_value_checks(columns):
+    expected, actual = legacy_schema(columns=columns)
+    calls = []
+    def query(sql):
+        calls.append(sql)
+        return json.dumps({column: True for column in p.LEGACY_SETTINGS_ENUMS})
+    accepted = p.schema_compatible(expected, actual, read_legacy=query)
+    assert set(accepted) == (set(p.LEGACY_SETTINGS_ENUMS) if columns is None else columns)
+    assert calls == ([p.LEGACY_SETTINGS_SQL] if accepted else [])
+
+
+@pytest.mark.parametrize('validity', [{}, {'newapi_usage_source': True},
+    {'newapi_usage_source': True, 'newapi_log_scope': False},
+    {'newapi_usage_source': 'true', 'newapi_log_scope': True},
+    {'newapi_usage_source': 1, 'newapi_log_scope': True},
+    {'newapi_usage_source': None, 'newapi_log_scope': True}, [], True])
+def test_unproven_or_invalid_legacy_values_are_never_accepted(validity):
+    expected, actual = legacy_schema()
+    with pytest.raises(p.ReleaseError, match='Legacy setting values are incompatible'):
+        p.schema_compatible(expected, actual, read_legacy=lambda sql: json.dumps(validity))
+
+
+def test_legacy_type_exception_cannot_skip_value_validation():
+    expected, actual = legacy_schema()
+    with pytest.raises(p.ReleaseError, match='read-only value check'):
+        p.schema_compatible(expected, actual)
+
+
+@pytest.mark.parametrize('mutation', ['missing-column', 'wrong-table', 'renamed-column', 'wrong-enum',
+                                     'text-type', 'other-column', 'new-enum-option', 'missing-enum-option'])
+def test_legacy_exception_never_covers_unknown_schema_changes(mutation):
+    expected, actual = legacy_schema()
+    if mutation == 'missing-column': actual['columns'].pop()
+    elif mutation == 'wrong-table':
+        expected['columns'][0]['table_name'] = actual['columns'][0]['table_name'] = 'other_project'
+    elif mutation == 'renamed-column':
+        expected['columns'][0]['column_name'] = actual['columns'][0]['column_name'] = 'other_setting'
+    elif mutation == 'wrong-enum': expected['columns'][0]['udt_name'] = 'unreviewed_enum'
+    elif mutation == 'text-type': actual['columns'][0]['udt_name'] = 'text'
+    elif mutation == 'other-column':
+        expected['columns'].append({'table_name': 'users', 'column_name': 'role', 'udt_name': 'enum_users_role'})
+        actual['columns'].append({'table_name': 'users', 'column_name': 'role', 'udt_name': 'varchar'})
+    elif mutation == 'new-enum-option':
+        expected['enums'].append({'name': 'enum_deployment_settings_newapi_log_scope', 'value': 'unreviewed'})
+    elif mutation == 'missing-enum-option': actual['enums'].pop()
+    with pytest.raises(p.ReleaseError):
+        p.schema_compatible(expected, actual, read_legacy=lambda sql: pytest.fail('Reject metadata before querying rows'))
+
+
+def test_live_legacy_value_queries_use_only_readonly_source_connection(monkeypatch):
+    expected, actual = legacy_schema()
+    calls = []
+    db = {'password': 'fixture-password-never-disclosed'}
+    def query(received, program, *args):
+        assert received == db and program == 'psql'
+        assert args[:5] == ('-X', '-At', '-v', 'ON_ERROR_STOP=1', '-c')
+        calls.append(args[-1])
+        value = actual if args[-1] == p.SCHEMA_SQL else {k: True for k in p.LEGACY_SETTINGS_ENUMS}
+        return result(json.dumps(value))
+    monkeypatch.setattr(p, 'source_db', query)
+    assert set(p.source_schema_compatible(db, expected)) == set(p.LEGACY_SETTINGS_ENUMS)
+    assert calls == [p.SCHEMA_SQL, p.LEGACY_SETTINGS_SQL]
+    assert 'SELECT 1' in calls[1] and 'NOT EXISTS' in calls[1]
+    assert not any(verb in calls[1] for verb in ['UPDATE ', 'ALTER ', 'INSERT ', 'DELETE '])
+
+
+def test_bad_source_schema_stops_before_acquiring_detector_or_creating_backup(monkeypatch):
+    events = []
+    monkeypatch.setattr(p, 'preflight', lambda: (app(), {}, config(), [], '/dev/null', {}, OLD_IMAGE, False))
+    def reject(*args): raise p.ReleaseError('incompatible fixture')
+    monkeypatch.setattr(p, 'source_schema_compatible', reject)
+    detector = SimpleNamespace(preflight=lambda **kwargs: events.append('detector'))
+    with pytest.raises(p.ReleaseError, match='incompatible fixture'):
+        p.deploy_account({}, {}, detector, None)
+    assert not events

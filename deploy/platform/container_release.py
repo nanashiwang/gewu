@@ -46,6 +46,20 @@ SCHEMA_SQL = """SELECT json_build_object(
 JOIN pg_namespace n ON t.typnamespace=n.oid WHERE n.nspname='public') e));"""
 
 
+# 20260706 created these optional select fields as varchar. The 20260718
+# CREATE TABLE IF NOT EXISTS reconciliation adds their enum types but does not
+# alter an existing table. Only these reviewed legacy representations qualify.
+LEGACY_SETTINGS_ENUMS = {
+    'newapi_usage_source': ('enum_deployment_settings_newapi_usage_source', ('newapi', 'local')),
+    'newapi_log_scope': ('enum_deployment_settings_newapi_log_scope', ('auto', 'admin', 'self')),
+}
+LEGACY_SETTINGS_SQL = """SELECT json_build_object(
+'newapi_usage_source', NOT EXISTS (SELECT 1 FROM public.deployment_settings
+ WHERE newapi_usage_source IS NOT NULL AND newapi_usage_source::text NOT IN ('newapi','local')),
+'newapi_log_scope', NOT EXISTS (SELECT 1 FROM public.deployment_settings
+ WHERE newapi_log_scope IS NOT NULL AND newapi_log_scope::text NOT IN ('auto','admin','self')));"""
+
+
 class ReleaseError(RuntimeError):
     pass
 
@@ -331,12 +345,36 @@ def verify_files(values):
     need(all(Path(path).is_file() and sha(path) == value for path, value in values.items()), 'Existing configuration/media changed during cutover')
 
 
-def schema_compatible(expected, actual):
+def schema_compatible(expected, actual, *, read_legacy=None):
     need(isinstance(expected, dict) and expected.get('version') == 1 and isinstance(expected.get('columns'), list) and isinstance(expected.get('enums'), list), 'Invalid release schema requirements')
     columns = {(row['table_name'], row['column_name']): row['udt_name'] for row in actual['columns']}
     enums = {(row['name'], row['value']) for row in actual['enums']}
-    need(all(columns.get((row['table_name'], row['column_name'])) == row['udt_name'] for row in expected['columns']), 'Database schema is incompatible; a separate migration review is required')
-    need(all((row['name'], row['value']) in enums for row in expected['enums']), 'Database enum definitions are incompatible; no automatic migration is performed')
+    expected_enums = {(row['name'], row['value']) for row in expected['enums']}
+    legacy = []
+    for row in expected['columns']:
+        table, column, wanted = row['table_name'], row['column_name'], row['udt_name']
+        found = columns.get((table, column))
+        if found == wanted:
+            continue
+        rule = LEGACY_SETTINGS_ENUMS.get(column) if table == 'deployment_settings' else None
+        known = (rule and wanted == rule[0] and found == 'varchar'
+                 and {value for name, value in expected_enums if name == wanted} == set(rule[1]))
+        need(known, 'Database schema is incompatible; a separate migration review is required')
+        legacy.append(column)
+    need(expected_enums <= enums, 'Database enum definitions are incompatible; no automatic migration is performed')
+    if legacy:
+        need(callable(read_legacy), 'Legacy setting columns require a read-only value check')
+        # Returns booleans only, never settings, credentials or sample rows.
+        validity = json.loads(read_legacy(LEGACY_SETTINGS_SQL))
+        need(isinstance(validity, dict) and all(validity.get(column) is True for column in legacy),
+             'Legacy setting values are incompatible; no values disclosed and no database changes made')
+    return tuple(sorted(legacy))
+
+
+def source_schema_compatible(db, expected):
+    def query(sql):
+        return source_db(db, 'psql', '-X', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql).stdout
+    return schema_compatible(expected, json.loads(query(SCHEMA_SQL)), read_legacy=query)
 
 
 class Probe:
@@ -443,7 +481,11 @@ def database_probe(image, db, dump, expected_schema):
         with dump.open('rb') as stream:
             run('docker', 'exec', '-i', probe.names['db'], 'timeout', '-k', '5', '120', 'pg_restore', '-U', 'probe', '-d', 'probe', '--no-owner', '--no-acl', '--no-tablespaces', '--exit-on-error', binary=True, stdin=stream, timeout=135)
         actual = json.loads(run('docker', 'exec', probe.names['db'], 'psql', '-U', 'probe', '-d', 'probe', '-At', '-c', SCHEMA_SQL).stdout)
-        schema_compatible(expected_schema, actual)
+        def read_legacy(sql):
+            return run('docker', 'exec', '-e', 'PGOPTIONS=-c default_transaction_read_only=on -c statement_timeout=10000',
+                       probe.names['db'], 'psql', '-X', '-U', 'probe', '-d', 'probe', '-At', '-v', 'ON_ERROR_STOP=1', '-c', sql,
+                       timeout=15).stdout
+        legacy = schema_compatible(expected_schema, actual, read_legacy=read_legacy)
         before = copied_dump_hash(probe.names['db'], probe.path / 'copy.sql')
         probe.start('redis', db['redis_image'], '--memory', '64m', '--memory-swap', '64m', '--cpus', '0.2',
                     command=('redis-server', '--save', '', '--appendonly', 'no', '--maxmemory', '32mb', '--maxmemory-policy', 'allkeys-lru'))
@@ -471,6 +513,8 @@ def database_probe(image, db, dump, expected_schema):
         route = "fetch('http://127.0.0.1:3000/v1/relay-sites/fixture/checks/fixture/report',{redirect:'manual',signal:AbortSignal.timeout(8000)}).then(r=>{if(r.status!==401)process.exit(1)}).catch(()=>process.exit(1))"
         run('docker', 'exec', probe.names['app'], 'node', '-e', route, timeout=12)
         need(copied_dump_hash(probe.names['db'], probe.path / 'copy.sql') == before, 'New account startup changed the copied database; refusing live upgrade')
+    if legacy:
+        print('PASS: reviewed legacy setting columns and valid select values; no schema migration needed', flush=True)
     print('PASS: required schema, unauthenticated report denial, and unchanged copied schema/rows', flush=True)
 
 
@@ -543,6 +587,7 @@ def preflight():
 
 def deploy_account(data, schema, detector, script):
     app, others, config, paths, envfile, db, previous_image, previous_gateway = preflight()
+    source_schema_compatible(db, schema)
     detector.preflight(require_idle=False, require_account_gateway=False)
     detector.healthy_service()
     detector.acquire(data['revision'])  # Acquire both pinned images before any service cutover.
@@ -575,6 +620,7 @@ def deploy_account(data, schema, detector, script):
     save(folder / 'protected.json', {'files': protected, 'others': others})
     switched = False
     with detector.deployment_window(wait_seconds=300):
+        source_schema_compatible(db, schema)
         try:
             switched = True
             print('STEP: brief account maintenance; replacing only gewu-app', flush=True)
