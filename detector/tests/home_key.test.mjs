@@ -9,7 +9,7 @@ const extract = (from, to) => {
   if (start < 0 || end < 0) throw new Error('Script section not found');
   return source.slice(start, end);
 };
-const launcher = extract('// Homepage prepares', '// Client-side leaderboard');
+const launcher = extract('// Legacy protocol-page URL handoff.', '// Client-side leaderboard');
 const transport = extract('// Refuse to collect API keys', '// Keep a prepared password');
 const clearPassword = extract('// Keep a prepared password', '// Native selects');
 const probe = extract('// Pre-submission probe:', '\n\n(function () {\n  const form = document.getElementById(\'detect-form\');');
@@ -55,53 +55,6 @@ function fixture({ prepared = false, url = 'https://gewu.example/', vendor = 'op
 function run(script, context) { runInNewContext(script, context, { timeout: 1000 }); }
 
 describe('Homepage Key handoff', () => {
-  it('uses native POST without redirect, storage, or any request while typing', () => {
-    const f = fixture();
-    run(launcher, f.context);
-    f.key.emit('input'); f.key.emit('blur');
-    expect(f.fetch).not.toHaveBeenCalled();
-    expect(f.submit().preventDefault).not.toHaveBeenCalled();
-    expect(f.key.value).toBe(KEY);
-    expect(f.storage.setItem).not.toHaveBeenCalled();
-    expect(f.fetch).not.toHaveBeenCalled();
-    expect(f.context.location.search).toBe('');
-  });
-
-  it.each(['', 'short', 'sk-test\nsecret', 'k'.repeat(4097)])('rejects invalid keys without sending them', key => {
-    const f = fixture(); f.key.value = key;
-    run(launcher, f.context);
-    expect(f.submit().preventDefault).toHaveBeenCalled();
-    expect(f.key.focus).toHaveBeenCalled();
-    expect(f.error.hidden).toBe(false);
-    expect(f.fetch).not.toHaveBeenCalled();
-  });
-
-  it.each(['', 'javascript:alert(1)', 'https://user:pass@relay.example',
-    'https://relay.example?api_key=synthetic', 'https://relay.example/#synthetic'])('rejects unsafe addresses', url => {
-    const f = fixture(); f.base.value = url;
-    run(launcher, f.context);
-    expect(f.submit().preventDefault).toHaveBeenCalled();
-    expect(f.base.focus).toHaveBeenCalled();
-    expect(f.fetch).not.toHaveBeenCalled();
-  });
-
-  it('requires a model, except for the explicit other-vendor flow', () => {
-    for (const vendor of ['openai', 'other']) {
-      const f = fixture({vendor}); f.model.value = '';
-      run(launcher, f.context);
-      expect(f.submit().preventDefault.mock.calls.length).toBe(vendor === 'other' ? 0 : 1);
-    }
-  });
-
-  it('trims pasted credentials only in the live controls', () => {
-    const f = fixture(); f.key.value = `  ${KEY}  `; f.base.value += ' ';
-    run(launcher, f.context);
-    expect(f.submit().preventDefault).not.toHaveBeenCalled();
-    expect(f.key.value).toBe(KEY);
-    expect(f.base.value).toBe('https://relay.example/v1');
-    expect(f.storage.setItem).not.toHaveBeenCalled();
-  });
-
   it.each([false, true])('blocks a public HTTP page before credentials can be sent (prepared=%s)', prepared => {
     const f = fixture({prepared, url: 'http://public.example/'});
     run(transport, f.context);

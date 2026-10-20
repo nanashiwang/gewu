@@ -51,20 +51,23 @@ def post(data=None, *, headers=None, app=None):
         headers={"origin": "https://testserver", **(headers or {})}, follow_redirects=False)
 
 
-def test_home_has_a_password_field_and_post_only_action():
+def test_home_has_a_password_field_and_direct_detection_action():
     client = TestClient(server.app, base_url="https://testserver")
     client.get("/")  # The second request already has its owner cookie.
     response = client.get("/")
     controls = Controls(response.text)
     form = controls.by_id("quick-check")
     assert form["method"] == "post"
-    assert form["action"] == PATH + "#detect-form"
+    assert form["action"] == "/api/detect/claude"
+    assert "data-direct-detection" in form
+    assert "disabled" in controls.by_id("quick-start")
+    assert '/static/home-detect.js?v=direct-flow-1' in response.text
     key = controls.by_id("quick-api-key")
     assert key["type"] == "password" and key["name"] == "api_key"
     assert key["autocomplete"] == "new-password"
     assert key["maxlength"] == "4096" and "required" in key
     assert "value" not in key
-    assert "下一步确认检测选项，无需重复填写" in response.text
+    assert "直接进入检测进度与结果页" in response.text
     assert "首页不收集密钥" not in response.text
     assert response.headers["cache-control"] == "no-store"
     assert "googletagmanager.com" not in response.text

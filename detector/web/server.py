@@ -1390,6 +1390,26 @@ def _seo_meta_for_report(report: dict) -> dict[str, str]:
     }
 
 
+def _job_display(job) -> dict:
+    report = job.report or {}
+    try:
+        domain = urlsplit(str(report.get("base_url") or job.base_url)).hostname or "未记录"
+    except ValueError:
+        domain = "未记录"
+    stamp = report.get("timestamp")
+    try:
+        instant = datetime.fromisoformat(str(stamp).replace("Z", "+00:00")) if stamp else datetime.fromtimestamp(job.finished_at or job.created_at, timezone.utc)
+        if instant.tzinfo is None:
+            instant = instant.replace(tzinfo=timezone.utc)
+        time_label = instant.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    except (ValueError, TypeError, OverflowError):
+        time_label = "未记录"
+    wire = report.get("wire_api") or job.wire_api or ("messages" if job.protocol == "anthropic" else "chat_completions")
+    return {"domain": domain, "model": report.get("target_model") or job.target_model,
+            "mode": {"quick": "快速检测", "standard": "标准检测", "full": "完整检测"}.get(report.get("mode") or job.mode, "未记录"),
+            "wire": WIRE_APIS.get(wire, {}).get("label", wire), "time": time_label}
+
+
 @app.get("/r/{job_id}", response_class=HTMLResponse)
 async def result_page(request: Request, job_id: str) -> HTMLResponse:
     j = await jobs.get(job_id)
@@ -1400,7 +1420,8 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
     owner = _owned(request, job_id)
     if j.report is None:
         return templates.TemplateResponse(
-            request, "running.html", {"job_id": job_id, "job": j,
+            request, "running.html", {"job_id": job_id, "job": j, "display": _job_display(j),
+                                     "check_descriptions": _CHECK_DESCRIPTIONS,
                                      "can_cancel": owner or jobs.can_cancel(j, request.cookies.get(f"gewu_cancel_{job_id}", ""))},
             headers={"Cache-Control": "no-store"},
         )
@@ -1421,6 +1442,7 @@ async def result_page(request: Request, job_id: str) -> HTMLResponse:
             "report_owner": owner,
             "share_enabled": owner and report_access.enabled(jobs.JOBS_DIR, job_id),
             "report": j.report,
+            "display": _job_display(j),
             "official_comparison": comparison,
             "assessment": assess_report(j.report),
             "rows": _result_rows(j.report),
@@ -1688,6 +1710,33 @@ async def sitemap_xml() -> Response:
 # ----- helpers shared with templates -----
 
 
+_CHECK_DESCRIPTIONS = {
+    "identity": "观察模型自述；自述不能单独证明真实型号。",
+    "behavioral_signature": "观察回答风格与格式，不作为模型身份证明。",
+    "thinking_signature": "核验原始思维块回放和篡改后的拒绝结果。",
+    "consistency": "核对本次请求与响应中的模型信息。",
+    "model_consistency": "核对请求型号与响应的模型标识是否一致。",
+    "knowledge": "记录知识问答表现，仅作为复核线索。",
+    "pdf": "检查能否识别测试 PDF 中的指定内容。",
+    "basic_request": "检查所选接口能否返回可解析的基础回复。",
+    "model_info": "检查响应中的模型信息、主要字段与数据类型。",
+    "function_calling": "检查工具名称、参数和结束状态是否符合请求。",
+    "structured_output": "检查结构化输出是否满足请求的格式约束。",
+    "protocol": "核验协议字段、数据类型及结束状态。",
+    "integrity": "检查流式与非流式响应的完整性和一致性。",
+    "token_usage": "核对上游返回的用量字段；不等同于实际账单。",
+    "token_billing": "核对用量声明是否自洽，不能据此证明实际扣费。",
+    "message_id": "检查消息标识是否符合所选协议的格式。",
+    "long_context": "仅在明确启用时检查长输入中的信息检索。",
+    "responses_stream": "检查 Responses 流式事件及结束信号是否完整。",
+    "responses_schema": "检查 Responses 输出是否满足 JSON 结构约束。",
+    "responses_tools": "检查本地工具调用和结果回传能否完成。",
+    "gemini_stream": "检查所选 Gemini 接口的流式输出是否完整。",
+    "gemini_schema": "检查所选 Gemini 接口的结构化输出。",
+    "gemini_tools": "检查所选 Gemini 接口的工具调用往返。",
+}
+
+
 _DETECTOR_DISPLAY = {
     "anthropic": [
         ("identity", "身份一致性"),
@@ -1774,6 +1823,7 @@ def _result_rows(report: dict) -> list[dict]:
             "label": label,
             "status": status,
             "label_short": label_short,
+            "description": _CHECK_DESCRIPTIONS.get(name, "查看本次请求的实际检测证据。"),
             "css": css,
             "score": score,
         })

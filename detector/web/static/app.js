@@ -746,7 +746,7 @@
   });
 })();
 
-// Homepage prepares the next form with a same-origin POST. No secret URL or browser storage.
+// Legacy protocol-page URL handoff. API keys never enter URLs or browser storage.
 (() => {
   function parseSafeBaseUrl(value) {
     let parsed;
@@ -760,61 +760,6 @@
       return null;
     }
     return parsed;
-  }
-
-  const launcher = document.getElementById('quick-check');
-  if (launcher) {
-    const input = document.getElementById('quick-base-url');
-    const apiKeyInput = document.getElementById('quick-api-key');
-    const modelInput = document.getElementById('quick-model');
-    const error = document.getElementById('quick-check-error');
-    const vendorInput = document.getElementById('quick-vendor');
-    const catalog = JSON.parse(vendorInput?.dataset.catalog || '[]');
-    vendorInput?.addEventListener('change', () => {
-        const vendor = catalog.find(v => v.id === vendorInput.value);
-        const placeholder = new Option('请选择目标模型', '');
-        placeholder.disabled = true;
-        placeholder.selected = true;
-        modelInput.replaceChildren(placeholder, ...(vendor?.models || []).map(m => new Option(m.label, m.id)));
-        modelInput.disabled = vendor?.id === 'other';
-        const hint = document.getElementById('quick-model-hint');
-        if (hint) hint.textContent = vendor?.id === 'other'
-          ? '填好地址和 Key 后，下一步读取接口模型列表供你选择。'
-          : '从官方候选中选择；下一步按接口声明确认可用性。';
-        if (error) error.hidden = true;
-    });
-    launcher.addEventListener('submit', (event) => {
-      if (apiKeyInput.disabled) { event.preventDefault(); return; }
-      if (!modelInput?.value && vendorInput?.value !== 'other') {
-        event.preventDefault();
-        if (error) { error.textContent = '请先从列表中选择目标模型'; error.hidden = false; }
-        modelInput?.focus();
-        return;
-      }
-      const value = String(input?.value || '').trim();
-      const parsed = parseSafeBaseUrl(value);
-      if (!parsed) {
-        event.preventDefault();
-        if (error) {
-          error.textContent = '\u8bf7\u8f93\u5165\u4e0d\u542b\u8d26\u53f7\u3001\u5bc6\u7801\u3001\u67e5\u8be2\u53c2\u6570\u6216 # \u7247\u6bb5\u7684 HTTP(S) Base URL';
-          error.hidden = false;
-        }
-        input?.focus();
-        return;
-      }
-      const apiKey = apiKeyInput.value.trim();
-      if (apiKey.length < 8 || apiKey.length > 4096 || /[\u0000-\u001f\u007f]/.test(apiKey)) {
-        event.preventDefault();
-        if (error) { error.textContent = '请填写有效的 API Key（8–4096 个字符）'; error.hidden = false; }
-        apiKeyInput.focus();
-        return;
-      }
-      input.value = value;
-      apiKeyInput.value = apiKey;
-      if (error) error.hidden = true;
-      // Let the native form POST to its fixed same-origin action. No request
-      // is made while typing, and preparing this form cannot run a detection.
-    });
   }
 
   const detectorForm = document.getElementById('detect-form');
