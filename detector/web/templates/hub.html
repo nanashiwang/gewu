@@ -5,7 +5,8 @@
 {% block og_description %}选择模型，检测接口，查看证据。格物提供公益检测与历史报告查询。{% endblock %}
 {% block body_class %}home-simple{% endblock %}
 {% block head_extra %}
-<link rel="stylesheet" href="/static/home.css?v=20261011-catalog" />
+<link rel="stylesheet" href="/static/home.css?v=direct-flow-1" />
+<script src="/static/home-detect.js?v=direct-flow-1" defer></script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -28,24 +29,10 @@
 
 <div class="home-tools">
   <section class="home-check" aria-labelledby="quick-check-title">
-    <div class="home-panel-heading"><h2 id="quick-check-title">开始检测</h2><span>01 / 配置接口</span></div>
-    <form id="quick-check" method="post" action="/api/status/prepare#detect-form" autocomplete="off" novalidate>
+    <div class="home-panel-heading"><h2 id="quick-check-title">开始检测</h2><span>填好即测</span></div>
+    <form id="quick-check" method="post" action="/api/detect/claude" autocomplete="off" data-direct-detection novalidate>
       {% set catalog = model_catalog() %}
       <div class="home-check-fields">
-        <div class="home-field">
-          <label for="quick-vendor">模型厂商</label>
-          <select id="quick-vendor" name="vendor" data-picker="search" data-catalog='{{ catalog.vendors|tojson }}'>
-            {% for v in catalog.vendors %}<option value="{{ v.id }}">{{ v.label }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="home-field">
-          <label for="quick-model">目标模型</label>
-          <select id="quick-model" name="model" required data-picker="search" data-choices='{{ quick_models|tojson }}' aria-describedby="quick-model-hint">
-            <option value="" selected disabled>请选择目标模型</option>
-            {% for model in quick_models.claude %}<option value="{{ model.id }}">{{ model.label }}</option>{% endfor %}
-          </select>
-          <p id="quick-model-hint">从官方候选中选择；下一步按接口声明确认可用性。</p>
-        </div>
         <div class="home-field">
           <label for="quick-base-url">接口地址</label>
           <input id="quick-base-url" name="base_url" type="url" inputmode="url" placeholder="https://api.example.com/v1" autocomplete="url" autocapitalize="none" spellcheck="false" maxlength="2048" required>
@@ -56,12 +43,51 @@
           <input id="quick-api-key" name="api_key" type="password" placeholder="粘贴你的 API Key" minlength="8" maxlength="4096" autocomplete="new-password" autocapitalize="none" spellcheck="false" aria-describedby="quick-key-hint" required>
           <p id="quick-key-hint">仅用于本次检测，不保存密钥。</p>
         </div>
+        <div class="home-model-fields">
+          <div class="home-field">
+            <label for="quick-vendor">模型厂商</label>
+            <select id="quick-vendor" name="vendor" data-picker="search" data-catalog='{{ catalog.vendors|tojson }}'>
+              {% for v in catalog.vendors %}<option value="{{ v.id }}">{{ v.label }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="home-field">
+            <label for="quick-model">目标模型</label>
+            <select id="quick-model" name="model" required data-picker="search" aria-describedby="quick-model-hint">
+              <option value="" selected disabled>请选择目标模型</option>
+              {% for model in quick_models.claude %}<option value="{{ model.id }}">{{ model.label }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
       </div>
+      <div class="home-model-help">
+        <p id="quick-model-hint" aria-live="polite">选择要测的模型；也可读取接口声明的模型列表。</p>
+        <button class="home-text-button" type="button" id="quick-load-models" disabled>读取接口模型</button>
+      </div>
+      <details class="home-advanced" id="quick-options">
+        <summary>检测选项 <span id="quick-plan-label">快速检测 · Messages</span></summary>
+        <div class="home-option-fields">
+          <div class="home-field">
+            <label for="quick-mode">检测深度</label>
+            <select id="quick-mode" name="mode" data-picker>
+              <option value="quick" selected>快速检测</option>
+              <option value="standard">标准检测</option>
+              <option value="full">完整检测</option>
+            </select>
+          </div>
+          <div class="home-field" id="quick-wire-field">
+            <label for="quick-wire">请求接口</label>
+            <select id="quick-wire" name="wire_api" data-picker><option value="messages">Messages</option></select>
+          </div>
+        </div>
+        <p>只检测所选接口，不自动切换；本入口不启用额外的长上下文检测。</p>
+      </details>
+      <p id="quick-budget" class="home-budget">默认快速检测，不额外发送付费预检。请求会消耗你的上游 API 额度。</p>
       <div class="home-check-action">
-        <button class="btn btn-primary" type="submit">下一步<span aria-hidden="true">→</span></button>
-        <p>下一步确认检测选项，无需重复填写。</p>
+        <button id="quick-start" class="btn btn-primary" type="submit" disabled>开始检测<span aria-hidden="true">→</span></button>
+        <p>直接进入检测进度与结果页。</p>
       </div>
       <p id="quick-check-error" class="home-form-error" role="alert" hidden></p>
+      <noscript><p class="home-form-error">请开启 JavaScript 后开始检测；当前不会提交请求。</p></noscript>
     </form>
     <p class="home-cost-note">格物不收检测服务费；新检测会消耗你的上游 API 额度。<br><a href="/leaderboard/models">{{ catalog.vendor_count }} 家厂商 · 目录核对于 {{ catalog.verified_on }}{% if catalog.stale %} · 待复核{% endif %} →</a></p>
   </section>

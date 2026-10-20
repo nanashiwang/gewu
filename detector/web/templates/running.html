@@ -1,26 +1,50 @@
 {% extends "base.html" %}
 {% block title %}检测进度 · 格物{% endblock %}
 {% block description %}查看本次检测的实际项目、执行状态和已完成证据。{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/detection-flow.css?v=direct-flow-1" />{% endblock %}
 {% block content %}
-<section class="card running-card" data-job-id="{{ job_id }}">
-  <div class="spinner" id="running-spinner" aria-hidden="true"></div>
-  <p class="running-kicker">本次检测</p>
-  <h1 id="status-headline" aria-live="polite">正在读取任务状态…</h1>
-  <p class="running-score" id="running-score" hidden></p>
-  <p class="muted running-target">{{ job.target_model }} · {{ {'quick':'快速检测','standard':'标准检测','full':'完整检测'}.get(job.mode, job.mode) }}<br><span>{{ job.base_url }}</span></p>
-  <div class="running-progress" role="progressbar" aria-label="实际完成项目" aria-valuemin="0" aria-valuemax="100" id="progress-track"><div class="running-progress-bar" id="progress-bar" style="width:0"></div></div>
-  <div class="running-progress-meta"><span id="stage-label">等待检测资源</span><span id="elapsed-label"></span></div>
-  <p class="muted small" id="coverage-label">进度来自实际检测项目；完成数量不代表通过率或模型真实性。</p>
-  <ul class="running-checks" id="running-checks" aria-label="检测项目状态"></ul>
-  <p class="form-error" id="run-error" role="status" hidden></p>
-  <div class="running-actions">
-    {% if can_cancel %}<button type="button" class="btn btn-ghost" id="cancel-job">取消本次检测</button>{% endif %}
-    <button type="button" class="btn btn-ghost" id="refresh-progress" hidden>重新读取进度</button>
-    <a class="btn btn-primary" id="view-evidence" href="/r/{{ job_id }}" hidden>查看已完成证据</a>
-    <a class="btn btn-ghost" href="/{{ {'anthropic':'claude','openai':'openai','gemini':'gemini'}.get(job.protocol, 'claude') }}">返回检测页</a>
+<header class="result-head detection-running-head">
+  <div><h1>检测进度与结果</h1><p class="muted">任务已创建，检测完成后会在本页显示报告，无需再次点击。</p></div>
+  <a class="btn btn-ghost" href="/#quick-check">返回首页</a>
+</header>
+<section class="detection-layout running-dashboard" data-job-id="{{ job_id }}">
+  <div class="detection-summary">
+    <p class="detection-eyebrow">本次检测 <span class="spinner" id="running-spinner" aria-hidden="true"></span></p>
+    <div class="running-dial" id="running-meter" style="--progress:0" aria-hidden="true">
+      <div><strong id="progress-count">—</strong><span>项已完成</span></div>
+    </div>
+    <h2 id="status-headline" aria-live="polite">正在读取任务状态…</h2>
+    <p class="running-score" id="running-score" hidden></p>
+    <p class="score-meaning">检测完成前不显示质量分，进度不代表通过率。</p>
+    <dl class="detection-meta">
+      <div><dt>目标模型</dt><dd>{{ display.model }}</dd></div>
+      <div><dt>接口域名</dt><dd>{{ display.domain }}</dd></div>
+      <div><dt>请求接口</dt><dd>{{ display.wire }}</dd></div>
+      <div><dt>检测深度</dt><dd>{{ display.mode }}</dd></div>
+    </dl>
+    <div class="running-progress" role="progressbar" aria-label="实际完成项目" aria-valuemin="0" aria-valuemax="100" id="progress-track"><div class="running-progress-bar" id="progress-bar" style="width:0"></div></div>
+    <div class="running-progress-meta"><span id="stage-label">等待检测资源</span><span id="elapsed-label"></span></div>
+    <div class="running-actions">
+      {% if can_cancel %}<button type="button" class="btn btn-ghost" id="cancel-job">取消本次检测</button>{% endif %}
+      <button type="button" class="btn btn-ghost" id="refresh-progress" hidden>重新读取进度</button>
+      <a class="btn btn-primary" id="view-evidence" href="/r/{{ job_id }}" hidden>查看已完成证据</a>
+    </div>
+    <p class="muted small">取消会停止后续检测，已发送的请求仍可能产生费用。刷新本页不会重新发起检测。</p>
+    <p class="form-error" id="run-error" role="status" hidden></p>
   </div>
-  <p class="muted small">取消会停止继续检测，已发送的请求仍可能产生费用。重新读取进度不会重新发起检测。</p>
+  <div class="detection-checks-panel">
+    <div class="detection-panel-heading">
+      <div><h2>逐项检测进度</h2><p>每项状态来自实际执行，不生成模拟进度。</p></div>
+      <div class="detection-counts" aria-label="项目状态统计">
+        <span>通过 <strong id="running-passed">0</strong></span>
+        <span>未通过 <strong id="running-failed">0</strong></span>
+      </div>
+    </div>
+    <p class="muted small" id="coverage-label">实际检测项目将在任务开始后显示。</p>
+    <ul class="running-checks" id="running-checks" aria-label="检测项目状态"></ul>
+    <p class="detection-evidence-note">观察项不参与质量评分，未完成和跳过的项目不会显示为通过。</p>
+  </div>
 </section>
-<script id="running-config" type="application/json">{{ {'id':job_id}|tojson }}</script>
-<script src="/static/running.js?v=task-state-v2" defer></script>
+<script id="running-config" type="application/json">{{ {'id':job_id, 'descriptions':check_descriptions}|tojson }}</script>
+<script src="/static/running.js?v=direct-flow-1" defer></script>
 {% endblock %}

@@ -453,3 +453,66 @@ async def test_account_grants_expire_and_cannot_survive_logout_switching_or_cook
         browser.cookies.set(f'__Host-gewu_report_{job_id}', owner)
         browser.cookies.set('__Host-gewu_report_owner', owner)
         assert (await browser.get(f'/r/{job_id}')).status_code == 404
+
+
+@pytest.mark.parametrize('endpoint,model,wire', [
+    ('/api/detect/claude', 'claude-test', 'messages'),
+    ('/api/detect/openai', 'gpt-test', 'responses'),
+    ('/api/detect/openai', 'gpt-test', 'chat_completions'),
+    ('/api/detect/openai', 'deepseek-chat', 'chat_completions'),
+    ('/api/detect/gemini', 'gemini-test', 'chat_completions'),
+    ('/api/detect/gemini', 'gemini-test', 'generate_content'),
+    ('/api/detect/gemini', 'gemini-test', 'interactions'),
+])
+async def test_home_direct_submit_queues_once_without_extra_paid_preflight(monkeypatch, endpoint, model, wire):
+    async def validated(value): return value
+    async def forbidden(*args, **kwargs): pytest.fail('Direct start must not send a separate paid availability ping')
+    monkeypatch.setattr(server, '_validated_target_or_400', validated)
+    monkeypatch.setattr(server, 'probe_model_alive', forbidden)
+    monkeypatch.setattr(server, '_enforce_rate_limit', lambda *args, **kwargs: None)
+    async with client() as browser:
+        response = await browser.post(endpoint, data={'base_url': 'https://relay.example/private/v1',
+            'api_key': 'fixture-direct-key-not-real', 'model': model, 'mode': 'quick', 'wire_api': wire,
+            'force': 'true', 'include_long_context': 'false', 'include_long_context_extreme': 'false'})
+        assert response.status_code == 200
+        job_id = response.json()['job_id']
+        assert len(jobs._JOBS) == 1
+        owner = browser.cookies.get('__Host-gewu_report_owner')
+        assert report_access.owned(jobs.JOBS_DIR, job_id, owner)
+        for _ in range(2):
+            html = (await browser.get(f'/r/{job_id}')).text
+            assert '检测进度与结果' in html and '逐项检测进度' in html
+            assert 'data-endpoint=' not in html and 'fixture-direct-key-not-real' not in html
+            assert 'running-config' in html
+        assert len(jobs._JOBS) == 1, 'Reloading the second page must never queue another job'
+        async with client(OTHER) as stranger:
+            assert (await stranger.get(f'/r/{job_id}')).status_code == 404
+        cancelled = await browser.post(f'/api/status/{job_id}/cancel')
+        assert cancelled.status_code == 200 and not jobs._TASKS
+        html = (await browser.get(f'/r/{job_id}')).text
+        assert '逐项检测结果' in html and 'score-unavailable' in html
+        for path in jobs.JOBS_DIR.rglob('*'):
+            if path.is_file(): assert 'fixture-direct-key-not-real' not in path.read_text()
+
+
+async def test_finished_report_prioritizes_summary_and_checks_without_unverified_identity_claims():
+    private_job()
+    async with client(OWNER) as browser:
+        html = (await browser.get(f'/r/{JOB}')).text
+        assert html.index('result-card detection-layout') < html.index('先看结论，再看证据')
+        assert '逐项检测结果' in html and '接口域名' in html and '请求接口' in html
+        assert 'check-description' in html and '重新检测' in html
+        assert '近似官方' not in html and 'href="/#quick-check"' in html
+        assert '协议质量分,不是模型真伪概率' in html
+        assert 'data-endpoint=' not in html
+
+
+async def test_invalid_report_warning_stays_above_summary_and_never_gets_a_valid_score():
+    job = private_job()
+    job.report['run_error'] = 'synthetic-invalid-report-warning'
+    async with client(OWNER) as browser:
+        html = (await browser.get(f'/r/{JOB}')).text
+        assert html.index('synthetic-invalid-report-warning') < html.index('result-card detection-layout')
+        assert 'score-unavailable' in html
+        assert 'style="--score:0"' in html
+        assert '<details class="card report-context">' in html

@@ -1,0 +1,92 @@
+/* The same two-panel structure follows a task from live progress to its report. */
+.detection-layout { display: grid; grid-template-columns: minmax(270px, .85fr) minmax(0, 1.55fr); gap: 24px; margin-bottom: 24px; align-items: start; }
+.result-card.detection-layout { padding: 0; background: transparent; border: 0; box-shadow: none; border-radius: 0; }
+.detection-summary, .detection-checks-panel { min-width: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); padding: 28px; }
+.detection-summary { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.detection-summary h2 { margin: 0; font-size: 21px; line-height: 1.45; }
+.detection-eyebrow { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin: 0; color: var(--muted); font-size: 13px; }
+.detection-eyebrow .spinner { width: 16px; height: 16px; border-width: 2px; margin: 0; }
+.detection-meta { width: 100%; margin: 8px 0; font-size: 13px; line-height: 1.7; text-align: left; }
+.detection-meta > div { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 14px; padding: 8px 0; }
+.detection-meta dt { color: var(--muted); }
+.detection-meta dd { margin: 0; font-weight: 550; text-align: right; overflow-wrap: anywhere; }
+.report-score-ring { --ring-color: var(--success); background: conic-gradient(var(--ring-color) calc(clamp(0, var(--score), 100) * 1%), var(--line) 0); width: min(230px, 100%); aspect-ratio: 1; height: auto; }
+.report-score-ring.score-warn { --ring-color: var(--amber); }
+.report-score-ring.score-fail { --ring-color: var(--red); }
+.report-score-ring.score-unavailable { --ring-color: var(--line); }
+.report-score-ring .score-inner { width: calc(100% - 24px); height: auto; aspect-ratio: 1; }
+.report-score-ring .score-num span { font-size: 64px; color: var(--ring-color); }
+.report-score-ring.score-unavailable .score-num span { color: var(--muted); }
+.report-score-ring .score-caption { max-width: 160px; padding: 0 10px; line-height: 1.4; }
+.detection-summary .score-meaning { max-width: 280px; margin: 0; }
+.detection-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 14px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.detection-panel-heading h2 { margin: 0; font-size: 20px; }
+.detection-panel-heading p { margin: 7px 0 0; font-size: 12px; color: var(--muted); line-height: 1.6; }
+.detection-counts { display: flex; gap: 20px; flex-shrink: 0; }
+.detection-counts > span { display: flex; flex-direction: column; gap: 3px; color: var(--muted); text-align: center; font-size: 12px; }
+.detection-counts strong { color: var(--text); font-size: 23px; font-variant-numeric: tabular-nums; }
+.detection-checks-panel .check-row { padding: 19px 0; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 12px; }
+.check-copy { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.detection-checks-panel .check-label { font-size: 15px; font-weight: 600; }
+.check-description { font-size: 12px; line-height: 1.65; color: var(--muted); overflow-wrap: anywhere; }
+.detection-checks-panel .check-status { padding: 4px 8px; border-radius: 999px; background: var(--bg); font-size: 12px; line-height: 1.5; text-align: center; max-width: 110px; }
+.detection-evidence-note { margin: 18px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.running-dial { width: 210px; aspect-ratio: 1; padding: 12px; border-radius: 50%; background: conic-gradient(var(--accent) calc(var(--progress) * 1%), var(--line) 0); }
+.running-dial > div { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 100%; border-radius: 50%; background: var(--surface); }
+.running-dial strong { font-size: 40px; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
+.running-dial span { color: var(--muted); font-size: 12px; }
+.running-dashboard .running-progress { margin-top: 0; }
+.running-dashboard .running-progress-meta { width: 100%; margin-top: -5px; font-size: 12px; }
+.running-dashboard .running-actions { width: 100%; margin: 4px 0 0; }
+.running-dashboard .running-actions .btn { width: 100%; }
+.running-dashboard .running-checks { display: grid; grid-template-columns: 1fr; margin: 10px 0 0; gap: 0; }
+.running-dashboard .running-checks li { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; padding: 18px 0; }
+.running-dashboard .running-checks li:last-child { border-bottom: 0; }
+.running-dashboard .running-checks li > .check-copy { flex: 1; }
+.running-dashboard .running-checks li .check-label { color: var(--text); font-size: 15px; font-weight: 600; }
+.running-dashboard .running-checks li > .running-check-status { flex: 0 0 auto; font-size: 12px; padding: 4px 8px; border-radius: 999px; background: var(--bg); }
+.running-dashboard .running-checks li[data-state="running"] { background: transparent; }
+.running-dashboard .running-checks li[data-state="running"] > .running-check-status { color: var(--accent-strong); background: var(--accent-soft); }
+.running-dashboard .running-checks li[data-state="fail"] > .running-check-status { color: var(--red); }
+.running-dashboard .running-checks li[data-state="error"] > .running-check-status { color: var(--amber); }
+.running-dashboard .running-score { margin: 0; }
+@media (max-width: 820px) {
+  .detection-layout { grid-template-columns: 1fr; gap: 18px; }
+  .detection-summary, .detection-checks-panel { padding: 22px; }
+  .detection-meta { max-width: 480px; }
+  .detection-summary .btn-block { max-width: 480px; }
+  .running-dial { width: 175px; }
+  .report-score-ring { width: 190px; }
+  .report-score-ring .score-num span { font-size: 54px; }
+  .detection-running-head { flex-wrap: wrap; }
+}
+@media (max-width: 430px) {
+  .detection-summary, .detection-checks-panel { padding: 20px 16px; }
+  .detection-panel-heading h2 { font-size: 18px; }
+  .detection-checks-panel .check-row { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 9px; }
+  .detection-checks-panel .check-status { max-width: 88px; padding: 4px 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .detection-layout .spinner { animation: none; }
+  .detection-layout .running-progress-bar { transition: none; }
+}
+
+.running-dashboard .running-checks li .check-description { color: var(--muted); font-size: 12px; font-weight: 400; }
+
+.report-request-details { margin-top: 8px; color: var(--muted); font-size: 12px; }
+.report-request-details summary { cursor: pointer; }
+.report-request-details code { overflow-wrap: anywhere; }
+@media (max-width: 820px) {
+  .detection-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 16px; }
+  .detection-meta > div { display: block; padding: 0; }
+  .detection-meta dt { font-size: 11px; margin-bottom: 3px; }
+  .detection-meta dd { text-align: left; }
+  .running-dashboard .detection-summary { gap: 10px; }
+  .running-dashboard .running-dial { width: 130px; padding: 8px; }
+  .running-dashboard .running-dial strong { font-size: 30px; }
+}
+
+.report-context > summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+.report-context[open] > summary { margin-bottom: 18px; }
+.report-context > .card { box-shadow: none; margin-bottom: 16px; }
+.report-context > .card:last-child { margin-bottom: 0; }

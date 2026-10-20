@@ -21,6 +21,7 @@
   <meta name="twitter:image" content="{{ brand.site_url }}/r/{{ job_id }}.jpg" />
 {% endblock %}
 
+{% block head_extra %}<link rel="stylesheet" href="/static/detection-flow.css?v=direct-flow-1" />{% endblock %}
 {% block content %}
 {# Breadcrumb: 首页 › 质量榜 › {domain} › 报告 #{job_id}.
    When the report's base_url didn't yield a valid domain (legacy reports,
@@ -70,9 +71,8 @@
   <div>
     <h1>检测结果</h1>
     <p class="muted">
-      模型:<code>{{ report.target_model }}</code> · 模式 <code>{{ report.mode }}</code> ·
-      中转站 <code>{{ report.base_url }}</code>
-      {% if report.wire_api %} · 接口 <code class="report-interface">{{ wire_apis.get(report.wire_api, {}).get('label', report.wire_api) }}</code>{% endif %}
+      <code>{{ display.model }}</code> · {{ display.mode }} ·
+      <code class="report-interface">{{ display.wire }}</code>
     </p>
   </div>
   <div class="result-actions">
@@ -88,6 +88,72 @@
   </div>
 </section>
 
+{% if report.run_error %}
+<section class="card alert-card">
+  <strong>检测无效:</strong>
+  {{ report.run_error }}
+</section>
+{% endif %}
+{% if report.tier_title or report.tier_message %}
+<section class="card alert-card">
+  <strong>{{ report.tier_title or report.tier }}:</strong>
+  {{ report.tier_message }}
+</section>
+{% endif %}
+
+<section class="result-card detection-layout" aria-label="本次检测概览与逐项结果">
+  <div class="result-left detection-summary">
+    <p class="detection-eyebrow">本次检测</p>
+    <div class="score-ring report-score-ring score-{{ verdict_class if assessment.score_usable else 'unavailable' }}" style="--score:{{ '%.0f' | format(score) if assessment.score_usable else '0' }}">
+      <div class="score-inner">
+        <div class="score-num"><span>{{ '%.0f' | format(score) if assessment.score_usable else '—' }}</span>{% if assessment.score_usable %}<small>/100</small>{% endif %}</div>
+        <div class="score-caption">{{ caption if assessment.score_usable else assessment.headline }}</div>
+      </div>
+    </div>
+    <p class="score-meaning">协议质量分,不是模型真伪概率</p>
+    <dl class="detection-meta">
+      <div><dt>目标模型</dt><dd>{{ display.model }}</dd></div>
+      <div><dt>接口域名</dt><dd>{{ display.domain }}</dd></div>
+      <div><dt>请求接口</dt><dd>{{ display.wire }}</dd></div>
+      <div><dt>检测深度</dt><dd>{{ display.mode }}</dd></div>
+      <div><dt>检测时间</dt><dd>{{ display.time }}</dd></div>
+      <div><dt>官方基线</dt><dd>{{ '有匹配的已审核样本' if official_comparison and official_comparison.state == 'available' else '暂无匹配样本' }}</dd></div>
+    </dl>
+    <a class="btn btn-primary btn-block" href="/#quick-check">重新检测</a>
+    <p class="muted small attribution">返回首页填写，不会自动发送新请求。</p>
+  </div>
+
+  <div class="result-right detection-checks-panel">
+    <div class="detection-panel-heading">
+      <div><h2>逐项检测结果</h2><p>按本次接口与检测深度展示，未测项目单独标注。</p></div>
+      <div class="detection-counts" aria-label="项目状态统计">
+        <span>通过 <strong>{{ rows | selectattr('status', 'equalto', 'pass') | list | length }}</strong></span>
+        <span>未通过 <strong>{{ rows | selectattr('status', 'equalto', 'fail') | list | length }}</strong></span>
+      </div>
+    </div>
+    <ul class="check-list">
+      {% for row in rows %}
+      <li class="check-row check-{{ row.css }}">
+        <span class="check-icon">
+          {% if row.css == 'ok' %}
+          <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="11" fill="#10b981"/><path d="M7 12.5l3.2 3.2L17 9" stroke="white" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          {% elif row.css == 'warn' %}
+          <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="11" fill="#f59e0b"/><path d="M12 7v6M12 16.5v.5" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
+          {% elif row.css == 'fail' %}
+          <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="11" fill="#ef4444"/><path d="M8 8l8 8M16 8l-8 8" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
+          {% else %}
+          <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="10" fill="none" stroke="#9ca3af" stroke-width="2"/></svg>
+          {% endif %}
+        </span>
+        <span class="check-copy"><span class="check-label">{{ row.label }}</span><span class="check-description">{{ row.description }}</span></span>
+        <span class="check-status">{{ row.label_short }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="detection-evidence-note">完成数量不是质量分；观察项不参与评分，缺失证据不会当作通过。</p>
+  </div>
+</section>
+
 <section class="report-sharing" aria-label="报告与分享">
   {% if private_report %}
   <p class="muted small">完整报告仅自己可见。分享摘要只含域名、模型和检测结果。</p>
@@ -96,8 +162,11 @@
   {% endif %}
   <p id="share-status" class="small" role="status" aria-live="polite">{% if share_enabled %}摘要分享已开启，可以随时关闭。{% endif %}</p>
   <input id="share-link" type="text" readonly hidden aria-label="分享链接，复制后发送" />
+  <details class="report-request-details"><summary>查看本次接口地址</summary><p><code>{{ report.base_url }}</code></p></details>
 </section>
 
+<details class="card report-context">
+  <summary>检测说明、身份边界与官方样本</summary>
 {% set ranking = report.ranking_evidence or {} %}
 {% if ranking_approved %}
 <section class="card">
@@ -163,54 +232,10 @@
 </section>
 {% endif %}
 
-{% if report.run_error %}
-<section class="card alert-card">
-  <strong>检测无效:</strong>
-  {{ report.run_error }}
-</section>
-{% endif %}
 
-{% if report.tier_title or report.tier_message %}
-<section class="card alert-card">
-  <strong>{{ report.tier_title or report.tier }}:</strong>
-  {{ report.tier_message }}
-</section>
-{% endif %}
 
-<section class="result-card">
-  <div class="result-left">
-    <div class="score-ring score-{{ verdict_class if assessment.score_usable else 'warn' }}">
-      <div class="score-inner">
-        <div class="score-num"><span>{{ '%.0f' | format(score) if assessment.score_usable else '—' }}</span>{% if assessment.score_usable %}<small>/100</small>{% endif %}</div>
-        <div class="score-caption">{{ caption if assessment.score_usable else assessment.headline }}</div>
-      </div>
-    </div>
-    <p class="score-meaning">协议质量分,不是模型真伪概率</p>
-    <p class="muted small attribution">由 {{ brand.site_url }} 生成</p>
-  </div>
 
-  <div class="result-right">
-    <ul class="check-list">
-      {% for row in rows %}
-      <li class="check-row check-{{ row.css }}">
-        <span class="check-icon">
-          {% if row.css == 'ok' %}
-          <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="11" fill="#10b981"/><path d="M7 12.5l3.2 3.2L17 9" stroke="white" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          {% elif row.css == 'warn' %}
-          <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="11" fill="#f59e0b"/><path d="M12 7v6M12 16.5v.5" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
-          {% elif row.css == 'fail' %}
-          <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="11" fill="#ef4444"/><path d="M8 8l8 8M16 8l-8 8" stroke="white" stroke-width="2.4" stroke-linecap="round"/></svg>
-          {% else %}
-          <svg viewBox="0 0 24 24" width="22" height="22"><circle cx="12" cy="12" r="10" fill="none" stroke="#9ca3af" stroke-width="2"/></svg>
-          {% endif %}
-        </span>
-        <span class="check-label">{{ row.label }}</span>
-        <span class="check-status">{{ row.label_short }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-  </div>
-</section>
+
 
 {% if report_notes %}
 <section class="card notes-card">
@@ -223,6 +248,8 @@
   {% endfor %}
 </section>
 {% endif %}
+
+</details>
 
 {% if report.performance_complete | default(true) %}
 <section class="metrics-row metrics-row-5">

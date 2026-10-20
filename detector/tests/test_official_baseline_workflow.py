@@ -221,7 +221,9 @@ def test_comparison_markup_escapes_labels():
     template = templates.env.get_template("result.html")
     # Render just the independent comparison section with hostile display text.
     text = Path(template.filename).read_text()
-    section = text[text.index("{% if official_comparison %}"):text.index("{% if report.run_error %}")]
+    start = text.index("{% if official_comparison %}")
+    end_marker = "</section>\n{% endif %}"
+    section = text[start:text.index(end_marker, start) + len(end_marker)]
     rendered = templates.env.from_string(section).render(official_comparison={"state": "available", "rows": [
         {"label": "<script>alert(1)</script>", "official_score": 100, "current_score": 90, "delta": -10,
          "official_status": "pass", "current_status": "fail"}]})
