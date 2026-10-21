@@ -25,10 +25,10 @@ function element(id, value = '') {
 }
 function fixture({vendor = 'openai', url = 'https://gewu.example/'} = {}) {
   const ids = Object.fromEntries(['quick-check', 'quick-base-url', 'quick-api-key', 'quick-vendor', 'quick-model',
-    'quick-mode', 'quick-wire', 'quick-start', 'quick-load-models', 'quick-check-error', 'quick-model-hint',
-    'quick-plan-label', 'quick-budget', 'quick-coverage'].map(id => [id, element(id)]));
+    'quick-mode', 'quick-start', 'quick-load-models', 'quick-check-error', 'quick-model-hint',
+    'quick-plan-label', 'quick-budget', 'quick-coverage', 'quick-interface-note', 'quick-advanced-link'].map(id => [id, element(id)]));
   const form = ids['quick-check']; form.attributes['data-direct-detection'] = '';
-  form.querySelectorAll = () => ['quick-base-url', 'quick-api-key', 'quick-vendor', 'quick-model', 'quick-mode', 'quick-wire', 'quick-start', 'quick-load-models'].map(id => ids[id]);
+  form.querySelectorAll = () => ['quick-base-url', 'quick-api-key', 'quick-vendor', 'quick-model', 'quick-mode', 'quick-start', 'quick-load-models'].map(id => ids[id]);
   ids['quick-vendor'].value = vendor;
   ids['quick-vendor'].dataset.catalog = JSON.stringify(catalog);
   form.dataset.responsesPlan = JSON.stringify({requests: {quick: 2, standard: 8, full: 12}, checks: {quick: 2, standard: 6, full: 10}});
@@ -66,7 +66,7 @@ describe('Homepage directly starts a real job, without a confirmation page', () 
     await f.change('quick-base-url', 'https://relay.example/v1', 'input');
     await f.change('quick-api-key', KEY, 'input');
     await f.change('quick-mode', 'full');
-    await f.change('quick-wire', 'chat_completions');
+    await f.change('quick-vendor', 'deepseek');
     expect(f.calls).toEqual([]);
     expect(f.storage.setItem).not.toHaveBeenCalled();
   });
@@ -102,14 +102,50 @@ describe('Homepage directly starts a real job, without a confirmation page', () 
     expect(f.calls[0].data).toMatchObject({mode: 'quick', responses_suite: 'extended'});
   });
 
-  it('keeps interface and depth explicit, with long-context probes always off', async () => {
+  it('keeps existing Gemini compatibility behavior without asking visitors to choose an interface', async () => {
     const f = fixture({vendor: 'google'});
-    await f.change('quick-mode', 'full');
-    await f.change('quick-wire', 'generate_content');
-    expect(f.ids['quick-load-models'].disabled).toBe(true);
-    expect(f.ids['quick-budget'].textContent).toContain('最多 5 次');
+    expect(f.ids['quick-wire']).toBeUndefined();
+    expect(f.ids['quick-load-models'].disabled).toBe(false);
+    expect(f.ids['quick-interface-note'].textContent).toContain('Chat Completions');
+    expect(f.ids['quick-advanced-link'].attributes.href).toBe('/gemini');
     await f.submit();
-    expect(f.calls[0].data).toMatchObject({wire_api: 'generate_content', mode: 'full', force: 'true', include_long_context: 'false'});
+    expect(f.calls[0].data).toMatchObject({wire_api: 'chat_completions', mode: 'full', force: 'true', include_long_context: 'false'});
+  });
+
+  it('recomputes the automatic default on vendor changes and never keeps an old interface selection', async () => {
+    const f = fixture({vendor: 'deepseek'});
+    expect(f.ids['quick-advanced-link'].attributes.href).toBe('/openai?vendor=deepseek');
+    await f.change('quick-vendor', 'openai');
+    await f.change('quick-model', 'gpt-6-astra');
+    expect(f.ids['quick-plan-label'].textContent).toBe('自动匹配 · 完整检测 · 10 项');
+    expect(f.ids['quick-interface-note'].textContent).toContain('Responses');
+    expect(f.ids['quick-advanced-link'].attributes.href).toBe('/openai?vendor=openai');
+    expect(f.calls).toEqual([]);
+    await f.submit();
+    expect(f.calls[0].data).toMatchObject({wire_api: 'responses', responses_suite: 'extended', model: 'gpt-6-astra'});
+  });
+
+  it('does not change protocol based on custom model names or send credentials to the advanced page', async () => {
+    const f = fixture({vendor: 'other'});
+    await f.change('quick-model', 'tenant/gpt-custom-alias');
+    const href = f.ids['quick-advanced-link'].attributes.href;
+    expect(href).toBe('/openai?vendor=other');
+    expect(href).not.toContain(KEY);
+    expect(href).not.toContain('relay.example');
+    expect(href).not.toContain('tenant');
+    await f.submit();
+    expect(f.calls[0].data).toMatchObject({wire_api: 'chat_completions', model: 'tenant/gpt-custom-alias'});
+    expect(f.calls[0].data).not.toHaveProperty('responses_suite');
+  });
+
+  it('never retries through Chat Completions when the default Responses endpoint is unavailable', async () => {
+    const f = fixture();
+    f.handler.mockResolvedValue(response({detail:'Responses endpoint unavailable'}, 404));
+    await f.submit();
+    expect(f.calls).toHaveLength(1);
+    expect(f.calls[0].data.wire_api).toBe('responses');
+    expect(f.location.assign).not.toHaveBeenCalled();
+    expect(f.timers.size).toBe(0);
   });
 
   it.each(['', 'javascript:alert(1)', 'https://u:p@relay.example', 'https://relay.example?key=synthetic',
@@ -133,8 +169,8 @@ describe('Homepage directly starts a real job, without a confirmation page', () 
     }
   });
 
-  it.each([['quick-mode', 'unexpected'], ['quick-wire', 'messages']])('rejects forged %s choices', async (id, value) => {
-    const f = fixture(); f.ids[id].value = value;
+  it('rejects an invalid depth before submitting', async () => {
+    const f = fixture(); f.ids['quick-mode'].value = 'unexpected';
     await f.submit(); expect(f.calls).toEqual([]);
   });
 
@@ -232,6 +268,22 @@ describe('Homepage directly starts a real job, without a confirmation page', () 
       by_vendor: {openai: ['gpt-foreign']}, by_protocol: {openai: ['gpt-foreign']}}));
     await f.ids['quick-load-models'].emit('click');
     expect(f.ids['quick-model'].options.map(o => o.value)).toEqual(['']);
+  });
+
+  it('aborts a model lookup when automatic interface selection changes with the vendor', async () => {
+    const f = fixture(); let finish;
+    f.handler.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+    const loading = f.ids['quick-load-models'].emit('click'); await tick();
+    await f.change('quick-vendor', 'deepseek');
+    finish(response({ok: true, models_endpoint_supported: true,
+      by_responses_vendor: {openai: ['gpt-stale']}, by_vendor: {deepseek: ['forged-from-old-request']}}));
+    await loading;
+    expect(f.calls[0].signal.aborted).toBe(true);
+    expect(f.ids['quick-model'].options.some(o => o.value === 'forged-from-old-request')).toBe(false);
+    expect(f.ids['quick-plan-label'].textContent).not.toContain('10 项');
+    expect(f.ids['quick-interface-note'].textContent).toContain('Chat Completions');
+    expect(f.ids['quick-advanced-link'].attributes.href).toBe('/openai?vendor=deepseek');
+    expect(f.timers.size).toBe(0);
   });
 
   it('ignores a late model response after the address or Key changes', async () => {

@@ -5,8 +5,8 @@
 {% block og_description %}选择模型，检测接口，查看证据。格物提供公益检测与历史报告查询。{% endblock %}
 {% block body_class %}home-simple{% endblock %}
 {% block head_extra %}
-<link rel="stylesheet" href="/static/home.css?v=direct-flow-1" />
-<script src="/static/home-detect.js?v=expanded-checks-1" defer></script>
+<link rel="stylesheet" href="/static/home.css?v=automatic-interface-1" />
+<script src="/static/home-detect.js?v=automatic-interface-1" defer></script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -64,7 +64,7 @@
         <button class="home-text-button" type="button" id="quick-load-models" disabled>读取接口模型</button>
       </div>
       <details class="home-advanced" id="quick-options">
-        <summary>检测选项 <span id="quick-plan-label">完整检测 · Messages</span></summary>
+        <summary>更多设置（可选） <span id="quick-plan-label">自动匹配 · 完整检测</span></summary>
         <div class="home-option-fields">
           <div class="home-field">
             <label for="quick-mode">检测深度</label>
@@ -74,14 +74,11 @@
               <option value="full" selected>完整检测</option>
             </select>
           </div>
-          <div class="home-field" id="quick-wire-field">
-            <label for="quick-wire">请求接口</label>
-            <select id="quick-wire" name="wire_api" data-picker><option value="messages">Messages</option></select>
-          </div>
         </div>
-        <p>只检测所选接口，不自动切换；本入口不启用额外的长上下文检测。</p>
+        <p id="quick-interface-note">已按所选厂商匹配检测方式，无需手动选择。只执行当前方案，不自动改用其他接口重测。</p>
+        <p>本入口不启用额外的长上下文检测。需要指定接口？<a id="quick-advanced-link" href="/claude">手动配置（高级）</a></p>
       </details>
-      <p id="quick-coverage" class="home-budget" aria-live="polite">运行所选接口和模型适用的完整检测项目。</p>
+      <p id="quick-coverage" class="home-budget" aria-live="polite">已自动匹配检测方式，运行当前模型适用的完整检测项目。</p>
       <p id="quick-budget" class="home-budget">默认完整检测，不额外发送付费预检。请求会消耗你的上游 API 额度。</p>
       <div class="home-check-action">
         <button id="quick-start" class="btn btn-primary" type="submit" disabled>开始检测<span aria-hidden="true">→</span></button>
