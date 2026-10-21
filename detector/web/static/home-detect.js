@@ -6,16 +6,19 @@
   const el = id => document.getElementById(id);
   const base = el('quick-base-url'), key = el('quick-api-key');
   const vendor = el('quick-vendor'), model = el('quick-model');
-  const mode = el('quick-mode'), wire = el('quick-wire');
+  const mode = el('quick-mode');
   const start = el('quick-start'), load = el('quick-load-models');
   const errorBox = el('quick-check-error'), hint = el('quick-model-hint');
   const catalog = JSON.parse(vendor.dataset.catalog || '[]');
   const responsesPlan = JSON.parse(form.dataset.responsesPlan);
   const modeLabels = {quick: '快速检测', standard: '标准检测', full: '完整检测'};
+  // One deterministic homepage default per supported vendor family. Never
+  // infer support from a hostname/model alias or retry a different interface.
+  // Experts may explicitly choose another interface on the separate form.
   const specs = {
-    claude: {endpoint: '/api/detect/claude', wires: [['messages', 'Messages']], defaultWire: 'messages'},
-    openai: {endpoint: '/api/detect/openai', wires: [['responses', 'Responses'], ['chat_completions', 'Chat Completions']], defaultWire: 'responses'},
-    gemini: {endpoint: '/api/detect/gemini', wires: [['chat_completions', 'Chat Completions'], ['generate_content', 'Gemini generateContent'], ['interactions', 'Gemini Interactions']], defaultWire: 'chat_completions'},
+    claude: {endpoint: '/api/detect/claude', wire: 'messages', label: 'Messages'},
+    openai: {endpoint: '/api/detect/openai', wire: 'responses', label: 'Responses'},
+    gemini: {endpoint: '/api/detect/gemini', wire: 'chat_completions', label: 'Chat Completions（兼容）'},
   };
   let submitting = false, completed = false, uncertain = false, active = true;
   let submitController = null, submitTimeout = null, probeController = null, probeTimeout = null, generation = 0, submitGeneration = 0;
@@ -26,7 +29,7 @@
     const entry = chosen();
     if (!entry || !Object.hasOwn(specs, entry.route)) return null;
     if (entry.route === 'openai' && entry.id !== 'openai') {
-      return {...specs.openai, wires: [['chat_completions', 'Chat Completions']], defaultWire: 'chat_completions'};
+      return {...specs.openai, wire: 'chat_completions', label: 'Chat Completions（兼容）'};
     }
     return specs[entry.route];
   }
@@ -69,33 +72,34 @@
   }
   function updatePlan() {
     const spec = specification();
-    const validWire = spec?.wires.find(([value]) => value === wire.value);
-    el('quick-plan-label').textContent = `${modeLabels[mode.value] || '请选择检测深度'} · ${validWire?.[1] || '请选择接口'}`;
-    const responses = wire.value === 'responses';
-    const bounded = ['responses', 'interactions', 'generate_content'].includes(wire.value);
+    const responses = spec?.wire === 'responses';
+    el('quick-plan-label').textContent = `自动匹配 · ${modeLabels[mode.value] || '请选择检测深度'}`;
+    el('quick-interface-note').textContent = spec
+      ? `已按所选厂商匹配 ${spec.label}，无需手动选择。只执行当前方案，不自动改用其他接口重测。`
+      : '请先选择模型厂商。';
+    const advanced = el('quick-advanced-link');
+    if (spec) advanced.setAttribute('href', `/${chosen().route}` + (chosen().route === 'openai' ? `?vendor=${encodeURIComponent(chosen().id)}` : ''));
+    advanced.hidden = !spec;
     if (responses) el('quick-plan-label').textContent += ` · ${responsesPlan.checks[mode.value]} 项`;
     el('quick-coverage').textContent = responses
       ? `${responsesPlan.checks[mode.value]} 项：` + ({quick: '基础回复、流式完整性。',
           standard: '基础、流式、结构化 JSON、工具往返、指令优先级、多轮上下文。',
-          full: '基础、流式、结构化与嵌套 JSON、指令优先级、多轮上下文、工具往返、指定工具、禁用工具、多工具调用。'}[mode.value])
+          full: '基础与流式、指令遵循、多轮上下文、JSON 结构及工具调用。'}[mode.value])
       : chosen()?.id === 'other' || (chosen()?.route === 'openai' && chosen()?.id !== 'openai')
         ? '其他厂商兼容接口目前只支持基础请求与流式检查，按所选深度执行。'
         : '运行当前模型与接口适用的项目；未支持、未完成的项目不算通过。';
-    const requests = responses ? responsesPlan.requests[mode.value] : {quick: 2, standard: 3, full: 5}[mode.value];
-    el('quick-budget').textContent = bounded
+    const requests = responsesPlan.requests[mode.value];
+    el('quick-budget').textContent = responses
       ? `本次最多 ${requests} 次模型请求，每次输出上限 4096 Token（含推理）；费用由你的 Key 承担，不自动重试。`
       : `${modeLabels[mode.value] || '检测'}，不额外发送付费预检；不启用长上下文。请求会消耗你的上游 API 额度。`;
     start.disabled = !secure() || !spec || submitting || completed || uncertain;
-    load.disabled = !secure() || !spec || submitting || completed || uncertain || !!probeController
-      || (chosen()?.route === 'gemini' && wire.value !== 'chat_completions');
+    load.disabled = !secure() || !spec || submitting || completed || uncertain || !!probeController;
     if (spec) form.action = spec.endpoint;
   }
   function updateVendor() {
     abortProbe();
-    const entry = chosen(), spec = specification();
+    const entry = chosen();
     modelChoices(entry?.models || [], false);
-    wire.replaceChildren(...(spec?.wires || []).map(([value, label]) => new Option(label, value)));
-    wire.value = spec?.defaultWire || '';
     hint.textContent = entry?.id === 'other'
       ? '填好地址和 Key 后，点“读取接口模型”选择实际型号。'
       : '选择要测的模型；也可读取接口声明的模型列表。';
@@ -117,12 +121,6 @@
   }
   vendor.addEventListener('change', updateVendor);
   mode.addEventListener('change', () => { clearError(); updatePlan(); });
-  wire.addEventListener('change', () => {
-    abortProbe(); modelChoices(chosen()?.models || []); clearError(); updatePlan();
-    hint.textContent = chosen()?.route === 'gemini' && wire.value !== 'chat_completions'
-      ? '原生接口从候选目录选择；不会自动读取兼容模型列表或切换接口。'
-      : '选择要测的模型；也可读取接口声明的模型列表。';
-  });
   model.addEventListener('change', clearError);
   [base, key].forEach(input => input.addEventListener('input', () => {
     abortProbe(); modelChoices(chosen()?.models || []); clearError(); updatePlan();
@@ -145,7 +143,7 @@
       if (!result.models_endpoint_supported) {
         hint.textContent = '接口没有提供模型列表；仍可选用候选型号直接检测。'; return;
       }
-      const groups = wire.value === 'responses' ? (result.by_responses_vendor || result.by_vendor) : result.by_vendor;
+      const groups = specification()?.wire === 'responses' ? (result.by_responses_vendor || result.by_vendor) : result.by_vendor;
       const models = groups ? (groups[vendor.value] || []) : (result.by_protocol?.[{claude: 'anthropic', openai: 'openai', gemini: 'gemini'}[chosen()?.route]] || []);
       modelChoices(Array.isArray(models) ? models : []);
       hint.textContent = model.options.length > 1
@@ -168,15 +166,15 @@
     if (!spec || !model.value || model.value.length > 200 || /[\u0000-\u001f\u007f]/.test(model.value)) {
       showError('请先选择目标模型。', model); return;
     }
-    if (!Object.hasOwn(modeLabels, mode.value) || !spec.wires.some(([value]) => value === wire.value)) {
-      showError('请检查检测深度和请求接口。'); return;
+    if (!Object.hasOwn(modeLabels, mode.value)) {
+      showError('请检查检测深度。'); return;
     }
     abortProbe(); clearError(); submitting = true;
     const token = ++submitGeneration;
     const data = new FormData();
     data.set('base_url', values.url); data.set('api_key', values.apiKey);
-    data.set('model', model.value); data.set('mode', mode.value); data.set('wire_api', wire.value);
-    if (wire.value === 'responses') data.set('responses_suite', 'extended');
+    data.set('model', model.value); data.set('mode', mode.value); data.set('wire_api', spec.wire);
+    if (spec.wire === 'responses') data.set('responses_suite', 'extended');
     // The first real probe in the job checks availability. Avoid an extra
     // paid ping / model-confirmation step before opening the progress page.
     data.set('force', 'true');

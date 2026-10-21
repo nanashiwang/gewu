@@ -61,11 +61,15 @@ def test_home_has_a_password_field_and_direct_detection_action():
     assert form["method"] == "post"
     assert form["action"] == "/api/detect/claude"
     assert "data-direct-detection" in form
+    assert not any(attrs.get("id") == "quick-wire" or attrs.get("name") == "wire_api" for _, attrs in controls.elements)
+    assert "自动匹配" in response.text
+    assert controls.by_id("quick-advanced-link")["href"] == "/claude"
+    assert "更多设置（可选）" in response.text
     plan = json.loads(form["data-responses-plan"])
     assert plan["checks"]["full"] == 10 and plan["requests"]["full"] == 12
     assert any(tag == "option" and attrs.get("value") == "full" and "selected" in attrs for tag, attrs in controls.elements)
     assert "disabled" in controls.by_id("quick-start")
-    assert '/static/home-detect.js?v=expanded-checks-1' in response.text
+    assert '/static/home-detect.js?v=automatic-interface-1' in response.text
     key = controls.by_id("quick-api-key")
     assert key["type"] == "password" and key["name"] == "api_key"
     assert key["autocomplete"] == "new-password"
