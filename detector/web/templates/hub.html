@@ -6,7 +6,7 @@
 {% block body_class %}home-simple{% endblock %}
 {% block head_extra %}
 <link rel="stylesheet" href="/static/home.css?v=direct-flow-1" />
-<script src="/static/home-detect.js?v=direct-flow-1" defer></script>
+<script src="/static/home-detect.js?v=expanded-checks-1" defer></script>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -30,7 +30,7 @@
 <div class="home-tools">
   <section class="home-check" aria-labelledby="quick-check-title">
     <div class="home-panel-heading"><h2 id="quick-check-title">开始检测</h2><span>填好即测</span></div>
-    <form id="quick-check" method="post" action="/api/detect/claude" autocomplete="off" data-direct-detection novalidate>
+    <form id="quick-check" method="post" action="/api/detect/claude" autocomplete="off" data-direct-detection data-responses-plan='{{ responses_plan|tojson }}' novalidate>
       {% set catalog = model_catalog() %}
       <div class="home-check-fields">
         <div class="home-field">
@@ -64,14 +64,14 @@
         <button class="home-text-button" type="button" id="quick-load-models" disabled>读取接口模型</button>
       </div>
       <details class="home-advanced" id="quick-options">
-        <summary>检测选项 <span id="quick-plan-label">快速检测 · Messages</span></summary>
+        <summary>检测选项 <span id="quick-plan-label">完整检测 · Messages</span></summary>
         <div class="home-option-fields">
           <div class="home-field">
             <label for="quick-mode">检测深度</label>
             <select id="quick-mode" name="mode" data-picker>
-              <option value="quick" selected>快速检测</option>
+              <option value="quick">快速检测</option>
               <option value="standard">标准检测</option>
-              <option value="full">完整检测</option>
+              <option value="full" selected>完整检测</option>
             </select>
           </div>
           <div class="home-field" id="quick-wire-field">
@@ -81,7 +81,8 @@
         </div>
         <p>只检测所选接口，不自动切换；本入口不启用额外的长上下文检测。</p>
       </details>
-      <p id="quick-budget" class="home-budget">默认快速检测，不额外发送付费预检。请求会消耗你的上游 API 额度。</p>
+      <p id="quick-coverage" class="home-budget" aria-live="polite">运行所选接口和模型适用的完整检测项目。</p>
+      <p id="quick-budget" class="home-budget">默认完整检测，不额外发送付费预检。请求会消耗你的上游 API 额度。</p>
       <div class="home-check-action">
         <button id="quick-start" class="btn btn-primary" type="submit" disabled>开始检测<span aria-hidden="true">→</span></button>
         <p>直接进入检测进度与结果页。</p>

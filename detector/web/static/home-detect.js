@@ -10,6 +10,7 @@
   const start = el('quick-start'), load = el('quick-load-models');
   const errorBox = el('quick-check-error'), hint = el('quick-model-hint');
   const catalog = JSON.parse(vendor.dataset.catalog || '[]');
+  const responsesPlan = JSON.parse(form.dataset.responsesPlan);
   const modeLabels = {quick: '快速检测', standard: '标准检测', full: '完整检测'};
   const specs = {
     claude: {endpoint: '/api/detect/claude', wires: [['messages', 'Messages']], defaultWire: 'messages'},
@@ -70,9 +71,19 @@
     const spec = specification();
     const validWire = spec?.wires.find(([value]) => value === wire.value);
     el('quick-plan-label').textContent = `${modeLabels[mode.value] || '请选择检测深度'} · ${validWire?.[1] || '请选择接口'}`;
+    const responses = wire.value === 'responses';
     const bounded = ['responses', 'interactions', 'generate_content'].includes(wire.value);
+    if (responses) el('quick-plan-label').textContent += ` · ${responsesPlan.checks[mode.value]} 项`;
+    el('quick-coverage').textContent = responses
+      ? `${responsesPlan.checks[mode.value]} 项：` + ({quick: '基础回复、流式完整性。',
+          standard: '基础、流式、结构化 JSON、工具往返、指令优先级、多轮上下文。',
+          full: '基础、流式、结构化与嵌套 JSON、指令优先级、多轮上下文、工具往返、指定工具、禁用工具、多工具调用。'}[mode.value])
+      : chosen()?.id === 'other' || (chosen()?.route === 'openai' && chosen()?.id !== 'openai')
+        ? '其他厂商兼容接口目前只支持基础请求与流式检查，按所选深度执行。'
+        : '运行当前模型与接口适用的项目；未支持、未完成的项目不算通过。';
+    const requests = responses ? responsesPlan.requests[mode.value] : {quick: 2, standard: 3, full: 5}[mode.value];
     el('quick-budget').textContent = bounded
-      ? `本次最多 ${{quick: 2, standard: 3, full: 5}[mode.value]} 次模型请求，每次输出上限 4096 Token（含推理）；费用由你的 Key 承担。`
+      ? `本次最多 ${requests} 次模型请求，每次输出上限 4096 Token（含推理）；费用由你的 Key 承担，不自动重试。`
       : `${modeLabels[mode.value] || '检测'}，不额外发送付费预检；不启用长上下文。请求会消耗你的上游 API 额度。`;
     start.disabled = !secure() || !spec || submitting || completed || uncertain;
     load.disabled = !secure() || !spec || submitting || completed || uncertain || !!probeController
@@ -165,6 +176,7 @@
     const data = new FormData();
     data.set('base_url', values.url); data.set('api_key', values.apiKey);
     data.set('model', model.value); data.set('mode', mode.value); data.set('wire_api', wire.value);
+    if (wire.value === 'responses') data.set('responses_suite', 'extended');
     // The first real probe in the job checks availability. Avoid an extra
     // paid ping / model-confirmation step before opening the progress page.
     data.set('force', 'true');

@@ -82,7 +82,7 @@
 
 <div class="detect-layout">
 <section class="card form-card">
-  <form id="detect-form"{% if prefill %} data-prepared="true"{% endif %} data-endpoint="/api/detect/openai" method="post" action="/api/detect/openai" autocomplete="off">
+  <form id="detect-form" data-responses-plan='{{ responses_plan|tojson }}'{% if prefill %} data-prepared="true"{% endif %} data-endpoint="/api/detect/openai" method="post" action="/api/detect/openai" autocomplete="off">
     <div class="field">
       <label for="model-vendor">模型厂商</label>
       <select id="model-vendor" data-picker="search" data-catalog='{{ vendors|tojson }}'>
@@ -114,9 +114,9 @@
       <div class="field">
         <label for="mode">检测深度</label>
         <select id="mode" name="mode" data-picker>
-          <option value="quick"{% if vendor.id == 'openai' %} selected{% endif %}>快速 · 基础检测</option>
+          <option value="quick">快速 · 基础检测</option>
           <option value="standard"{% if vendor.id != 'openai' %} selected{% endif %}>标准 · 协议与流式检查</option>
-          <option value="full">完整 · 全部适用项目</option>
+          <option value="full"{% if vendor.id == 'openai' %} selected{% endif %}>完整 · 全部适用项目</option>
         </select>
       </div>
     </div>
@@ -128,7 +128,8 @@
         <option value="chat_completions"{% if vendor.id != 'openai' %} selected{% endif %}>Chat Completions · 兼容接口</option>
       </select>
       <p class="hint" id="wire-api-hint" aria-live="polite">按你的客户端使用的接口选择。只检测所选接口，不会失败后自动切换或重试。</p>
-      <p class="hint" id="responses-budget" aria-live="polite">Responses 快速档最多 2 次请求：基础回复与流式完整性。每次输出上限 4,096 Token（含推理），由你的 Key 支付；实际费用取决于模型和服务商价格。</p>
+      <input id="responses-suite" type="hidden" name="responses_suite" value="extended"{% if vendor.id != 'openai' %} disabled{% endif %}>
+      <p class="hint" id="responses-budget" aria-live="polite">Responses 完整档 {{ responses_plan.checks.full }} 项能力检查，最多 {{ responses_plan.requests.full }} 次模型请求。每次输出上限 4,096 Token（含推理），由你的 Key 支付；实际费用取决于模型和服务商价格。</p>
     </div>
 
     <details class="detect-extra" id="chat-advanced-options">

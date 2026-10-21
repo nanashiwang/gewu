@@ -516,3 +516,14 @@ async def test_invalid_report_warning_stays_above_summary_and_never_gets_a_valid
         assert 'score-unavailable' in html
         assert 'style="--score:0"' in html
         assert '<details class="card report-context">' in html
+
+
+def test_shared_usage_keeps_missing_usage_warning_and_safe_request_count():
+    original = sample_report()
+    original['performance'].update(usage_complete=False, request_count=12)
+    safe = report_access.summary_report(original)
+    assert safe['performance']['usage_complete'] is False
+    assert safe['performance']['request_count'] == 12
+    for invalid in (True, -1, 'secret-request-metadata', float('inf')):
+        original['performance']['request_count'] = invalid
+        assert 'request_count' not in report_access.summary_report(original)['performance']

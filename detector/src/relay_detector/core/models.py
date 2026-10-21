@@ -32,6 +32,7 @@ class DetectionTier(str, Enum):
 class ExecutionConfig(BaseModel):
     mode: Mode = Mode.QUICK
     openai_wire_api: Literal["chat_completions", "responses"] = "chat_completions"
+    responses_suite: Literal["core", "extended"] = "core"
     gemini_wire_api: Literal["chat_completions", "interactions", "generate_content"] = "chat_completions"
     max_concurrent: int = 3
     request_timeout_s: float = 30.0
@@ -61,6 +62,8 @@ class ExecutionConfig(BaseModel):
             Mode.STANDARD: 120.0,
             Mode.FULL: 180.0,
         }
+        if overrides.get("responses_suite") == "extended":
+            defaults.update({Mode.STANDARD: 240.0, Mode.FULL: 360.0})
         return cls(mode=mode, overall_timeout_s=defaults[mode], **overrides)
 
 

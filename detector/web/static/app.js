@@ -7,22 +7,20 @@
   if (!wire || !mode) return;
   const budget = document.getElementById('responses-budget');
   const advanced = document.getElementById('chat-advanced-options');
-  const plans = {
-    quick: '最多 2 次请求：基础回复与流式完整性',
-    standard: '最多 3 次请求：基础回复、流式完整性、结构化输出',
-    full: '最多 5 次请求：基础回复、流式完整性、结构化输出、工具调用往返',
-  };
+  const plan = JSON.parse(document.getElementById('detect-form').dataset.responsesPlan);
   function update() {
     const responses = wire.value === 'responses';
+    const suite = document.getElementById('responses-suite');
+    if (suite) suite.disabled = !responses;
     budget.hidden = !responses;
     advanced.hidden = responses;
     advanced.querySelectorAll('input[type="checkbox"]').forEach(input => {
       input.disabled = responses;
       if (responses) input.checked = false;
     });
-    budget.textContent = `Responses ${plans[mode.value]}。每次输出上限 4,096 Token（含推理），不自动重试；由你的 Key 支付，实际费用取决于模型和服务商价格。`;
+    budget.textContent = `Responses ${plan.checks[mode.value]} 项能力检查，最多 ${plan.requests[mode.value]} 次请求。每次输出上限 4,096 Token（含推理），不自动重试；由你的 Key 支付，实际费用取决于模型和服务商价格。`;
     const labels = responses
-      ? ['快速 · 基础与流式', '标准 · 加测结构化输出', '完整 · 加测工具往返']
+      ? ['quick', 'standard', 'full'].map((level, i) => `${['快速', '标准', '完整'][i]} · ${plan.checks[level]} 项能力`)
       : ['快速 · 基础请求', '标准 · 协议与流式检查', '完整 · 全部适用项目'];
     Array.from(mode.options).forEach((option, index) => { option.textContent = labels[index]; });
     if (responses) {

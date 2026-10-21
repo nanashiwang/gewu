@@ -14,12 +14,17 @@ def resolve_wire_api(protocol: str, value: str | None = None) -> str:
     return value
 
 
-def capability_notes(wire_api: str) -> list[str]:
+def capability_notes(wire_api: str, *, extended: bool = False) -> list[str]:
     label = WIRE_APIS[wire_api]["label"]
-    return [
+    notes = [
         f"本报告通过 {label} 检测；仅代表本次、此模型、此接口的已测能力。",
         "快速检测验证基础回复和流式完整性；标准增加结构化 JSON；完整增加本地函数调用往返。",
         "最多发送 2 / 3 / 5 次请求，每次输出上限 4096 tokens；无额外付费预检、自动重试或接口切换。",
         "不验证模型身份、长上下文或实际扣费；不与其他接口的分数直接比较，也不进入公共榜单。",
         "失败、未完成或用量缺失会明确标注；用量含上游报告的思考 tokens，不等于实际账单。",
     ]
+
+    if wire_api == "responses" and extended:
+        notes[1] = "增强方案：快速 2 项、标准 6 项、完整 10 项；完整涵盖基础、流式、结构化与嵌套 JSON、指令优先级、多轮上下文、工具往返、指定工具、禁用工具与多工具调用。"
+        notes[2] = "增强方案最多发送 2 / 8 / 12 次请求，每次输出上限 4096 tokens；工具只在本地模拟，不执行外部操作，无额外付费预检、重试或接口切换。"
+    return notes
