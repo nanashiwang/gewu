@@ -455,6 +455,9 @@ def render_report_jpg(report: dict[str, Any], *, assessment: dict | None = None)
         prefix = "responses" if report.get("wire_api") == "responses" else "gemini"
         labels = [("basic_request", "基础回复"), (prefix + "_stream", "流式完整性"),
                   (prefix + "_schema", "结构化输出"), (prefix + "_tools", "工具调用往返")]
+        from relay_detector.protocols.openai.responses_extended import EXTENDED_PROBE_VERSION, EXTENDED_LABELS
+        if report.get("wire_api") == "responses" and report.get("probe_version") == EXTENDED_PROBE_VERSION:
+            labels += list(EXTENDED_LABELS)
     for i, (name, label) in enumerate(labels):
         ry = rows_top + i * row_h
         result = by_name.get(name) or {}
@@ -540,7 +543,7 @@ def render_report_jpg(report: dict[str, Any], *, assessment: dict | None = None)
     metrics = [
         ("首 TOKEN", f"{_format_count(ttft)}ms" if ttft is not None else "—"),
         ("总耗时", f"{_format_count(perf.get('total_latency_ms'))}ms"),
-        ("吞吐 T/S", _format_count(_tokens_per_second(report))),
+        ("整批输出 T/S", _format_count(_tokens_per_second(report))),
         ("输入 TOKENS", _format_count(usage.get("input_tokens"))),
         ("输出 TOKENS", _format_count(usage.get("output_tokens"))),
     ]

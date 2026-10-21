@@ -1,6 +1,7 @@
 """Homepage Key handoff stays transient, same-origin and inference-free."""
 from dataclasses import replace
 from html.parser import HTMLParser
+import json
 from urllib.parse import urlencode
 
 import pytest
@@ -60,8 +61,11 @@ def test_home_has_a_password_field_and_direct_detection_action():
     assert form["method"] == "post"
     assert form["action"] == "/api/detect/claude"
     assert "data-direct-detection" in form
+    plan = json.loads(form["data-responses-plan"])
+    assert plan["checks"]["full"] == 10 and plan["requests"]["full"] == 12
+    assert any(tag == "option" and attrs.get("value") == "full" and "selected" in attrs for tag, attrs in controls.elements)
     assert "disabled" in controls.by_id("quick-start")
-    assert '/static/home-detect.js?v=direct-flow-1' in response.text
+    assert '/static/home-detect.js?v=expanded-checks-1' in response.text
     key = controls.by_id("quick-api-key")
     assert key["type"] == "password" and key["name"] == "api_key"
     assert key["autocomplete"] == "new-password"

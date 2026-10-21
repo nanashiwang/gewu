@@ -77,6 +77,8 @@
     const params = new URLSearchParams({protocol, model: model.value, mode: document.getElementById('mode').value});
     const wire = document.getElementById('wire-api') || document.getElementById('gemini-wire-api');
     if (wire) params.set('wire_api', wire.value);
+    const suite = document.getElementById('responses-suite');
+    if (suite && !suite.disabled) params.set('responses_suite', suite.value);
     for (const name of ['include_long_context', 'include_long_context_extreme']) {
       const input = document.getElementById(name);
       params.set(name, String(!!input?.checked && !input.disabled));

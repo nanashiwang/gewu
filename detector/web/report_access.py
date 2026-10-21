@@ -159,8 +159,9 @@ def summary_report(report: dict) -> dict:
         return {key: source[key] for key in keys
                 if isinstance(source.get(key), (int, float)) and not isinstance(source[key], bool)
                 and math.isfinite(source[key]) and source[key] >= 0}
-    safe["performance"] = numeric(perf, ("ttft_ms", "total_latency_ms", "tokens_per_second"))
+    safe["performance"] = numeric(perf, ("ttft_ms", "total_latency_ms", "tokens_per_second", "request_count"))
     safe["performance"]["usage"] = numeric(usage, ("input_tokens", "output_tokens"))
+    safe["performance"]["usage_complete"] = perf.get("usage_complete", True) is True
     safe["performance_complete"] = report.get("performance_complete", True) is True
     return safe
 

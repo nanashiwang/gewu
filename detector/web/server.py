@@ -208,6 +208,11 @@ templates.env.globals["brand"] = brand
 templates.env.globals["model_catalog"] = catalog_view
 from relay_detector.wire_apis import WIRE_APIS
 templates.env.globals["wire_apis"] = WIRE_APIS
+from relay_detector.protocols.openai.responses_extended import (
+    EXTENDED_PROBE_VERSION, EXTENDED_REQUEST_LIMITS, EXTENDED_CHECK_COUNTS, EXTENDED_LABELS,
+)
+templates.env.globals["responses_plan"] = {"requests": EXTENDED_REQUEST_LIMITS, "checks": EXTENDED_CHECK_COUNTS}
+templates.env.globals["extended_responses_version"] = EXTENDED_PROBE_VERSION
 
 
 _CONTENT_SECURITY_POLICY = "; ".join(
@@ -600,11 +605,12 @@ async def detection_scope_api(
     wire_api: str | None = Query(default=None, max_length=32),
     include_long_context: bool = False,
     include_long_context_extreme: bool = False,
+    responses_suite: Literal["core", "extended"] = "core",
 ) -> JSONResponse:
     from .detection_scope import detection_scope
     try:
         result = await run_in_threadpool(detection_scope, protocol, model, mode, wire_api,
-                                        include_long_context, include_long_context_extreme)
+                                        include_long_context, include_long_context_extreme, responses_suite)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return JSONResponse(result, headers={"Cache-Control": "no-store"})
@@ -1130,7 +1136,10 @@ async def api_detect_openai(
     include_long_context: bool = Form(False),
     include_long_context_extreme: bool = Form(False),
     wire_api: str = Form("chat_completions"),
+    responses_suite: str = Form("core"),
 ) -> JSONResponse:
+    if responses_suite not in {"core", "extended"} or (responses_suite == "extended" and wire_api != "responses"):
+        raise HTTPException(status_code=400, detail="Responses 检测方案与接口不匹配")
     base_url = await _validated_target_or_400(base_url)
     api_key = _validated_api_key_or_400(api_key)
     model = _validated_model_or_400(model)
@@ -1157,6 +1166,7 @@ async def api_detect_openai(
         request, base_url, api_key, model, mode,
         protocol="openai",
         wire_api=wire_api,
+        responses_suite=responses_suite,
         include_long_context=include_long_context,
         include_long_context_extreme=include_long_context_extreme,
     )
@@ -1731,6 +1741,12 @@ _CHECK_DESCRIPTIONS = {
     "responses_stream": "检查 Responses 流式事件及结束信号是否完整。",
     "responses_schema": "检查 Responses 输出是否满足 JSON 结构约束。",
     "responses_tools": "检查本地工具调用和结果回传能否完成。",
+    "responses_instructions": "用冲突的用户指令核验较高优先级规则是否被保留。",
+    "responses_context": "回传上一轮上下文，核验模型能否找回随机标记。",
+    "responses_nested_schema": "核验嵌套对象、数组、枚举和整数类型，不接受多余字段。",
+    "responses_tool_selection": "提供多个工具，核验指定的工具名和严格参数。",
+    "responses_tool_disabled": "禁用工具调用后，检查是否只返回指定文本。",
+    "responses_parallel_tools": "请求两个独立工具，核验调用标识和各自参数；未执行外部工具。",
     "gemini_stream": "检查所选 Gemini 接口的流式输出是否完整。",
     "gemini_schema": "检查所选 Gemini 接口的结构化输出。",
     "gemini_tools": "检查所选 Gemini 接口的工具调用往返。",
@@ -1788,6 +1804,8 @@ def _result_rows(report: dict) -> list[dict]:
         prefix = "responses" if report.get("wire_api") == "responses" else "gemini"
         display = [("basic_request", "基础回复"), (prefix + "_stream", "流式完整性"),
                    (prefix + "_schema", "结构化输出"), (prefix + "_tools", "工具调用往返")]
+        if report.get("wire_api") == "responses" and report.get("probe_version") == EXTENDED_PROBE_VERSION:
+            display += list(EXTENDED_LABELS)
     for name, label in display:
         r = by_name.get(name) or {"status": "skip", "score": 0.0}
         status = str(r.get("status") or "skip")
@@ -1840,7 +1858,7 @@ def _report_notes(report: dict) -> list[dict[str, str]]:
     protocol = str(report.get("protocol") or "anthropic")
     if report.get("wire_api") in {"responses", "interactions", "generate_content"}:
         from relay_detector.wire_apis import capability_notes
-        notes = [{"title": WIRE_APIS[report["wire_api"]]["label"] + " 检测范围", "body": " ".join(capability_notes(report["wire_api"]))}]
+        notes = [{"title": WIRE_APIS[report["wire_api"]]["label"] + " 检测范围", "body": " ".join(capability_notes(report["wire_api"], extended=report.get("probe_version") == EXTENDED_PROBE_VERSION))}]
         for row in report.get("results") or []:
             if row.get("status") == "pass":
                 continue

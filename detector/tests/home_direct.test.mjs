@@ -26,12 +26,13 @@ function element(id, value = '') {
 function fixture({vendor = 'openai', url = 'https://gewu.example/'} = {}) {
   const ids = Object.fromEntries(['quick-check', 'quick-base-url', 'quick-api-key', 'quick-vendor', 'quick-model',
     'quick-mode', 'quick-wire', 'quick-start', 'quick-load-models', 'quick-check-error', 'quick-model-hint',
-    'quick-plan-label', 'quick-budget'].map(id => [id, element(id)]));
+    'quick-plan-label', 'quick-budget', 'quick-coverage'].map(id => [id, element(id)]));
   const form = ids['quick-check']; form.attributes['data-direct-detection'] = '';
   form.querySelectorAll = () => ['quick-base-url', 'quick-api-key', 'quick-vendor', 'quick-model', 'quick-mode', 'quick-wire', 'quick-start', 'quick-load-models'].map(id => ids[id]);
   ids['quick-vendor'].value = vendor;
   ids['quick-vendor'].dataset.catalog = JSON.stringify(catalog);
-  ids['quick-mode'].value = 'quick';
+  form.dataset.responsesPlan = JSON.stringify({requests: {quick: 2, standard: 8, full: 12}, checks: {quick: 2, standard: 6, full: 10}});
+  ids['quick-mode'].value = 'full';
   ids['quick-base-url'].value = 'https://relay.example/v1';
   ids['quick-api-key'].value = KEY;
   const window = element('window'), timers = new Map(); let counter = 0;
@@ -76,13 +77,29 @@ describe('Homepage directly starts a real job, without a confirmation page', () 
     expect(f.calls).toHaveLength(1);
     expect(f.calls[0].url).toBe('/api/detect/' + route);
     expect(f.calls[0].data).toMatchObject({base_url: 'https://relay.example/v1', api_key: KEY,
-      mode: 'quick', force: 'true', include_long_context: 'false', include_long_context_extreme: 'false'});
+      mode: 'full', force: 'true', include_long_context: 'false', include_long_context_extreme: 'false'});
     expect(f.calls[0].data.wire_api).toBe(vendor === 'openai' ? 'responses' : route === 'claude' ? 'messages' : 'chat_completions');
+    expect(f.calls[0].data.responses_suite).toBe(vendor === 'openai' ? 'extended' : undefined);
     expect(f.location.assign).toHaveBeenCalledExactlyOnceWith('/r/' + JOB);
     expect(f.ids['quick-api-key'].value).toBe('');
     expect(f.storage.setItem).not.toHaveBeenCalled();
     expect(f.ids['quick-start'].disabled).toBe(true);
     expect(f.timers.size).toBe(0);
+  });
+
+  it('discloses the expanded ten-check plan and request cap before submission', async () => {
+    const f = fixture();
+    expect(f.ids['quick-mode'].value).toBe('full');
+    expect(f.ids['quick-coverage'].textContent).toContain('10 项');
+    expect(f.ids['quick-budget'].textContent).toContain('最多 12 次');
+    expect(f.calls).toHaveLength(0);
+    await f.change('quick-mode', 'standard');
+    expect(f.ids['quick-coverage'].textContent).toContain('6 项');
+    expect(f.ids['quick-budget'].textContent).toContain('最多 8 次');
+    await f.change('quick-mode', 'quick');
+    expect(f.ids['quick-budget'].textContent).toContain('最多 2 次');
+    await f.submit();
+    expect(f.calls[0].data).toMatchObject({mode: 'quick', responses_suite: 'extended'});
   });
 
   it('keeps interface and depth explicit, with long-context probes always off', async () => {

@@ -72,6 +72,7 @@ class Job:
     id: str
     protocol: str = "anthropic"
     wire_api: str | None = None
+    responses_suite: str = "core"
     status: JobStatus = "queued"
     base_url: str = ""
     target_model: str = ""
@@ -132,6 +133,13 @@ def _load_report(job_id: str) -> dict | None:
     return None
 
 
+def _probe_version(suite: str) -> str:
+    if suite == "extended":
+        from relay_detector.protocols.openai.responses_extended import EXTENDED_PROBE_VERSION
+        return EXTENDED_PROBE_VERSION
+    return PROBE_VERSION
+
+
 def _finish_failure(job: Job, status: JobStatus, message: str) -> None:
     job.status, job.error, job.finished_at = status, message, time.time()
     job.progress["stage"] = status
@@ -148,7 +156,7 @@ def _finish_failure(job: Job, status: JobStatus, message: str) -> None:
     # Preserve completed evidence, even when cancellation happened before the
     # first probe. run_error prevents this partial report from receiving a score.
     report = DetectionReport(
-        scoring_version=SCORING_VERSION, probe_version=PROBE_VERSION,
+        scoring_version=SCORING_VERSION, probe_version=_probe_version(job.responses_suite),
         protocol=Protocol(job.protocol), tier=DetectionTier.PROTOCOL,
         wire_api=job.wire_api,
         tier_title="未完成的检测", tier_message="仅保留已经完成的证据，本次暂不计分。",
@@ -302,6 +310,7 @@ async def submit(
     wire_api: str = "chat_completions",
     owner_token: str | None = None,
     account_owner_secret: str | None = None,
+    responses_suite: str = "core",
 ) -> str:
     """Queue a detection job and return the job id immediately.
 
@@ -314,6 +323,8 @@ async def submit(
         but capped at Y<X" fraud that the standard tier misses on big
         models. Implies standard (it's a superset).
     """
+    if responses_suite not in {"core", "extended"} or (responses_suite == "extended" and (protocol != "openai" or wire_api != "responses")):
+        raise ValueError("Responses 检测方案与接口不匹配")
     job_id = _new_job_id()
     if account_owner_secret:
         owner_token = report_access.account_owner(account_owner_secret, job_id)
@@ -325,6 +336,7 @@ async def submit(
         target_model=redact_text(model, api_key),
         mode=mode,
         access_version=report_access.VERSION if owner_token else 0,
+        responses_suite=responses_suite,
     )
     async with _LOCK:
         with deployment_gate.admission(JOBS_DIR):
@@ -452,7 +464,7 @@ async def _run(
 
         try:
             _save_state(j)
-            cfg = ExecutionConfig.for_mode(Mode(mode), max_concurrent=3)
+            cfg = ExecutionConfig.for_mode(Mode(mode), max_concurrent=3, responses_suite=j.responses_suite)
             from relay_detector.wire_apis import resolve_wire_api
             resolve_wire_api(protocol, wire_api if protocol != "anthropic" else None)
             if protocol == "openai":
@@ -541,7 +553,7 @@ async def _run(
                 break
 
             report = DetectionReport(
-                scoring_version=SCORING_VERSION, probe_version=PROBE_VERSION,
+                scoring_version=SCORING_VERSION, probe_version=_probe_version(j.responses_suite),
                 protocol=report_protocol,
                 wire_api=wire_api if protocol in {"openai", "gemini"} else None,
                 tier=report_tier,

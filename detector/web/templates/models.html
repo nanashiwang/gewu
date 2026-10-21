@@ -5,7 +5,7 @@
 <section class="hero"><h1>模型目录</h1><p class="hero-sub">{{ catalog.vendor_count }} 家厂商 · 官方资料核对于 {{ catalog.verified_on }}{% if catalog.stale %} · 已超过复核周期，目录待更新{% endif %}</p></section>
 <section class="card">
   <p>目录提供经过人工核对的文本模型候选。填写地址和 Key 后，会读取该接口声明的模型；目录收录与接口声明都不保证实际可用，也不是模型身份认证。</p>
-  <p>Claude 使用 Messages；GPT 可选择 Responses 或 Chat Completions；Gemini 可选择 Interactions、generateContent 或兼容接口。Responses 与 Gemini 原生接口按深度检查基础回复、流式输出、结构化 JSON 和本地工具往返，不验证模型身份。</p>
+  <p>Claude 使用 Messages；GPT 可选择 Responses 或 Chat Completions；Gemini 可选择 Interactions、generateContent 或兼容接口。Responses 增强方案完整档检查 10 项接口能力，包含指令优先级、多轮上下文、嵌套 JSON 与工具约束；Gemini 原生接口按深度检查基础、流式、结构化 JSON 和工具往返。两者均不验证模型身份。</p>
   <p>其他厂商使用 Chat Completions 时，快速档检查基础请求，标准与完整档增加流式一致性，不套用 OpenAI 指纹与计费标准。具体计划在检测表单中随模型与接口显示，以实际完成的证据为准。</p>
   <p>图片、音频、Embedding 不属于本检测器的文本检测范围。Responses 专用文本模型应选择对应接口。目录每日检查官方页面变化与复核期限；发现变化后人工核对，不自动导入未经验证的型号。</p>
   <p><a href="/leaderboard/sources">查看官方基线库存与外部故障参考 →</a>。目录收录不代表已有官方基线，外部状态也不参与检测评分。</p>

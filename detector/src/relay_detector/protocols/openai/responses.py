@@ -1,6 +1,6 @@
 """Bounded Responses capability probes. No identity claims or automatic fallback.
 
-Every run has at most 2/3/5 requests (quick/standard/full), no retries, no
+Core runs have at most 2/3/5 requests; explicit extended runs have 2/8/12. No retries, no
 extra TTFT request, and no hosted tools. Upstream state storage is disabled.
 """
 from __future__ import annotations
@@ -298,6 +298,13 @@ def build_responses_runner(base, config: ExecutionConfig) -> Runner:
     modes = {Mode.QUICK: {"basic_request", "responses_stream"},
              Mode.STANDARD: {"basic_request", "responses_stream", "responses_schema"},
              Mode.FULL: {d.name for d in detectors}}
+    limits = REQUEST_LIMITS
+    if config.responses_suite == "extended":
+        from .responses_extended import additional_probes, EXTENDED_REQUEST_LIMITS
+        detectors += additional_probes()
+        modes[Mode.STANDARD] |= {"responses_tools", "responses_instructions", "responses_context"}
+        modes[Mode.FULL] = {d.name for d in detectors}
+        limits = EXTENDED_REQUEST_LIMITS
     return Runner(base, detectors, config.model_copy(update={"stop_on_auth_failure": True, "max_concurrent": 1}),
                   mode_detectors=modes,
-                  throttled_client_factory=lambda client, _passive, _concurrency: ResponsesClient(client, REQUEST_LIMITS[config.mode]))
+                  throttled_client_factory=lambda client, _passive, _concurrency: ResponsesClient(client, limits[config.mode]))
