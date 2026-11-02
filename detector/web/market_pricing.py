@@ -58,6 +58,11 @@ class MarketModelPrice:
     is_hot: bool = False
 
     @property
+    def comparison_url(self) -> str:
+        from .model_routes import comparison_url
+        return comparison_url(self.model, self.billing_method)
+
+    @property
     def billing_key(self) -> str:
         return next(
             (key for number, key, _ in _BILLING_METHODS if number == self.billing_method),

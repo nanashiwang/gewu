@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ model_name }} · 站点与线路比较 | 格物{% endblock %}
+{% block description %}比较同一模型在不同平台与分组的公开评级、价格、稳定性和响应表现。{% endblock %}
+{% block canonical %}{{ brand.url(item.comparison_url) if item else brand.url('/pricing') }}{% endblock %}
+{% block og_url %}{{ brand.url(item.comparison_url) if item else brand.url('/pricing') }}{% endblock %}
+{% block body_class %}page-model-comparison{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/model-comparison.css?v=20261102-5" />{% endblock %}
+{% macro amount(value) %}{% if value is not none %}¥{{ ("%.4f"|format(value)).rstrip('0').rstrip('.') }}{% else %}—{% endif %}{% endmacro %}
+{% block content %}
+<nav class="breadcrumb" aria-label="面包屑"><a href="/pricing">模型价格</a><span>›</span><span>{{ model_name }}</span></nav>
+<header class="mc-heading">
+  <div class="mc-model-identity"><span class="mc-model-mark" aria-hidden="true">{{ item.company[:1] if item else 'M' }}</span><div><h1>{{ model_name }}</h1><p>{% if item %}{{ item.company }}<span>·</span>{{ item.billing_label }}{% if item.published_at %}<span>·</span>{{ item.published_at }} 发布{% endif %}{% endif %}</p></div></div>
+  <a class="mc-back" href="/pricing">← 全部模型</a>
+</header>
+{% if item %}<div class="mc-abilities">{% for ability in item.abilities %}<span>{{ ability }}</span>{% endfor %}</div>{% endif %}
+{% if routes is not none %}
+<div class="mc-section-title"><div><h2>平台线路比较</h2><span><b>{{ routes.shops|length }}</b> 家平台 <i>·</i> <b>{{ routes.rows|length }}</b> 条线路</span></div><a class="mc-source" href="{{ routes.source_url }}" target="_blank" rel="noopener noreferrer">Oken 数据 ↗</a></div>
+<div class="mc-grade-tabs" role="group" aria-label="线路评级" aria-describedby="mc-grade-help">
+  <button type="button" class="mc-grade-tab" data-mc-grade="" aria-pressed="true"><span>全部线路</span><strong>{{ routes.rows|length }}</strong></button>
+  {% for grade in ['S','A','B','C'] %}<button type="button" class="mc-grade-tab" data-mc-grade="{{ grade }}" aria-pressed="false"><span><i class="mc-tier-dot mc-tier-{{ grade|lower }}"></i>{{ grade }} 级</span><strong>{{ routes.rows|selectattr('grade','equalto',grade)|list|length }}</strong></button>{% endfor %}
+  <button type="button" class="mc-grade-tab" data-mc-grade="unrated" aria-pressed="false"><span>暂无评级</span><strong>{{ routes.rows|rejectattr('official')|rejectattr('grade')|list|length }}</strong></button>
+  <button type="button" class="mc-grade-tab" data-mc-grade="official" aria-pressed="false"><span>官方基准</span><strong>{{ routes.rows|selectattr('official')|list|length }}</strong></button>
+</div>
+{% if routes.partial %}<p class="mc-warning" role="status">来源共 {{ routes.total }} 条，本页展示前 {{ routes.rows|length }} 条；筛选与排序仅作用于这些线路。<a href="{{ routes.source_url }}" target="_blank" rel="noopener noreferrer">查看完整来源</a></p>{% endif %}
+<section class="mc-workbench">
+<form class="mc-filters" onsubmit="return false" role="search">
+<label class="mc-search"><svg aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg><input aria-label="搜索平台或线路" type="search" id="mc-search" placeholder="搜索平台或线路" maxlength="120"></label>
+<label class="mc-select-label"><span>平台</span><select aria-label="平台" id="mc-shop"><option value="">全部平台</option>{% for shop in routes.shops %}<option>{{ shop }}</option>{% endfor %}</select></label>
+<label class="mc-select-label"><span>排序</span><select aria-label="排序" id="mc-sort"><option value="source">默认顺序</option><option value="grade">评级优先</option>{% if item.billing_method in [1,2] %}<option value="price">{{ '输入价' if item.billing_method == 1 else '按次价' }}最低</option>{% endif %}<option value="stability">稳定性最高</option></select></label>
+<button type="button" id="mc-reset" class="mc-reset">重置</button>
+<span id="mc-count" aria-live="polite">{{ routes.rows|length }} 条线路</span>
+</form>
+<div class="mc-quick-filters">
+  <label><input type="checkbox" id="mc-rated">仅看有评级</label>
+  <label><input type="checkbox" id="mc-monitored">仅看有稳定性数据</label>
+  <span id="mc-grade-help">评级数量随平台、搜索和勾选条件变化</span>
+</div>
+<noscript><p class="mc-warning">启用 JavaScript 可筛选、分页和展开详情。当前展示已读取的全部线路，详细条件可在原始来源核对。</p></noscript>
+<div class="mc-table-scroll" role="region" aria-label="线路比较表，可横向滚动" tabindex="0"><table class="mc-table"><thead><tr><th>评级</th><th>平台 / 线路</th><th>模型一致性</th><th>Token 消耗</th><th>{{ '输入价' if item.billing_method == 1 else '按次价' if item.billing_method == 2 else '价格' }}</th>{% if item.billing_method == 1 %}<th>输出 / 缓存</th>{% endif %}<th>稳定性</th><th>响应速度</th><th>详情</th></tr></thead>
+<tbody id="mc-rows">{% for row in routes.rows %}
+<tr class="mc-row" data-rank="{{ row.rank }}" data-grade="{{ 'official' if row.official else row.grade or 'unrated' }}" data-shop="{{ row.shop }}" data-search="{{ (row.shop ~ ' ' ~ row.group)|lower }}" data-price="{{ row.input if item.billing_method == 1 and row.input is not none else row.count_price if item.billing_method == 2 and row.count_price is not none else '' }}" data-stability="{{ row.stability if row.stability is not none else '' }}">
+<td><span class="mc-grade mc-grade-{{ 'official' if row.official else row.grade|lower or 'none' }}">{{ '官方' if row.official else row.grade or '—' }}</span>{% if not row.grade and not row.official %}<small>暂无评级</small>{% endif %}</td>
+<td class="mc-platform"><strong>{{ row.shop }}</strong><small><span class="mc-route-dot"></span>{{ row.group }}</small></td><td><span class="{{ 'mc-positive' if row.identity == '通过' else 'mc-negative' if row.identity == '不通过' else '' }}">{{ row.identity }}</span></td><td><span class="mc-token {{ 'mc-token-risk' if row.token_label == '差异明显' else '' }}">{{ row.token_label }}</span></td>
+<td class="mc-price">{% if item.billing_method in [1,2] %}<strong>{{ amount(row.input if item.billing_method == 1 else row.count_price) }}</strong><small>{{ '/ 百万 Tokens' if item.billing_method == 1 else '/ 次' }}</small>{% if row.price_note %}<small class="mc-price-condition">{{ row.price_note }}</small>{% endif %}{% else %}<span>依规格计费</span>{% endif %}</td>
+{% if item.billing_method == 1 %}<td class="mc-price">{{ amount(row.output) }}<small>缓存 {{ amount(row.cache) }} / 百万 Tokens</small></td>{% endif %}
+<td class="mc-stability">{% if row.stability is not none %}<strong>{{ "%g"|format(row.stability) }}%</strong><span class="mc-meter" aria-hidden="true"><span style="width:{{ row.stability }}%"></span></span>{% else %}<span class="mc-missing">—</span><small>暂无监测</small>{% endif %}</td>
+<td>{% if row.latency is not none %}{{ "%g"|format(row.latency) }} ms{% else %}—{% endif %}<small>{% if row.tps is not none and row.tps > 0 %}{{ "%g"|format(row.tps) }} token/s{% else %}生成速度暂无{% endif %}</small></td>
+<td><button type="button" class="mc-detail-toggle" aria-expanded="false" aria-controls="mc-detail-{{ row.id }}">详情 <span aria-hidden="true">＋</span></button></td>
+</tr>
+<tr class="mc-detail-row" id="mc-detail-{{ row.id }}" hidden><td colspan="{{ 9 if item.billing_method == 1 else 8 }}"><div class="mc-detail-content"><strong>{{ row.shop }} · {{ row.group }}</strong>{% if row.price_note %}<p>{{ row.price_note }}</p>{% endif %}{% if row.endpoint %}<p>公开接口：{{ row.endpoint }}</p>{% endif %}<p>{{ row.stability_note or '来源暂无稳定性说明。' }}</p>{% if row.observed_at %}<p>来源采样时间：{{ row.observed_at }}（按来源显示）</p>{% endif %}<a href="{{ routes.source_url }}" target="_blank" rel="noopener noreferrer">查看原始线路信息 ↗</a></div></td></tr>
+{% endfor %}</tbody></table></div>
+<p class="mc-empty" id="mc-empty" {% if routes.rows %}hidden{% endif %}>暂无匹配线路，请调整筛选条件。</p>
+<nav class="mc-pagination" aria-label="线路分页" hidden><span id="mc-page-info" aria-live="polite"></span><div><button type="button" id="mc-prev">← 上一页</button><span id="mc-page-number"></span><button type="button" id="mc-next">下一页 →</button></div></nav>
+</section>
+<div class="mc-data-note"><span>读取时间 {{ routes.captured_at }} · 北京时间</span><span>价格单位：{{ '元 / 百万 Tokens' if item.billing_method == 1 else '元 / 次' if item.billing_method == 2 else '依规格计费' }}</span></div>
+<details class="mc-method"><summary>评级与价格说明</summary><p>同一平台的不同分组分开比较。S / A / B / C 为第三方线路评级，不代表格物实测；“暂无评级”不等于质量差。</p>
+<p class="mc-footnote">价格为人民币公开报价，充值档位和计费规格可能影响实际结算，展开详情查看条件。缺失数据保留为空；来源评级与监测可能在不同时间更新。</p>
+</details>
+<script src="/static/model-comparison.js?v=20261102-5" defer></script>
+{% else %}<section class="card mc-unavailable" role="status"><h2>线路数据暂时无法读取</h2><p>请稍后刷新。我们保留了模型入口，不用旧数据冒充当前评级。</p><a class="btn btn-primary" href="{{ item.comparison_url if item else request.url.path ~ '?' ~ request.url.query }}">重新读取</a> <a href="/pricing">返回模型价格</a></section>{% endif %}
+{% endblock %}

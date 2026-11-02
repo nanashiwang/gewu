@@ -713,6 +713,27 @@ async def monitor_page(request: Request) -> HTMLResponse:
     })
 
 
+@app.get("/leaderboard/models/compare", response_class=HTMLResponse)
+async def model_comparison_page(
+    request: Request,
+    model: str = Query(min_length=1, max_length=160),
+    billing: int = Query(default=1, ge=1, le=4),
+) -> HTMLResponse:
+    from .model_routes import get_model_routes
+    pricing = await get_market_pricing()
+    if pricing is None:
+        return templates.TemplateResponse(request, "model_comparison.html", {
+            "model_name": model, "item": None, "routes": None,
+        }, status_code=503)
+    item = next((row for row in pricing.prices if row.model == model and row.billing_method == billing), None)
+    if item is None:
+        raise HTTPException(status_code=404, detail="model billing variant not found")
+    routes = await get_model_routes(item.model, billing)
+    return templates.TemplateResponse(request, "model_comparison.html", {
+        "model_name": item.model, "item": item, "routes": routes,
+    }, status_code=200 if routes is not None else 503)
+
+
 @app.get("/leaderboard/{domain}", response_class=HTMLResponse)
 async def leaderboard_domain_page(request: Request, domain: str) -> HTMLResponse:
     """Render a safe decision page for every domain in the public ranking."""

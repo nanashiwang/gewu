@@ -50,9 +50,9 @@
       <nav class="site-nav" id="site-nav" aria-label="主导航">
         {% set path = request.url.path %}
         <a href="/" {% if path in ["/", "/claude", "/openai", "/gemini", "/api/status/prepare"] %}aria-current="page"{% endif %}>检测</a>
-        <a href="/leaderboard" {% if path.startswith("/leaderboard") and path != "/leaderboard/monitor" %}aria-current="page"{% endif %}>质量榜</a>
+        <a href="/leaderboard" {% if path.startswith("/leaderboard") and path not in ["/leaderboard/monitor", "/leaderboard/models/compare"] %}aria-current="page"{% endif %}>质量榜</a>
         <a href="/leaderboard/monitor" {% if path == "/leaderboard/monitor" %}aria-current="page"{% endif %}>模型观测</a>
-        <a href="/pricing" {% if path == "/pricing" %}aria-current="page"{% endif %}>模型价格</a>
+        <a href="/pricing" {% if path in ["/pricing", "/leaderboard/models/compare"] %}aria-current="page"{% endif %}>模型价格</a>
         <a href="/updates" {% if path == "/updates" %}aria-current="page"{% endif %}>动态</a>
         <a href="/faq" {% if path == "/faq" %}aria-current="page"{% endif %}>帮助</a>
         <a class="nav-login" href="/login">登录</a>
