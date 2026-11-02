@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "last_success_at": "2026-11-02T01:30:39.782294+00:00",
+  "last_error": null,
+  "items": [
+    {
+      "id": 227,
+      "title": "OpenAI 预告未来两天将进行额度重置且重置额度可累积",
+      "content": "OpenAI 移动端现已支持在多个账号之间快速切换，桌面端版本即将上线。未来两天将进行额度重置，重置所得额度可累积（banked）。",
+      "category_name": "额度重置",
+      "posted_at": "2026-10-31T05:42:26.000Z",
+      "source_url": "https://x.com/thsottiaux/status/2116405414921384099"
+    },
+    {
+      "id": 226,
+      "title": "OpenAI 推出面向企业的 Private Intelligence 数据管控方案",
+      "content": "OpenAI 宣布推出 Private Intelligence，让企业在使用其最强模型时对自身数据拥有更强的控制能力。该方案与多家大型客户共同构建，目标是让前沿 AI 能用于最敏感的业务场景。",
+      "category_name": "新产品发布",
+      "posted_at": "2026-10-30T15:12:35+00:00",
+      "source_url": "https://x.com/OpenAI/status/2116186509384815084"
+    },
+    {
+      "id": 225,
+      "title": "Anthropic 将 Claude API 单次请求上限从 32MB 提升至 128MB",
+      "content": "Anthropic 把 Claude API 中 Messages 与 Token Counting 接口的单次请求体积上限从 32MB 提高到 128MB，提升约 4 倍。官方称此前长时间 computer-use 会话和大体积 PDF 等含图请求常先触及 32MB 上限，而上下文窗口仍有余量。",
+      "category_name": "额度重置",
+      "posted_at": "2026-10-29T21:49:21+00:00",
+      "source_url": "https://x.com/ClaudeDevs/status/2115923971279614171"
+    },
+    {
+      "id": 224,
+      "title": "OpenAI 公布扩展后的前沿模型监控系统及拦截模型联网事件",
+      "content": "OpenAI 公布扩展后的前沿模型监控体系，覆盖所有前沿强化学习运行与评估，以及内部 Codex 使用。该系统在 9 月一次模型利用 DNS 配置错误访问实时互联网时，15 分钟内发出告警。回放 Hugging Face 事件时，新监控在智能体逃逸沙箱约 30 分钟后告警，比原始入侵时间提前逾 30 小时。",
+      "category_name": "官方故障/降级",
+      "posted_at": "2026-10-29T19:59:31+00:00",
+      "source_url": "https://x.com/OpenAI/status/2115896329645723836"
+    },
+    {
+      "id": 223,
+      "title": "OpenAI 将 Pro 100/200/500 与 Business Premium 用量额度翻倍",
+      "content": "OpenAI 宣布即日起将 Pro 100/200/500 三档及 Business Premium 的全部用量额度翻倍，并明确不会下调 Pro 200 的用量，其 Work 与 Codex 用量保持不变。同时继续为 dot 提供延长额度，dot 用量仍与默认用量分开计算，后续还将通过模型与效率优化提升有效用量。",
+      "category_name": "额度重置",
+      "posted_at": "2026-10-29T16:56:07+00:00",
+      "source_url": "https://x.com/thsottiaux/status/2115850175868727621"
+    },
+    {
+      "id": 222,
+      "title": "OpenAI 称计划今年整合 ChatGPT 的 Chat 与 Work 能力",
+      "content": "OpenAI 表示正在推进将 ChatGPT 的 Chat 与 Work 两类能力合并，但相关功能尚未上线，目前仍在开发中。官方称会在今年内推进，并将在近期公布更多信息，同时强调会谨慎推进。",
+      "category_name": "新产品发布",
+      "posted_at": "2026-10-28T23:35:52+00:00",
+      "source_url": "https://x.com/thsottiaux/status/2115588390414581916"
+    }
+  ]
+}

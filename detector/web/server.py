@@ -576,6 +576,14 @@ async def prepare_detection(request: Request) -> HTMLResponse:
                            prefill={"base_url": base_url, "api_key": api_key, "model": model})
 
 
+@app.get("/updates", response_class=HTMLResponse)
+async def updates_page(request: Request) -> HTMLResponse:
+    from .updates import page_data
+    return templates.TemplateResponse(request, "updates.html", {
+        "feed": await run_in_threadpool(page_data),
+    }, headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/leaderboard/models", response_class=HTMLResponse)
 async def models_page(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "models.html", {"catalog": catalog_view()})
@@ -1630,6 +1638,7 @@ _STATIC_SITEMAP_URLS = [
     ("/ranking-governance", "monthly", "0.65", "ranking_governance.html"),
     ("/pricing",     "daily",   "0.75", "pricing.html"),
     ("/faq",         "monthly", "0.8",  "faq.html"),
+    ("/updates",     "daily",   "0.7",  "updates.html"),
 ]
 
 _SITEMAP_REPORT_DIRS = [

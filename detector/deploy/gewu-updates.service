@@ -1,0 +1,10 @@
+[Unit]
+Description=GeWu public news daily snapshot
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker exec gewu-detector python -m web.updates
+TimeoutStartSec=45

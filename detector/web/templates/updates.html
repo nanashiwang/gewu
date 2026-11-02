@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}动态 · 模型与产品新消息 | 格物{% endblock %}
+{% block description %}关注模型发布、产品更新与额度调整。格物整理公开动态，保留来源与原文，按时间回看。{% endblock %}
+{% block canonical %}{{ brand.url('/updates') }}{% endblock %}
+{% block og_url %}{{ brand.url('/updates') }}{% endblock %}
+{% block og_title %}动态 | 格物{% endblock %}
+{% block body_class %}page-updates{% endblock %}
+{% block head_extra %}<link rel="stylesheet" href="/static/updates.css?v=20261102-2" />{% endblock %}
+{% block content %}
+<header class="updates-heading">
+  <div class="updates-heading-main">
+    <span class="updates-symbol" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14v15H5zM8 2v6M16 2v6M5 10h14M8 14h3M8 17h7"/></svg></span>
+    <div><h1>动态</h1><p class="updates-intro">模型发布、产品更新与额度调整</p></div>
+  </div>
+</header>
+<section class="updates-feed" aria-label="最新动态">
+  <div class="updates-feed-heading"><h2>最新发布 <span>{{ feed['items'] | length }}</span></h2><span>按原文时间排序 · 北京时间</span></div>
+  {% for item in feed['items'] %}
+  <div class="update-row">
+    <div class="update-date" aria-hidden="true"><span>{{ item.date_label[5:7] }} / {{ item.date_label[8:10] }}</span><small>{{ item.date_label[:4] }}</small></div>
+    <article class="update-card" id="post-{{ item.id }}">
+      <details class="update-details" open>
+        <summary>
+          <div class="update-summary">
+            <div class="update-meta"><span class="update-category">{{ item.category_name }}</span><time datetime="{{ item.posted_at }}">{{ item.date_label }}</time></div>
+            <h3>{{ item.title }}</h3>
+          </div>
+          <svg class="update-chevron" aria-hidden="true" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m6 8 4 4 4-4"/></svg>
+        </summary>
+        <div class="update-body">
+          <p class="update-content">{{ item.content }}</p>
+          <div class="update-bottom">
+            {% if item.source_url %}<a class="update-original" href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer">查看原文 <svg aria-hidden="true" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M4 12 12 4M4 4h8v8"/></svg></a>{% endif %}
+          </div>
+        </div>
+      </details>
+    </article>
+  </div>
+  {% else %}<p class="updates-empty">暂时没有动态。稍后再来看看。</p>{% endfor %}
+</section>
+<footer class="updates-footer">
+  {% if feed.last_error or feed.stale %}<p class="updates-notice" role="status">{% if feed.last_error %}最近一次同步未成功，当前显示已保存内容。{% else %}收录内容超过 36 小时未更新，可前往来源站点查看最新消息。{% endif %}</p>{% endif %}
+</footer>
+{% endblock %}

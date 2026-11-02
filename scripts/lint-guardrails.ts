@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
+import { isPublicNewsPostMatch } from './public-news-links'
 
 const ROOT = process.cwd()
 const IGNORED_DIRS = new Set([
@@ -127,6 +128,7 @@ function checkNoCommittedModelKeys() {
     }
     if (HIGH_ENTROPY_FIXTURE_PREFIXES.some((prefix) => relative.startsWith(prefix))) continue
     for (const match of source.matchAll(highEntropyTokenPattern)) {
+      if (isPublicNewsPostMatch(relative, source, match.index || 0, match[0].length)) continue
       fail(
         'NO_COMMITTED_HIGH_ENTROPY_TOKENS',
         `${relative}:${lineNumber(source, match.index || 0)} possible committed high-entropy token ${maskSecret(match[0])}`,
