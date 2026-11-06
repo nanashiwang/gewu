@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 from datetime import date
-from html import unescape
+from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
@@ -26,10 +26,40 @@ IDENTIFIER = re.compile(
 )
 
 
+class VisibleText(HTMLParser):
+    """Do not mistake link targets, assets or embedded scripts for model IDs."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.hidden = 0
+        self.parts = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in {"script", "style"}:
+            self.hidden += 1
+
+    def handle_endtag(self, tag):
+        if tag in {"script", "style"} and self.hidden:
+            self.hidden -= 1
+
+    def handle_data(self, data):
+        if not self.hidden:
+            self.parts.append(data)
+
+
 def extract_ids(page: str, vendor: str) -> list[str]:
-    text = re.sub(r"<(script|style)\b[^>]*>.*?</\1>", " ", page, flags=re.S | re.I)
-    text = unescape(re.sub(r"<[^>]+>", " ", text))
-    return sorted({m.lower() for m in IDENTIFIER.findall(text) if model_vendor(m) == vendor})
+    parser = VisibleText()
+    parser.feed(page)
+    # Candidates still require human review; never update the product catalog automatically.
+    noise = re.compile(
+        r"\.(?:svg|png|jpg|webp|js|css|site)$|"
+        r"(?:^|-)(?:quickstart|linkedin|docs|cli|tool-calling|best-practice)(?:-|$)|"
+        r"(?:-api(?:-|$)|-context\.|-in-(?:hermes|openclaw)|-ai-dev$)"
+    )
+    return sorted({
+        m.lower() for m in IDENTIFIER.findall(" ".join(parser.parts))
+        if model_vendor(m) == vendor and not noise.search(m.lower())
+    })
 
 
 def compare_snapshot(previous: dict, current: dict) -> dict:
@@ -39,7 +69,7 @@ def compare_snapshot(previous: dict, current: dict) -> dict:
     } for vendor in current if current[vendor] != previous.get(vendor)}
 
 
-async def audit(record: bool = False) -> int:
+async def audit(record: bool = False, report_only: bool = False, output: Path | None = None) -> int:
     found, errors = {}, {}
     async with httpx.AsyncClient(timeout=25, follow_redirects=True, headers={
         "User-Agent": "GewuCatalogAudit/1.0", "Accept-Language": "en",
@@ -65,12 +95,21 @@ async def audit(record: bool = False) -> int:
     previous = json.loads(SNAPSHOT.read_text())
     changes = compare_snapshot(previous, found)
     overdue = (date.today() - date.fromisoformat(VERIFIED_ON)).days > REVIEW_INTERVAL_DAYS
-    print(json.dumps({"verified_on": VERIFIED_ON, "review_overdue": overdue,
-                      "official_identifier_changes": changes}, ensure_ascii=False, indent=2))
-    return 1 if changes or overdue else 0
+    report = {"verified_on": VERIFIED_ON, "review_overdue": overdue,
+              "official_identifier_changes": changes}
+    text = json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2)
+    print(text)
+    if output:
+        output.write_text(text + "\n", encoding="utf-8")
+    return 1 if (changes or overdue) and not report_only else 0
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--record", action="store_true", help="Record after manual source/capability review")
-    raise SystemExit(asyncio.run(audit(parser.parse_args().record)))
+    parser.add_argument("--report-only", action="store_true", help="Report review items without failing CI; source errors still fail")
+    parser.add_argument("--output", type=Path, help="Write the successful audit report as JSON")
+    args = parser.parse_args()
+    if args.record and args.report_only:
+        parser.error("--record and --report-only cannot be combined")
+    raise SystemExit(asyncio.run(audit(args.record, args.report_only, args.output)))
