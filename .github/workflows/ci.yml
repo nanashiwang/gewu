@@ -33,6 +33,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Test catalog review notifications
+        run: node --test .github/scripts/catalog-review.test.cjs
       - name: Lint guardrails
         run: npm run lint
       - name: Typecheck
